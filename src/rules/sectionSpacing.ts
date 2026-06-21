@@ -3,6 +3,16 @@ const BLANK = /^[ \t]*$/u;
 const RISKY =
   /^(?:[ \t]*$|=|\{\||\|\}|[|!]|[*#:;]|<!--|__|＿＿|\[\[(?:Category|File|Image|[A-Za-z-]+):|#\w|<|<\/|\uE000wikitext-fmt:|\{\{)/iu;
 
+export interface SectionSpacingDiagnostics {
+  sectionSpacingBeforeHeadingsInserted: number;
+  sectionSpacingAfterHeadingsInserted: number;
+}
+
+export interface SectionSpacingResult {
+  formatted: string;
+  diagnostics: SectionSpacingDiagnostics;
+}
+
 function isHeading(line: string): boolean {
   return HEADING.test(line.trimEnd());
 }
@@ -25,7 +35,11 @@ function nextNonBlank(lines: readonly string[], index: number): number {
   return -1;
 }
 
-export function formatSectionSpacing(source: string): string {
+export function formatSectionSpacing(source: string): SectionSpacingResult {
+  const diagnostics: SectionSpacingDiagnostics = {
+    sectionSpacingBeforeHeadingsInserted: 0,
+    sectionSpacingAfterHeadingsInserted: 0,
+  };
   const finalNewline = /\n$/u.test(source);
   const lines = source.split("\n");
   if (finalNewline) lines.pop();
@@ -41,6 +55,7 @@ export function formatSectionSpacing(source: string): string {
         isOrdinaryParagraph(lines[previous]!)
       ) {
         output.push("");
+        diagnostics.sectionSpacingBeforeHeadingsInserted++;
       }
     }
     output.push(line);
@@ -52,9 +67,13 @@ export function formatSectionSpacing(source: string): string {
         isOrdinaryParagraph(lines[next]!)
       ) {
         output.push("");
+        diagnostics.sectionSpacingAfterHeadingsInserted++;
       }
     }
   }
 
-  return `${output.join("\n")}${finalNewline ? "\n" : ""}`;
+  return {
+    formatted: `${output.join("\n")}${finalNewline ? "\n" : ""}`,
+    diagnostics,
+  };
 }

@@ -80,6 +80,7 @@ export function validateConfig(value: unknown): FormatOptions {
     "lineWidth",
     "formatHeadings",
     "formatTemplates",
+    "formatTemplateParameters",
     "formatCategories",
     "formatLists",
     "formatFileLinks",
@@ -122,6 +123,7 @@ export function validateConfig(value: unknown): FormatOptions {
   for (const key of [
     "formatHeadings",
     "formatTemplates",
+    "formatTemplateParameters",
     "formatCategories",
     "formatLists",
     "formatFileLinks",

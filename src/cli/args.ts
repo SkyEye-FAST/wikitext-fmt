@@ -141,6 +141,12 @@ export function parseArgs(args: string[]): CliOptions {
       case "--no-format-templates":
         options.formatTemplates = false;
         break;
+      case "--format-template-parameters":
+        options.formatTemplateParameters = true;
+        break;
+      case "--no-format-template-parameters":
+        options.formatTemplateParameters = false;
+        break;
       case "--no-format-categories":
         options.formatCategories = false;
         break;

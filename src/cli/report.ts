@@ -52,6 +52,15 @@ export function createBatchReport(files: FileDiagnostics[]): BatchReport {
         diagnostics.localizedFileNamespaceAliasesCanonicalized,
       localizedImageOptionsCanonicalized:
         diagnostics.localizedImageOptionsCanonicalized,
+      sectionSpacingBeforeHeadingsInserted:
+        diagnostics.sectionSpacingBeforeHeadingsInserted,
+      sectionSpacingAfterHeadingsInserted:
+        diagnostics.sectionSpacingAfterHeadingsInserted,
+      templateParametersFormatted: diagnostics.templateParametersFormatted,
+      templateParameterLinesFormatted:
+        diagnostics.templateParameterLinesFormatted,
+      templateParameterLinesSkippedUnsafe:
+        diagnostics.templateParameterLinesSkippedUnsafe,
     },
   };
 }

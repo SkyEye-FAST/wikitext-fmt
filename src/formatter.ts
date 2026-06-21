@@ -19,7 +19,14 @@ import {
   formatRedirects,
   type RedirectDiagnostics,
 } from "./rules/redirects.js";
-import { formatSectionSpacing } from "./rules/sectionSpacing.js";
+import {
+  formatSectionSpacing,
+  type SectionSpacingDiagnostics,
+} from "./rules/sectionSpacing.js";
+import {
+  formatTemplateParameters,
+  type TemplateParameterDiagnostics,
+} from "./rules/templateParameters.js";
 import {
   formatTablesWithDiagnostics,
   lineNumberAt,
@@ -37,6 +44,8 @@ export interface FormatDetailedResult extends FormatResult {
   footerDiagnostics: FooterDiagnostics;
   redirectDiagnostics: RedirectDiagnostics;
   fileLinkDiagnostics: FileLinkDiagnostics;
+  sectionSpacingDiagnostics: SectionSpacingDiagnostics;
+  templateParameterDiagnostics: TemplateParameterDiagnostics;
 }
 
 const emptyFooterDiagnostics = (): FooterDiagnostics => ({
@@ -62,6 +71,17 @@ const emptyFileLinkDiagnostics = (): FileLinkDiagnostics => ({
   localizedImageOptionsCanonicalized: 0,
 });
 
+const emptySectionSpacingDiagnostics = (): SectionSpacingDiagnostics => ({
+  sectionSpacingBeforeHeadingsInserted: 0,
+  sectionSpacingAfterHeadingsInserted: 0,
+});
+
+const emptyTemplateParameterDiagnostics = (): TemplateParameterDiagnostics => ({
+  templateParametersFormatted: 0,
+  templateParameterLinesFormatted: 0,
+  templateParameterLinesSkippedUnsafe: 0,
+});
+
 export function formatWikitextDetailedResult(
   source: string,
   options: FormatOptions = {},
@@ -71,6 +91,8 @@ export function formatWikitextDetailedResult(
   let footerDiagnostics = emptyFooterDiagnostics();
   let redirectDiagnostics = emptyRedirectDiagnostics();
   let fileLinkDiagnostics = emptyFileLinkDiagnostics();
+  let sectionSpacingDiagnostics = emptySectionSpacingDiagnostics();
+  let templateParameterDiagnostics = emptyTemplateParameterDiagnostics();
   try {
     const config = getParserConfig(resolved.parserConfig);
     if (!isRoundTripSafe(source, config)) {
@@ -82,6 +104,8 @@ export function formatWikitextDetailedResult(
         footerDiagnostics,
         redirectDiagnostics,
         fileLinkDiagnostics,
+        sectionSpacingDiagnostics,
+        templateParameterDiagnostics,
       };
     }
 
@@ -128,9 +152,21 @@ export function formatWikitextDetailedResult(
     let output = protectedText.text;
     if (
       resolved.formatTemplates &&
-      isRuleEnabled("templates", resolved.level)
+      isRuleEnabled("templates", resolved.level) &&
+      !(
+        resolved.formatTemplateParameters &&
+        isRuleEnabled("templateParameters", resolved.level)
+      )
     ) {
       output = formatTemplates(output, config, resolved.lineWidth);
+    }
+    if (
+      resolved.formatTemplateParameters &&
+      isRuleEnabled("templateParameters", resolved.level)
+    ) {
+      const templateParameters = formatTemplateParameters(output);
+      output = templateParameters.formatted;
+      templateParameterDiagnostics = templateParameters.diagnostics;
     }
     if (resolved.formatHeadings && isRuleEnabled("headings", resolved.level))
       output = formatHeadings(output);
@@ -164,7 +200,9 @@ export function formatWikitextDetailedResult(
       resolved.formatSectionSpacing &&
       isRuleEnabled("sectionSpacing", resolved.level)
     ) {
-      output = formatSectionSpacing(output);
+      const sectionSpacing = formatSectionSpacing(output);
+      output = sectionSpacing.formatted;
+      sectionSpacingDiagnostics = sectionSpacing.diagnostics;
     }
     if (
       resolved.normalizeBlankLines &&
@@ -213,6 +251,8 @@ export function formatWikitextDetailedResult(
         footerDiagnostics,
         redirectDiagnostics,
         fileLinkDiagnostics,
+        sectionSpacingDiagnostics,
+        templateParameterDiagnostics,
       };
     }
     return {
@@ -221,6 +261,8 @@ export function formatWikitextDetailedResult(
       footerDiagnostics,
       redirectDiagnostics,
       fileLinkDiagnostics,
+      sectionSpacingDiagnostics,
+      templateParameterDiagnostics,
     };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
@@ -231,6 +273,8 @@ export function formatWikitextDetailedResult(
       footerDiagnostics,
       redirectDiagnostics,
       fileLinkDiagnostics,
+      sectionSpacingDiagnostics,
+      templateParameterDiagnostics,
     };
   }
 }
@@ -244,6 +288,8 @@ export function formatWikitextResult(
     footerDiagnostics: _footerDiagnostics,
     redirectDiagnostics: _redirectDiagnostics,
     fileLinkDiagnostics: _fileLinkDiagnostics,
+    sectionSpacingDiagnostics: _sectionSpacingDiagnostics,
+    templateParameterDiagnostics: _templateParameterDiagnostics,
     ...result
   } = formatWikitextDetailedResult(source, options);
   return result;
@@ -265,6 +311,8 @@ export function formatWikitextSafe(
     footerDiagnostics: _footerDiagnostics,
     redirectDiagnostics: _redirectDiagnostics,
     fileLinkDiagnostics: _fileLinkDiagnostics,
+    sectionSpacingDiagnostics: _sectionSpacingDiagnostics,
+    templateParameterDiagnostics: _templateParameterDiagnostics,
     ...result
   } = formatWikitextSafeDetailed(source, options);
   return result;
@@ -278,6 +326,8 @@ export function formatWikitextSafeDetailed(
   let footerDiagnostics = emptyFooterDiagnostics();
   let redirectDiagnostics = emptyRedirectDiagnostics();
   let fileLinkDiagnostics = emptyFileLinkDiagnostics();
+  let sectionSpacingDiagnostics = emptySectionSpacingDiagnostics();
+  let templateParameterDiagnostics = emptyTemplateParameterDiagnostics();
   try {
     const resolved = resolveOptions(options);
     const config = getParserConfig(resolved.parserConfig);
@@ -288,6 +338,8 @@ export function formatWikitextSafeDetailed(
     footerDiagnostics = first.footerDiagnostics;
     redirectDiagnostics = first.redirectDiagnostics;
     fileLinkDiagnostics = first.fileLinkDiagnostics;
+    sectionSpacingDiagnostics = first.sectionSpacingDiagnostics;
+    templateParameterDiagnostics = first.templateParameterDiagnostics;
     if (first.warning)
       return {
         formatted: source,
@@ -296,6 +348,8 @@ export function formatWikitextSafeDetailed(
         footerDiagnostics,
         redirectDiagnostics,
         fileLinkDiagnostics,
+        sectionSpacingDiagnostics,
+        templateParameterDiagnostics,
       };
     parseWikitext(first.formatted, config);
 
@@ -308,6 +362,8 @@ export function formatWikitextSafeDetailed(
         footerDiagnostics,
         redirectDiagnostics,
         fileLinkDiagnostics,
+        sectionSpacingDiagnostics,
+        templateParameterDiagnostics,
       };
     }
     parseWikitext(second.formatted, config);
@@ -320,6 +376,8 @@ export function formatWikitextSafeDetailed(
         footerDiagnostics,
         redirectDiagnostics,
         fileLinkDiagnostics,
+        sectionSpacingDiagnostics,
+        templateParameterDiagnostics,
       };
     }
     return first;
@@ -332,6 +390,8 @@ export function formatWikitextSafeDetailed(
       footerDiagnostics,
       redirectDiagnostics,
       fileLinkDiagnostics,
+      sectionSpacingDiagnostics,
+      templateParameterDiagnostics,
     };
   }
 }

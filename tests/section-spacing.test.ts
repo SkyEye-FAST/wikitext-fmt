@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatWikitext } from "../src/index.js";
+import { formatWikitext, formatWikitextDetailedResult } from "../src/index.js";
 
 const options = {
   level: "experimental" as const,
@@ -47,5 +47,16 @@ describe("experimental section spacing", () => {
         formatSectionSpacing: false,
       }),
     ).toBe("Intro\n== Title ==\nText\n");
+  });
+
+  it("reports inserted spacing diagnostics", () => {
+    const result = formatWikitextDetailedResult(
+      "Intro\n==Title==\nText\n",
+      options,
+    );
+    expect(result.sectionSpacingDiagnostics).toEqual({
+      sectionSpacingBeforeHeadingsInserted: 1,
+      sectionSpacingAfterHeadingsInserted: 1,
+    });
   });
 });

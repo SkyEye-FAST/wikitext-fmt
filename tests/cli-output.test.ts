@@ -126,6 +126,11 @@ describe("CLI output helpers", () => {
       fileLinksFormatted: 0,
       localizedFileNamespaceAliasesCanonicalized: 0,
       localizedImageOptionsCanonicalized: 0,
+      sectionSpacingBeforeHeadingsInserted: 0,
+      sectionSpacingAfterHeadingsInserted: 0,
+      templateParametersFormatted: 0,
+      templateParameterLinesFormatted: 0,
+      templateParameterLinesSkippedUnsafe: 0,
     });
     expect(report.files.map((file) => file.file)).toEqual([
       "changed.wiki",

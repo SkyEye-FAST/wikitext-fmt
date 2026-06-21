@@ -4,6 +4,7 @@ export type RuleName =
   | "headings"
   | "blankLines"
   | "templates"
+  | "templateParameters"
   | "categories"
   | "lists"
   | "fileLinks"
@@ -18,6 +19,7 @@ export const ruleLevels = {
   headings: "safe",
   blankLines: "safe",
   templates: "normal",
+  templateParameters: "experimental",
   categories: "normal",
   lists: "normal",
   fileLinks: "normal",

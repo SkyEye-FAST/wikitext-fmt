@@ -20,6 +20,7 @@ export interface FormatOptions {
   lineWidth?: number;
   formatHeadings?: boolean;
   formatTemplates?: boolean;
+  formatTemplateParameters?: boolean;
   formatCategories?: boolean;
   formatLists?: boolean;
   formatFileLinks?: boolean;
@@ -45,6 +46,7 @@ export interface ResolvedFormatOptions {
   lineWidth: number;
   formatHeadings: boolean;
   formatTemplates: boolean;
+  formatTemplateParameters: boolean;
   formatCategories: boolean;
   formatLists: boolean;
   formatFileLinks: boolean;
@@ -70,6 +72,7 @@ export const defaultOptions: Readonly<ResolvedFormatOptions> = {
   lineWidth: 120,
   formatHeadings: true,
   formatTemplates: true,
+  formatTemplateParameters: false,
   formatCategories: true,
   formatLists: true,
   formatFileLinks: true,
@@ -89,6 +92,8 @@ export const defaultOptions: Readonly<ResolvedFormatOptions> = {
     "ru",
     "uk",
     "zh",
+    "zh-hans",
+    "zh-hant",
   ],
   formatSectionSpacing: false,
   formatBehaviorSwitches: true,

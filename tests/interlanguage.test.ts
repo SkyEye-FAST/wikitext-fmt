@@ -27,6 +27,26 @@ describe("experimental interlanguage footer formatting", () => {
     );
   });
 
+  it("trims standalone interlanguage links in preserve mode without moving them", () => {
+    const input = "Body\n[[en:Foo]]   \nText\n";
+    expect(
+      formatWikitext(input, {
+        level: "experimental",
+        formatInterlanguageLinks: true,
+        interlanguagePlacement: "preserve",
+      }),
+    ).toBe("Body\n[[en:Foo]]\nText\n");
+  });
+
+  it.each(["zh-hans", "zh-hant"])(
+    "supports default Chinese interlanguage prefix %s",
+    (prefix) => {
+      expect(
+        formatWikitext(`Body\n[[${prefix}:Foo]]\n`, experimentalFooterOptions),
+      ).toBe(`Body\n\n[[${prefix}:Foo]]\n`);
+    },
+  );
+
   it.each([
     "[[:en:Foo]]\n",
     "[[en:Foo|label]]\n",

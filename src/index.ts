@@ -23,6 +23,8 @@ export { ruleLevels, type RuleName } from "./rules/index.js";
 export type { FooterDiagnostics } from "./rules/categories.js";
 export type { FileLinkDiagnostics } from "./rules/fileLinks.js";
 export type { RedirectDiagnostics } from "./rules/redirects.js";
+export type { SectionSpacingDiagnostics } from "./rules/sectionSpacing.js";
+export type { TemplateParameterDiagnostics } from "./rules/templateParameters.js";
 export type { TableDiagnostic } from "./rules/tables.js";
 export type { ResolvedLocalizationAliases } from "./localization/aliases.js";
 export type { DiagnosticsSummary } from "./cli/diagnostics.js";

@@ -170,6 +170,12 @@ describe("CLI configuration", () => {
     });
   });
 
+  it("accepts experimental template parameter formatting configuration", () => {
+    expect(validateConfig({ formatTemplateParameters: true })).toEqual({
+      formatTemplateParameters: true,
+    });
+  });
+
   it("accepts redirect formatting configuration", () => {
     expect(
       validateConfig({

@@ -54,6 +54,8 @@ Without `--write`, formatted wikitext is written to stdout. `--check` writes not
 --parser-config <name-or-json-path>
 --no-format-headings
 --no-format-templates
+--format-template-parameters
+--no-format-template-parameters
 --no-format-categories
 --no-format-lists
 --no-format-file-links
@@ -80,7 +82,7 @@ Explicit files and glob patterns can be mixed. Expanded paths are deduplicated a
 
 `--diff` writes unified diffs to stdout without modifying files and exits with status 1 when formatting would change the input. Diffs use three context lines by default and separate distant changes into multiple hunks. It works with file paths, globs, and `--stdin` (labelled `stdin`), and cannot be combined with `--write`.
 
-`--diagnostics-json` writes one JSON object per input to stderr. Each object includes `file`, `changed`, `warning`, table counters, footer counters (`behaviorSwitchesMoved`, `behaviorSwitchesFormatted`, `defaultsortMoved`, `categoriesMoved`, `interlanguageLinksMoved`, and `interlanguageLinksFormatted`), redirect counters (`redirectsFormatted`), file-link counters (`fileLinksFormatted`), canonicalization counters (`localizedCategoryAliasesCanonicalized`, `localizedDefaultsortAliasesCanonicalized`, `localizedBehaviorSwitchesCanonicalized`, `localizedRedirectAliasesCanonicalized`, `localizedFileNamespaceAliasesCanonicalized`, and `localizedImageOptionsCanonicalized`), and complete table diagnostics. Formatted text or diffs remain on stdout. JSON diagnostics cannot be combined with the text-oriented `--debug` mode.
+`--diagnostics-json` writes one JSON object per input to stderr. Each object includes `file`, `changed`, `warning`, table counters, footer counters (`behaviorSwitchesMoved`, `behaviorSwitchesFormatted`, `defaultsortMoved`, `categoriesMoved`, `interlanguageLinksMoved`, and `interlanguageLinksFormatted`), redirect counters (`redirectsFormatted`), file-link counters (`fileLinksFormatted`), section-spacing counters, template-parameter counters, canonicalization counters (`localizedCategoryAliasesCanonicalized`, `localizedDefaultsortAliasesCanonicalized`, `localizedBehaviorSwitchesCanonicalized`, `localizedRedirectAliasesCanonicalized`, `localizedFileNamespaceAliasesCanonicalized`, and `localizedImageOptionsCanonicalized`), and complete table diagnostics. Formatted text or diffs remain on stdout. JSON diagnostics cannot be combined with the text-oriented `--debug` mode.
 
 `--safe` enables parse-before, parse-after, and idempotency verification. If verification fails, the original input is returned and a warning is written to stderr. `--debug` writes the selected mode, rule level, and result status to stderr without contaminating formatted stdout.
 
@@ -128,6 +130,7 @@ Configuration keys match `FormatOptions`:
   "htmlVoidTagStyle": "html5",
   "formatHeadings": true,
   "formatTemplates": true,
+  "formatTemplateParameters": false,
   "formatCategories": true,
   "formatLists": true,
   "formatFileLinks": true,
@@ -175,6 +178,7 @@ const output = formatWikitext(source, {
   lineWidth: 120,
   formatHeadings: true,
   formatTemplates: true,
+  formatTemplateParameters: false,
   formatCategories: true,
   formatLists: true,
   formatFileLinks: true,
@@ -218,6 +222,7 @@ Every current rule has an exported reliability level in `ruleLevels`:
 - `headings`: `safe`
 - `blankLines`: `safe`
 - `templates`: `normal`
+- `templateParameters`: `experimental`
 - `categories`: `normal`
 - `lists`: `normal`
 - `fileLinks`: `normal`
@@ -303,6 +308,36 @@ wikitext-fmt page.wiki --level experimental --format-section-spacing
 
 The rule only inserts a single blank line before or after headings when the adjacent line is ordinary paragraph text. It avoids headings at the start of the file and does not alter spacing next to templates, tables, lists, comments, behavior switches, categories, redirects, file links, HTML or extension tags, or protected blocks. It does not change heading marker spacing; that remains the heading rule's job.
 
+## Experimental multiline template parameter formatting
+
+Template parameter formatting is experimental and disabled by default:
+
+```sh
+wikitext-fmt page.wiki --level experimental --format-template-parameters
+```
+
+It only handles templates that are already multiline and structurally simple:
+
+```wikitext
+{{Template
+| a=b
+| c = d
+}}
+```
+
+becomes:
+
+```wikitext
+{{Template
+| a = b
+| c = d
+}}
+```
+
+The rule does not split single-line templates, join multiline templates, reorder parameters, rename parameters, remove blank parameters, or change the template name. When this experimental rule is enabled, the normal simple one-line template splitter is skipped so `{{Template|a=b}}` remains single-line.
+
+Only simple named parameter lines are normalized. Indentation before `|` is preserved, empty values are preserved, and trailing horizontal whitespace on safe template structural lines is removed. Lines with comments, unnamed or numeric positional parameters, multiline values, nested templates, parser functions, tables, lists, HTML or extension tags, or unsafe piped wikilinks are preserved. Blocks containing nested templates are skipped entirely.
+
 ### Localization data
 
 Localized syntax aliases are data-driven; the formatter does not infer them from translated words.
@@ -364,6 +399,7 @@ wikitext-fmt page.wiki --safe --debug --level experimental --format-tables
 
 - Only simple, one-line templates are expanded.
 - Template parameters are not reordered.
+- Multiline template parameter formatting is experimental, disabled by default, and limited to simple already-multiline templates.
 - Only standalone category namespace aliases backed by the selected localization data are moved; categories are never sorted.
 - List formatting is limited to safe spacing and trailing-whitespace cleanup on ordinary single-line items.
 - File/image link formatting is limited to one safe standalone file link per line; captions and values are preserved.

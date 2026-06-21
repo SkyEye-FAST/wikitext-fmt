@@ -39,6 +39,7 @@ describe("formatter API", () => {
       headings: "safe",
       blankLines: "safe",
       templates: "normal",
+      templateParameters: "experimental",
       categories: "normal",
       lists: "normal",
       fileLinks: "normal",
