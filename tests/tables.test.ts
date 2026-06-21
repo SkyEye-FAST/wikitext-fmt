@@ -16,7 +16,7 @@ describe("experimental table analysis diagnostics", () => {
     ["nested table", "{|\n|\n{|\n| nested\n|}\n|}", /nested/u],
     ["unbalanced table", "{|\n| value", /unbalanced/u],
     ["quoted separator", "{|\n| style=\"A || B\" | C || D\n|}", /unsafe separator in quoted cell attributes/u],
-    ["unbalanced wikilink", "{|\n| [[A || B\n|}", /unsafe data cell separator/u],
+    ["unbalanced wikilink", "{|\n| [[A || B\n|}", /uncertain cell attribute prefix|unsafe data cell separator/u],
     ["unclear line", "{|\nplain text\n|}", /unclear table line type/u],
   ])("reports %s", (_name, raw, reason) => {
     const result = analyzeSimpleTableForTesting(raw);
@@ -159,9 +159,17 @@ describe("experimental table analysis diagnostics", () => {
     ["quoted unsafe separator", ' data-x="A || B" | C || D', "||", true, true],
     ["no attributes", " [[A|Display]] || B", "||", false, false],
   ] as const)("analyzes %s cell attributes", (_name, content, separator, hasAttributes, hasUnsafeSeparator) => {
-    expect(analyzeCellAttributesForTesting(content, separator)).toEqual({
+    expect(analyzeCellAttributesForTesting(content, separator)).toMatchObject({
       hasAttributes,
       hasUnsafeSeparator,
+      isSafe: true,
+    });
+  });
+
+  it("rejects uncertain cell attribute prefixes", () => {
+    expect(analyzeCellAttributesForTesting(" uncertain prefix | A || B", "||")).toMatchObject({
+      hasAttributes: false,
+      isSafe: false,
     });
   });
 

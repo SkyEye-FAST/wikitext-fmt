@@ -121,6 +121,9 @@ function formatCellLine(
   if (reason) return { changed: false, value: line, reason };
   const separator = marker === "!" ? "!!" : "||";
   const attributes = analyzeCellAttributesForTesting(content, separator);
+  if (!attributes.isSafe) {
+    return { changed: false, value: line, reason: "uncertain cell attribute prefix" };
+  }
   if (attributes.hasUnsafeSeparator) {
     return { changed: false, value: line, reason: "unsafe separator in quoted cell attributes" };
   }
@@ -141,18 +144,55 @@ function formatCellLine(
 export interface CellAttributeAnalysis {
   hasAttributes: boolean;
   hasUnsafeSeparator: boolean;
+  isSafe: boolean;
+  attributePrefix?: string;
 }
 
 export function analyzeCellAttributesForTesting(
   content: string,
-  separator: "!!" | "||",
+  _separator: "!!" | "||",
 ): CellAttributeAnalysis {
-  const match = /^\s*(?:[\w:-]+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s|]+)\s*)+\|\s*/u.exec(content);
-  if (!match) return { hasAttributes: false, hasUnsafeSeparator: false };
-  const attributes = match[0];
-  const hasUnsafeSeparator = [...attributes.matchAll(/(["'])(.*?)\1/gu)]
-    .some((quoted) => quoted[2]?.includes(separator));
-  return { hasAttributes: true, hasUnsafeSeparator };
+  let bracketDepth = 0;
+  let quote: "\"" | "'" | undefined;
+  let delimiter = -1;
+  let hasUnsafeSeparator = false;
+  for (let index = 0; index < content.length; index++) {
+    const character = content[index]!;
+    if (quote) {
+      if (content.startsWith("||", index) || content.startsWith("!!", index)) hasUnsafeSeparator = true;
+      if (character === quote) quote = undefined;
+      continue;
+    }
+    if (character === "\"" || character === "'") {
+      quote = character;
+      continue;
+    }
+    if (character === "[") bracketDepth++;
+    else if (character === "]") {
+      bracketDepth--;
+      if (bracketDepth < 0) return { hasAttributes: false, hasUnsafeSeparator, isSafe: false };
+    } else if (
+      character === "|"
+      && bracketDepth === 0
+      && content[index - 1] !== "|"
+      && content[index + 1] !== "|"
+    ) {
+      delimiter = index;
+      break;
+    }
+  }
+  if (quote || bracketDepth !== 0) return { hasAttributes: false, hasUnsafeSeparator, isSafe: false };
+  if (delimiter < 0) return { hasAttributes: false, hasUnsafeSeparator: false, isSafe: true };
+
+  const attributes = content.slice(0, delimiter);
+  const valid = /^\s*(?:[\w:-]+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s"'=<>`|]+)\s*)+$/u.test(attributes);
+  if (!valid) return { hasAttributes: false, hasUnsafeSeparator, isSafe: false };
+  return {
+    hasAttributes: true,
+    hasUnsafeSeparator,
+    isSafe: true,
+    attributePrefix: content.slice(0, delimiter + 1),
+  };
 }
 
 function detectTableCellSeparatorStyle(
@@ -174,7 +214,16 @@ function detectTableCellSeparatorStyle(
     if (!header && !data) return undefined;
     const marker = header ? "!" : "|";
     const content = (header ?? data)![1]!;
-    if (lineRiskReason(line) || continuedCellLines.has(tableLineIndex)) {
+    const attributeAnalysis = analyzeCellAttributesForTesting(
+      content,
+      marker === "!" ? "!!" : "||",
+    );
+    if (
+      lineRiskReason(line)
+      || continuedCellLines.has(tableLineIndex)
+      || !attributeAnalysis.isSafe
+      || attributeAnalysis.hasUnsafeSeparator
+    ) {
       return { index, marker, content, safe: false as const };
     }
     const cells = splitSimpleCells(content, marker === "!" ? "!!" : "||");

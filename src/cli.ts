@@ -20,13 +20,14 @@ interface CliOptions extends FormatOptions {
   debug: boolean;
   diff: boolean;
   diagnosticsJson: boolean;
+  failOnWarning: boolean;
   configPath?: string;
   noConfig: boolean;
   files: string[];
 }
 
 function usage(): string {
-  return "Usage: wikitext-fmt [--write | --check | --diff] [--stdin] [--safe] [--debug | --diagnostics-json] [--config <path> | --no-config] [--level safe|normal|experimental] [options] <file-or-glob...>";
+  return "Usage: wikitext-fmt [--write | --check | --diff] [--stdin] [--safe] [--fail-on-warning] [--debug | --diagnostics-json] [--config <path> | --no-config] [--level safe|normal|experimental] [options] <file-or-glob...>";
 }
 
 function parseArgs(args: string[]): CliOptions {
@@ -38,6 +39,7 @@ function parseArgs(args: string[]): CliOptions {
     debug: false,
     diff: false,
     diagnosticsJson: false,
+    failOnWarning: false,
     noConfig: false,
     files: [],
   };
@@ -51,6 +53,7 @@ function parseArgs(args: string[]): CliOptions {
       case "--debug": options.debug = true; break;
       case "--diff": options.diff = true; break;
       case "--diagnostics-json": options.diagnosticsJson = true; break;
+      case "--fail-on-warning": options.failOnWarning = true; break;
       case "--config": {
         const value = args[++index];
         if (!value) throw new Error("--config requires a path");
@@ -125,6 +128,7 @@ function formatterOptions(options: CliOptions): FormatOptions {
     debug: _debug,
     diff: _diff,
     diagnosticsJson: _diagnosticsJson,
+    failOnWarning: _failOnWarning,
     configPath: _configPath,
     noConfig: _noConfig,
     files: _files,
@@ -212,6 +216,7 @@ async function main(): Promise<void> {
     else if (options.check) process.exitCode = result.formatted === source ? 0 : 1;
     else stdout.write(result.formatted);
     if (options.diff && result.formatted !== source) process.exitCode = 1;
+    if (options.failOnWarning && result.warning) process.exitCode = 1;
     return;
   }
 
@@ -225,17 +230,20 @@ async function main(): Promise<void> {
   }
 
   let changed = false;
+  let warned = false;
   for (const file of files) {
     const source = await readFile(file, "utf8");
     const result = runFormatter(source, options, formatOptions);
     reportDiagnostics(file, source, result, options, formatOptions, configPath);
     if (result.warning && !options.diagnosticsJson) stderr.write(`${file}: warning: ${result.warning}\n`);
+    if (result.warning) warned = true;
     if (result.formatted !== source) changed = true;
     if (options.write) await writeFile(file, result.formatted, "utf8");
     else if (options.diff) stdout.write(createUnifiedDiff(file, source, result.formatted));
     else if (!options.check) stdout.write(result.formatted);
   }
   if ((options.check || options.diff) && changed) process.exitCode = 1;
+  if (options.failOnWarning && warned) process.exitCode = 1;
 }
 
 await main();

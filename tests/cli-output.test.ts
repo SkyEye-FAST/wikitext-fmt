@@ -30,6 +30,13 @@ describe("CLI output helpers", () => {
       file: string;
       changed: boolean;
       warning: string | null;
+      summary: {
+        tables: number;
+        formattedTables: number;
+        skippedTables: number;
+        formattedLines: number;
+        skippedUnsafeLines: number;
+      };
       tableDiagnostics: Array<{
         line: number;
         separatorStyle: string;
@@ -41,6 +48,13 @@ describe("CLI output helpers", () => {
       file: "page.wiki",
       changed: true,
       warning: null,
+      summary: {
+        tables: 1,
+        formattedTables: 1,
+        skippedTables: 0,
+        formattedLines: 1,
+        skippedUnsafeLines: 0,
+      },
     });
     expect(diagnostics.tableDiagnostics[0]).toMatchObject({
       line: 1,
