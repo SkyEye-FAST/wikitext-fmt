@@ -81,4 +81,11 @@ describe("CLI configuration", () => {
     expect(() => validateConfig({ unknown: true })).toThrow(/Unknown configuration option/u);
     expect(() => validateConfig({ level: "unsafe" })).toThrow(/must be one of/u);
   });
+
+  it("accepts experimental table configuration", () => {
+    expect(validateConfig({ formatTables: true, level: "experimental" })).toEqual({
+      formatTables: true,
+      level: "experimental",
+    });
+  });
 });

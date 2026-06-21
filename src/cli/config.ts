@@ -61,6 +61,7 @@ export function validateConfig(value: unknown): FormatOptions {
     "formatHeadings",
     "formatTemplates",
     "formatCategories",
+    "formatTables",
     "normalizeBlankLines",
     "level",
     "htmlVoidTagStyle",
@@ -77,7 +78,13 @@ export function validateConfig(value: unknown): FormatOptions {
   ) {
     throw new Error("Configuration option lineWidth must be a positive number");
   }
-  for (const key of ["formatHeadings", "formatTemplates", "formatCategories", "normalizeBlankLines"] as const) {
+  for (const key of [
+    "formatHeadings",
+    "formatTemplates",
+    "formatCategories",
+    "formatTables",
+    "normalizeBlankLines",
+  ] as const) {
     if (record[key] !== undefined) assertBoolean(record[key], key);
   }
   if (record.level !== undefined) {

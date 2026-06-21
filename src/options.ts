@@ -7,6 +7,7 @@ export interface FormatOptions {
   formatHeadings?: boolean;
   formatTemplates?: boolean;
   formatCategories?: boolean;
+  formatTables?: boolean;
   normalizeBlankLines?: boolean;
   level?: FormatLevel;
   htmlVoidTagStyle?: HtmlVoidTagStyle;
@@ -18,6 +19,7 @@ export interface ResolvedFormatOptions {
   formatHeadings: boolean;
   formatTemplates: boolean;
   formatCategories: boolean;
+  formatTables: boolean;
   normalizeBlankLines: boolean;
   level: FormatLevel;
   htmlVoidTagStyle: HtmlVoidTagStyle;
@@ -29,6 +31,7 @@ export const defaultOptions: Readonly<ResolvedFormatOptions> = {
   formatHeadings: true,
   formatTemplates: true,
   formatCategories: true,
+  formatTables: false,
   normalizeBlankLines: true,
   level: "normal",
   htmlVoidTagStyle: "html5",

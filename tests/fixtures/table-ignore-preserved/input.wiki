@@ -1,0 +1,5 @@
+<!-- wikitext-fmt-ignore-start -->
+{| class="wikitable"   
+! A !! B
+|}
+<!-- wikitext-fmt-ignore-end -->

@@ -35,7 +35,23 @@ describe("formatter API", () => {
       templates: "normal",
       categories: "normal",
       htmlVoidTags: "safe",
+      tables: "experimental",
     });
+  });
+
+  it("requires both the table option and experimental level", () => {
+    const input = "{| class=\"wikitable\"\n! A !! B\n|}\n";
+    expect(formatWikitext(input)).toBe(input);
+    expect(formatWikitext(input, { formatTables: true })).toBe(input);
+    expect(formatWikitext(input, { level: "experimental" })).toBe(input);
+    expect(formatWikitext(input, { formatTables: true, level: "experimental" })).toBe(
+      "{| class=\"wikitable\"\n! A\n! B\n|}\n",
+    );
+  });
+
+  it("does not format non-standalone tables", () => {
+    const input = "  {| class=\"wikitable\"\n| A || B\n|}\n";
+    expect(formatWikitext(input, { formatTables: true, level: "experimental" })).toBe(input);
   });
 
   it("preserves HTML void tag syntax in preserve mode", () => {

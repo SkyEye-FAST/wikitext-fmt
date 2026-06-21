@@ -1,6 +1,6 @@
 import type { FormatLevel } from "../options.js";
 
-export type RuleName = "headings" | "blankLines" | "templates" | "categories" | "htmlVoidTags";
+export type RuleName = "headings" | "blankLines" | "templates" | "categories" | "htmlVoidTags" | "tables";
 
 export const ruleLevels = {
   headings: "safe",
@@ -8,6 +8,7 @@ export const ruleLevels = {
   templates: "normal",
   categories: "normal",
   htmlVoidTags: "safe",
+  tables: "experimental",
 } as const satisfies Record<RuleName, FormatLevel>;
 
 const levelOrder: Record<FormatLevel, number> = {

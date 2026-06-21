@@ -17,6 +17,10 @@ export interface ProtectedText {
   restore(value: string): string;
 }
 
+export interface ProtectBlocksOptions {
+  protectTables?: boolean;
+}
+
 interface Range {
   start: number;
   end: number;
@@ -67,7 +71,7 @@ function mergeRanges(ranges: Range[]): Range[] {
   return merged;
 }
 
-function structuralRanges(source: string): Range[] {
+function structuralRanges(source: string, protectTables: boolean): Range[] {
   const ranges: Range[] = [];
   const tags = PROTECTED_TAGS.join("|");
   const tagPattern = new RegExp(`<(${tags})\\b[^>]*>[\\s\\S]*?<\\/\\1\\s*>`, "giu");
@@ -87,29 +91,34 @@ function structuralRanges(source: string): Range[] {
     ranges.push({ start: match.index, end: match.index + match[0].length });
   }
 
-  let tableStart: number | undefined;
-  let tableDepth = 0;
-  for (const match of source.matchAll(/^.*(?:\n|$)/gmu)) {
-    const line = match[0];
-    if (/^[ \t|!]*\{\|/u.test(line)) {
-      if (tableDepth === 0) tableStart = match.index;
-      tableDepth++;
-    }
-    if (tableDepth > 0 && /^[ \t]*\|\}/u.test(line)) {
-      tableDepth--;
-      if (tableDepth === 0 && tableStart !== undefined) {
-        const newlineLength = line.match(/\r?\n$/u)?.[0].length ?? 0;
-        ranges.push({ start: tableStart, end: match.index + line.length - newlineLength });
-        tableStart = undefined;
+  if (protectTables) {
+    let tableStart: number | undefined;
+    let tableDepth = 0;
+    for (const match of source.matchAll(/^.*(?:\n|$)/gmu)) {
+      const line = match[0];
+      if (/^[ \t|!]*\{\|/u.test(line)) {
+        if (tableDepth === 0) tableStart = match.index;
+        tableDepth++;
+      }
+      if (tableDepth > 0 && /^[ \t]*\|\}/u.test(line)) {
+        tableDepth--;
+        if (tableDepth === 0 && tableStart !== undefined) {
+          const newlineLength = line.match(/\r?\n$/u)?.[0].length ?? 0;
+          ranges.push({ start: tableStart, end: match.index + line.length - newlineLength });
+          tableStart = undefined;
+        }
       }
     }
+    if (tableStart !== undefined) ranges.push({ start: tableStart, end: source.length });
   }
-  if (tableStart !== undefined) ranges.push({ start: tableStart, end: source.length });
   return ranges;
 }
 
-export function protectBlocks(source: string): ProtectedText {
-  const ranges = mergeRanges([...ignoreRanges(source), ...structuralRanges(source)]);
+export function protectBlocks(source: string, options: ProtectBlocksOptions = {}): ProtectedText {
+  const ranges = mergeRanges([
+    ...ignoreRanges(source),
+    ...structuralRanges(source, options.protectTables ?? true),
+  ]);
   const values: string[] = [];
   let cursor = 0;
   let text = "";

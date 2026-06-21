@@ -1,0 +1,4 @@
+{| class="wikitable"
+|- class="sortbottom"
+| A || B
+|}

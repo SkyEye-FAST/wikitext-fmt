@@ -71,6 +71,8 @@ function parseArgs(args: string[]): CliOptions {
       case "--no-format-headings": options.formatHeadings = false; break;
       case "--no-format-templates": options.formatTemplates = false; break;
       case "--no-format-categories": options.formatCategories = false; break;
+      case "--format-tables": options.formatTables = true; break;
+      case "--no-format-tables": options.formatTables = false; break;
       case "--no-normalize-blank-lines": options.normalizeBlankLines = false; break;
       case "--help": stdout.write(`${usage()}\n`); process.exit(0); break;
       default:

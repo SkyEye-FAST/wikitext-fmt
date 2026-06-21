@@ -26,6 +26,7 @@ wikitext-fmt page.wiki --safe --level safe
 wikitext-fmt page.wiki --debug
 wikitext-fmt "pages/**/*.wiki" --check
 wikitext-fmt "pages/**/*.wiki" --write
+wikitext-fmt page.wiki --level experimental --format-tables
 ```
 
 Without `--write`, formatted wikitext is written to stdout. `--check` writes nothing and exits with status 1 when a file would change. Available switches are:
@@ -44,6 +45,8 @@ Without `--write`, formatted wikitext is written to stdout. `--check` writes not
 --no-format-headings
 --no-format-templates
 --no-format-categories
+--format-tables
+--no-format-tables
 --no-normalize-blank-lines
 ```
 
@@ -57,9 +60,9 @@ Formatting levels are cumulative:
 | --- | --- |
 | `safe` | Heading spacing, blank-line normalization, and ordinary HTML void-tag normalization |
 | `normal` | Safe rules, simple templates, and simple category movement |
-| `experimental` | Safe and normal rules plus future opt-in rules |
+| `experimental` | Safe and normal rules plus explicitly enabled experimental rules |
 
-The default is `normal`. No experimental formatter rule is currently implemented or enabled by default. Tables remain a dangerous-structure signal and are never formatted.
+The default is `normal`. Table formatting is experimental and disabled by default; it runs only when both `--level experimental` and `--format-tables` are provided.
 
 The default parser configuration name is `mediawiki`, which maps to `wikiparser-node`'s generic `default` configuration. Names shipped by the parser, such as `enwiki` or `zhwiki`, and paths to custom JSON configurations are also accepted.
 
@@ -90,6 +93,7 @@ Configuration keys match `FormatOptions`:
   "formatHeadings": true,
   "formatTemplates": true,
   "formatCategories": true,
+  "formatTables": false,
   "normalizeBlankLines": true
 }
 ```
@@ -107,6 +111,7 @@ const output = formatWikitext(source, {
   formatHeadings: true,
   formatTemplates: true,
   formatCategories: true,
+  formatTables: false,
   normalizeBlankLines: true,
   level: "normal",
   htmlVoidTagStyle: "html5",
@@ -132,6 +137,7 @@ Every current rule has an exported reliability level in `ruleLevels`:
 - `templates`: `normal`
 - `categories`: `normal`
 - `htmlVoidTags`: `safe`
+- `tables`: `experimental`
 
 `htmlVoidTagStyle` controls only simple, attribute-free `br`, `hr`, and `wbr` tags. Its default, `html5`, changes `<br />` to `<br>`. Use `xhtml` for `<br />` output or `preserve` to leave existing syntax unchanged. MediaWiki extension tags such as `<ref />` and `<references />` are never handled by this rule.
 
@@ -142,7 +148,9 @@ The levels describe formatter confidence, not a proof of semantic equivalence fo
 - Only simple, one-line templates are expanded.
 - Template parameters are not reordered.
 - Only standalone `[[Category:...]]`, `[[分类:...]]`, and `[[分類:...]]` lines are moved, without sorting or namespace rewriting.
-- Tables are preserved and are not formatted.
+- Experimental table formatting is disabled by default and only handles simple standalone wikitables.
+- Complex, nested, template-generated, tag-containing, ambiguous, or unbalanced tables are preserved unchanged.
+- Table columns are not aligned or padded, and rows, cells, and attributes are never reordered.
 - Single-block ignore handling is deliberately line/paragraph oriented. Range ignores are preferred for complex content.
 - Site-specific syntax requires an appropriate parser configuration.
 
@@ -179,7 +187,7 @@ tests/real-pages/*.wiki
 
 Each fixture checks expected output and idempotency. Files under `real-pages` currently check parsing and idempotency, making it straightforward to add anonymized or redistributable real-world regressions later.
 
-Planned work includes a VS Code extension, a Prettier plugin, safer table formatting, and improved site-specific parser configuration.
+Planned work includes a VS Code extension, a Prettier plugin, broader conservative table coverage, and improved site-specific parser configuration.
 
 ## License
 

@@ -1,0 +1,6 @@
+{{Box
+| content =
+{| class="wikitable"
+! A !! B
+|}
+}}

@@ -1,0 +1,5 @@
+{| class="wikitable"
+! A !! B
+|-
+| Value<ref>Reference</ref> || Other
+|}

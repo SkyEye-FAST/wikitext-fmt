@@ -1,0 +1,4 @@
+{| class="wikitable"
+| style="text-align:center" | A
+| B
+|}

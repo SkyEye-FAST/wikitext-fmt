@@ -7,6 +7,7 @@ import { formatHeadings } from "./rules/headings.js";
 import { formatTemplates } from "./rules/templates.js";
 import { isRuleEnabled } from "./rules/index.js";
 import { formatHtmlVoidTags } from "./rules/htmlVoidTags.js";
+import { formatTables } from "./rules/tables.js";
 import { protectBlocks } from "./utils/protectBlocks.js";
 
 export interface FormatResult {
@@ -24,7 +25,16 @@ export function formatWikitextResult(source: string, options: FormatOptions = {}
 
     // Parse once before transformations so malformed input fails closed.
     parseWikitext(source, config);
-    const protectedText = protectBlocks(source);
+    let tableOutput = source;
+    if (resolved.formatTables && isRuleEnabled("tables", resolved.level)) {
+      const tableBlocks = protectBlocks(tableOutput, { protectTables: false });
+      tableOutput = formatTables(tableBlocks.text, config, resolved);
+      tableOutput = tableBlocks.restore(tableOutput);
+    }
+
+    // Re-protect tables before running non-table rules so enabling the
+    // experimental table pass cannot make stable rules more aggressive.
+    const protectedText = protectBlocks(tableOutput, { protectTables: true });
     let output = protectedText.text;
     if (resolved.formatTemplates && isRuleEnabled("templates", resolved.level)) {
       output = formatTemplates(output, config, resolved.lineWidth);
