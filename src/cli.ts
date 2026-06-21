@@ -99,6 +99,15 @@ function parseArgs(args: string[]): CliOptions {
       case "--no-format-templates": options.formatTemplates = false; break;
       case "--no-format-categories": options.formatCategories = false; break;
       case "--no-format-lists": options.formatLists = false; break;
+      case "--no-format-behavior-switches": options.formatBehaviorSwitches = false; break;
+      case "--behavior-switch-placement": {
+        const value = args[++index];
+        if (value !== "preserve" && value !== "footer") {
+          throw new Error("--behavior-switch-placement must be preserve or footer");
+        }
+        options.behaviorSwitchPlacement = value;
+        break;
+      }
       case "--format-tables": options.formatTables = true; break;
       case "--no-format-tables": options.formatTables = false; break;
       case "--table-cell-separator-style": {

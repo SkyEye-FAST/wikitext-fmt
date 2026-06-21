@@ -6,6 +6,10 @@ export interface DiagnosticsSummary {
   skippedTables: number;
   formattedLines: number;
   skippedUnsafeLines: number;
+  behaviorSwitchesMoved: number;
+  behaviorSwitchesFormatted: number;
+  defaultsortMoved: number;
+  categoriesMoved: number;
 }
 
 export interface FileDiagnostics {
@@ -33,6 +37,7 @@ export function createDiagnosticsRecord(
       (count, diagnostic) => count + (diagnostic.lineDiagnostics?.filter((line) => line.reason).length ?? 0),
       0,
     ),
+    ...result.footerDiagnostics,
   };
   return {
     file,

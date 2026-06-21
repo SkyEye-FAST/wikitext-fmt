@@ -98,6 +98,20 @@ describe("CLI configuration", () => {
     expect(validateConfig({ formatLists: false })).toEqual({ formatLists: false });
   });
 
+  it("accepts behavior switch configuration", () => {
+    expect(validateConfig({
+      formatBehaviorSwitches: true,
+      behaviorSwitchPlacement: "footer",
+    })).toEqual({
+      formatBehaviorSwitches: true,
+      behaviorSwitchPlacement: "footer",
+    });
+  });
+
+  it("rejects invalid behavior switch placement", () => {
+    expect(() => validateConfig({ behaviorSwitchPlacement: "header" })).toThrow(/preserve, footer/u);
+  });
+
   it("rejects invalid table separator styles", () => {
     expect(() => validateConfig({ tableCellSeparatorStyle: "inline" })).toThrow(/auto, split, preserve/u);
   });

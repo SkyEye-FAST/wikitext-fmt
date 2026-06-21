@@ -11,6 +11,10 @@ export interface BatchReport {
     skippedTables: number;
     formattedTableLines: number;
     skippedUnsafeTableLines: number;
+    behaviorSwitchesMoved: number;
+    behaviorSwitchesFormatted: number;
+    defaultsortMoved: number;
+    categoriesMoved: number;
   };
 }
 
@@ -26,6 +30,13 @@ export function createBatchReport(files: FileDiagnostics[]): BatchReport {
       skippedTables: files.reduce((total, file) => total + file.summary.skippedTables, 0),
       formattedTableLines: files.reduce((total, file) => total + file.summary.formattedLines, 0),
       skippedUnsafeTableLines: files.reduce((total, file) => total + file.summary.skippedUnsafeLines, 0),
+      behaviorSwitchesMoved: files.reduce((total, file) => total + file.summary.behaviorSwitchesMoved, 0),
+      behaviorSwitchesFormatted: files.reduce(
+        (total, file) => total + file.summary.behaviorSwitchesFormatted,
+        0,
+      ),
+      defaultsortMoved: files.reduce((total, file) => total + file.summary.defaultsortMoved, 0),
+      categoriesMoved: files.reduce((total, file) => total + file.summary.categoriesMoved, 0),
     },
   };
 }

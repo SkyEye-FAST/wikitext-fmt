@@ -98,6 +98,10 @@ describe("CLI output helpers", () => {
       skippedTables: 0,
       formattedTableLines: 1,
       skippedUnsafeTableLines: 0,
+      behaviorSwitchesMoved: 0,
+      behaviorSwitchesFormatted: 0,
+      defaultsortMoved: 0,
+      categoriesMoved: 0,
     });
     expect(report.files.map((file) => file.file)).toEqual(["changed.wiki", "unchanged.wiki"]);
   });

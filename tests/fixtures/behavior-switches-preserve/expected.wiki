@@ -1,0 +1,18 @@
+__NOTOC__
+Text __FORCETOC__ stays   
+<nowiki>__NOINDEX__   </nowiki>
+<pre>
+__INDEX__   
+</pre>
+<syntaxhighlight lang="wikitext">
+__FORCETOC__   
+</syntaxhighlight>
+<ref>
+__NOINDEX__   
+</ref>
+{|
+| __NOEDITSECTION__
+|}
+Text.
+
+[[Category:Preserve]]

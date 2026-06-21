@@ -54,6 +54,8 @@ Without `--write`, formatted wikitext is written to stdout. `--check` writes not
 --no-format-templates
 --no-format-categories
 --no-format-lists
+--no-format-behavior-switches
+--behavior-switch-placement preserve|footer
 --format-tables
 --no-format-tables
 --table-cell-separator-style auto|split|preserve
@@ -64,7 +66,7 @@ Explicit files and glob patterns can be mixed. Expanded paths are deduplicated a
 
 `--diff` writes unified diffs to stdout without modifying files and exits with status 1 when formatting would change the input. Diffs use three context lines by default and separate distant changes into multiple hunks. It works with file paths, globs, and `--stdin` (labelled `stdin`), and cannot be combined with `--write`.
 
-`--diagnostics-json` writes one JSON object per input to stderr. Each object includes `file`, `changed`, `warning`, a summary (`tables`, `formattedTables`, `skippedTables`, `formattedLines`, and `skippedUnsafeLines`), and complete table diagnostics including line numbers, separator style/reason, and line diagnostics. Formatted text or diffs remain on stdout. JSON diagnostics cannot be combined with the text-oriented `--debug` mode.
+`--diagnostics-json` writes one JSON object per input to stderr. Each object includes `file`, `changed`, `warning`, table counters, footer counters (`behaviorSwitchesMoved`, `behaviorSwitchesFormatted`, `defaultsortMoved`, and `categoriesMoved`), and complete table diagnostics. Formatted text or diffs remain on stdout. JSON diagnostics cannot be combined with the text-oriented `--debug` mode.
 
 `--safe` enables parse-before, parse-after, and idempotency verification. If verification fails, the original input is returned and a warning is written to stderr. `--debug` writes the selected mode, rule level, and result status to stderr without contaminating formatted stdout.
 
@@ -77,7 +79,7 @@ Formatting levels are cumulative:
 | Level | Enabled rules |
 | --- | --- |
 | `safe` | Heading spacing, blank-line normalization, and ordinary HTML void-tag normalization |
-| `normal` | Safe rules, simple templates, simple category movement, and conservative list spacing |
+| `normal` | Safe rules, simple templates, page-footer metadata, behavior switches, and conservative list spacing |
 | `experimental` | Safe and normal rules plus explicitly enabled experimental rules |
 
 The default is `normal`. Table formatting is experimental and disabled by default; it runs only when both `--level experimental` and `--format-tables` are provided.
@@ -112,6 +114,8 @@ Configuration keys match `FormatOptions`:
   "formatTemplates": true,
   "formatCategories": true,
   "formatLists": true,
+  "formatBehaviorSwitches": true,
+  "behaviorSwitchPlacement": "preserve",
   "formatTables": false,
   "tableCellSeparatorStyle": "auto",
   "normalizeBlankLines": true
@@ -132,6 +136,8 @@ const output = formatWikitext(source, {
   formatTemplates: true,
   formatCategories: true,
   formatLists: true,
+  formatBehaviorSwitches: true,
+  behaviorSwitchPlacement: "preserve",
   formatTables: false,
   tableCellSeparatorStyle: "auto",
   normalizeBlankLines: true,
@@ -159,6 +165,7 @@ Every current rule has an exported reliability level in `ruleLevels`:
 - `templates`: `normal`
 - `categories`: `normal`
 - `lists`: `normal`
+- `behaviorSwitches`: `normal`
 - `htmlVoidTags`: `safe`
 - `tables`: `experimental`
 
@@ -171,6 +178,25 @@ The levels describe formatter confidence, not a proof of semantic equivalence fo
 The normal-level list rule handles ordinary single-line items beginning with combinations of `*`, `#`, `:`, and `;`. It adds one missing space after the marker sequence and removes trailing horizontal whitespace. Existing spacing, blank lines, nesting markers, and definition-list structure remain intact.
 
 List lines containing templates, table syntax, HTML, or extension tags are preserved unchanged. Protected blocks such as `nowiki`, `pre`, and `syntaxhighlight` are never inspected by this rule. Disable it with `--no-format-lists` or `formatLists: false`.
+
+## Page footer and behavior switches
+
+The normal-level behavior-switch rule recognizes standalone `__NOTOC__`, `__FORCETOC__`, `__NOEDITSECTION__`, `__NEWSECTIONLINK__`, `__NONEWSECTIONLINK__`, `__INDEX__`, and `__NOINDEX__` lines. Its default `behaviorSwitchPlacement: "preserve"` only removes trailing horizontal whitespace and leaves each switch in place. Embedded switches and switches inside templates, tables, refs, comments, or protected blocks are not changed.
+
+Set `behaviorSwitchPlacement: "footer"` or use `--behavior-switch-placement footer` to move recognized standalone switches to the footer while preserving their order. Exact duplicate switch lines are removed in footer mode. Explicit footer mode produces these groups with one blank line between them:
+
+```wikitext
+Body content
+
+__NOTOC__
+__NOEDITSECTION__
+
+{{DEFAULTSORT:Example}}
+[[Category:A]]
+[[Category:B]]
+```
+
+Standalone `{{DEFAULTSORT:...}}`, `{{DEFAULTSORTKEY:...}}`, and `{{デフォルトソート:...}}` parser-recognized lines move before categories. Their spelling and content are preserved apart from trailing whitespace. Categories retain namespace spelling, sort keys, and relative order; unknown category-like links remain in place. Disable switch handling with `--no-format-behavior-switches` or `formatBehaviorSwitches: false`.
 
 ## Experimental table formatting
 
@@ -210,6 +236,7 @@ wikitext-fmt page.wiki --safe --debug --level experimental --format-tables
 - Template parameters are not reordered.
 - Only standalone `[[Category:...]]`, `[[分类:...]]`, and `[[分類:...]]` lines are moved, without sorting or namespace rewriting.
 - List formatting is limited to safe spacing and trailing-whitespace cleanup on ordinary single-line items.
+- Only the documented standalone behavior switches and parser-recognized DEFAULTSORT aliases participate in footer formatting.
 - Experimental table formatting is disabled by default and only handles simple standalone wikitables.
 - Unsafe template- or HTML-containing table lines are preserved even when other safe rows are formatted.
 - Nested, unbalanced, template-contained, placeholder-containing, and structurally unclear tables are preserved entirely.

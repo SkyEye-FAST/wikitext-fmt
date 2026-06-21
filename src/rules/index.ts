@@ -6,6 +6,7 @@ export type RuleName =
   | "templates"
   | "categories"
   | "lists"
+  | "behaviorSwitches"
   | "htmlVoidTags"
   | "tables";
 
@@ -15,6 +16,7 @@ export const ruleLevels = {
   templates: "normal",
   categories: "normal",
   lists: "normal",
+  behaviorSwitches: "normal",
   htmlVoidTags: "safe",
   tables: "experimental",
 } as const satisfies Record<RuleName, FormatLevel>;

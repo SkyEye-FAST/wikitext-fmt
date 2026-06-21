@@ -1,6 +1,7 @@
 export type FormatLevel = "safe" | "normal" | "experimental";
 export type HtmlVoidTagStyle = "html5" | "xhtml" | "preserve";
 export type TableCellSeparatorStyle = "auto" | "split" | "preserve";
+export type BehaviorSwitchPlacement = "preserve" | "footer";
 
 export interface FormatOptions {
   parserConfig?: string;
@@ -9,6 +10,8 @@ export interface FormatOptions {
   formatTemplates?: boolean;
   formatCategories?: boolean;
   formatLists?: boolean;
+  formatBehaviorSwitches?: boolean;
+  behaviorSwitchPlacement?: BehaviorSwitchPlacement;
   formatTables?: boolean;
   tableCellSeparatorStyle?: TableCellSeparatorStyle;
   normalizeBlankLines?: boolean;
@@ -23,6 +26,8 @@ export interface ResolvedFormatOptions {
   formatTemplates: boolean;
   formatCategories: boolean;
   formatLists: boolean;
+  formatBehaviorSwitches: boolean;
+  behaviorSwitchPlacement: BehaviorSwitchPlacement;
   formatTables: boolean;
   tableCellSeparatorStyle: TableCellSeparatorStyle;
   normalizeBlankLines: boolean;
@@ -37,6 +42,8 @@ export const defaultOptions: Readonly<ResolvedFormatOptions> = {
   formatTemplates: true,
   formatCategories: true,
   formatLists: true,
+  formatBehaviorSwitches: true,
+  behaviorSwitchPlacement: "preserve",
   formatTables: false,
   tableCellSeparatorStyle: "auto",
   normalizeBlankLines: true,

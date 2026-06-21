@@ -1,6 +1,7 @@
 export { formatWikitext, formatWikitextResult, formatWikitextSafe, type FormatResult } from "./formatter.js";
 export {
   defaultOptions,
+  type BehaviorSwitchPlacement,
   type FormatLevel,
   type FormatOptions,
   type HtmlVoidTagStyle,

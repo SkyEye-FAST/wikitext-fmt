@@ -3,6 +3,7 @@ import { dirname, isAbsolute, parse, resolve } from "node:path";
 import type {
   FormatLevel,
   FormatOptions,
+  BehaviorSwitchPlacement,
   HtmlVoidTagStyle,
   TableCellSeparatorStyle,
 } from "../options.js";
@@ -67,6 +68,8 @@ export function validateConfig(value: unknown): FormatOptions {
     "formatTemplates",
     "formatCategories",
     "formatLists",
+    "formatBehaviorSwitches",
+    "behaviorSwitchPlacement",
     "formatTables",
     "tableCellSeparatorStyle",
     "normalizeBlankLines",
@@ -90,6 +93,7 @@ export function validateConfig(value: unknown): FormatOptions {
     "formatTemplates",
     "formatCategories",
     "formatLists",
+    "formatBehaviorSwitches",
     "formatTables",
     "normalizeBlankLines",
   ] as const) {
@@ -106,6 +110,13 @@ export function validateConfig(value: unknown): FormatOptions {
       record.tableCellSeparatorStyle,
       "tableCellSeparatorStyle",
       ["auto", "split", "preserve"],
+    );
+  }
+  if (record.behaviorSwitchPlacement !== undefined) {
+    assertEnum<BehaviorSwitchPlacement>(
+      record.behaviorSwitchPlacement,
+      "behaviorSwitchPlacement",
+      ["preserve", "footer"],
     );
   }
   return { ...record } as FormatOptions;
