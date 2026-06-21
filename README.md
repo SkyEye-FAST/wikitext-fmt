@@ -180,3 +180,31 @@ tests/real-pages/*.wiki
 Each fixture checks expected output and idempotency. Files under `real-pages` currently check parsing and idempotency, making it straightforward to add anonymized or redistributable real-world regressions later.
 
 Planned work includes a VS Code extension, a Prettier plugin, safer table formatting, and improved site-specific parser configuration.
+
+## License
+
+The project is released under the [GPL v3 License](LICENSE).
+
+``` text
+    wikitext-fmt
+    Copyright (C) 2026 SkyEye_FAST
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+```
+
+## Feedback
+
+Please feel free to raise issues for any problems encountered or feature suggestions.
+
+Pull requests are welcome.
