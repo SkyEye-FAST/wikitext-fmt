@@ -7,7 +7,11 @@ const require = createRequire(import.meta.url);
 
 function loadConfig(name: string): ConfigData {
   const mappedName = name === "mediawiki" ? "default" : name;
-  if (isAbsolute(mappedName) || mappedName.endsWith(".json") || mappedName.includes("/")) {
+  if (
+    isAbsolute(mappedName) ||
+    mappedName.endsWith(".json") ||
+    mappedName.includes("/")
+  ) {
     return JSON.parse(readFileSync(resolve(mappedName), "utf8")) as ConfigData;
   }
 

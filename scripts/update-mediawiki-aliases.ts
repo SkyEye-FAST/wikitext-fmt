@@ -7,6 +7,22 @@ const behaviorIds = new Set([
   "staticredirect",
 ]);
 
+const supportedLanguageFiles = [
+  "MessagesAr.php",
+  "MessagesDe.php",
+  "MessagesEs.php",
+  "MessagesFr.php",
+  "MessagesIt.php",
+  "MessagesJa.php",
+  "MessagesKo.php",
+  "MessagesPl.php",
+  "MessagesPt.php",
+  "MessagesRu.php",
+  "MessagesUk.php",
+  "MessagesZh_hans.php",
+  "MessagesZh_hant.php",
+];
+
 function phpString(value: string): string {
   return value.replace(/\\'/gu, "'").replace(/\\\\/gu, "\\");
 }
@@ -25,7 +41,7 @@ function quotedValues(source: string): string[] {
 const inputDirectory = resolve(process.argv[2] ?? "vendor/mediawiki/languages/messages");
 const outputPath = resolve(process.argv[3] ?? "src/localization/generated/mediawiki-aliases.json");
 const files = (await readdir(inputDirectory))
-  .filter((name) => /^Messages(?:Zh_hans|Zh_hant|Ja|Ko)\.php$/u.test(name))
+  .filter((name) => supportedLanguageFiles.includes(name))
   .sort();
 if (files.length === 0) throw new Error(`No supported MediaWiki message files found in ${inputDirectory}`);
 
@@ -57,8 +73,9 @@ for (const file of files) {
 }
 
 const generated = {
-  source: "MediaWiki core languages/messages/Messages*.php",
-  languages: files.map((file) => file.slice("Messages".length, -".php".length)),
+  generatedFromLanguages: files.map((file) => file.slice("Messages".length, -".php".length)),
+  generatedAtSource: "MediaWiki core languages/messages/Messages*.php",
+  generatedBy: "scripts/update-mediawiki-aliases.ts",
   categoryNamespaces: [...categoryNamespaces].sort(),
   defaultsortMagicWords: [...defaultsortMagicWords].sort(),
   behaviorSwitches: Object.fromEntries(

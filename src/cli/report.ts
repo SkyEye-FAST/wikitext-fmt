@@ -15,6 +15,9 @@ export interface BatchReport {
     behaviorSwitchesFormatted: number;
     defaultsortMoved: number;
     categoriesMoved: number;
+    localizedCategoryAliasesCanonicalized: number;
+    localizedDefaultsortAliasesCanonicalized: number;
+    localizedBehaviorSwitchesCanonicalized: number;
   };
 }
 
@@ -26,17 +29,53 @@ export function createBatchReport(files: FileDiagnostics[]): BatchReport {
       changedFiles: files.filter((file) => file.changed).length,
       warningFiles: files.filter((file) => file.warning !== null).length,
       tables: files.reduce((total, file) => total + file.summary.tables, 0),
-      formattedTables: files.reduce((total, file) => total + file.summary.formattedTables, 0),
-      skippedTables: files.reduce((total, file) => total + file.summary.skippedTables, 0),
-      formattedTableLines: files.reduce((total, file) => total + file.summary.formattedLines, 0),
-      skippedUnsafeTableLines: files.reduce((total, file) => total + file.summary.skippedUnsafeLines, 0),
-      behaviorSwitchesMoved: files.reduce((total, file) => total + file.summary.behaviorSwitchesMoved, 0),
+      formattedTables: files.reduce(
+        (total, file) => total + file.summary.formattedTables,
+        0,
+      ),
+      skippedTables: files.reduce(
+        (total, file) => total + file.summary.skippedTables,
+        0,
+      ),
+      formattedTableLines: files.reduce(
+        (total, file) => total + file.summary.formattedLines,
+        0,
+      ),
+      skippedUnsafeTableLines: files.reduce(
+        (total, file) => total + file.summary.skippedUnsafeLines,
+        0,
+      ),
+      behaviorSwitchesMoved: files.reduce(
+        (total, file) => total + file.summary.behaviorSwitchesMoved,
+        0,
+      ),
       behaviorSwitchesFormatted: files.reduce(
         (total, file) => total + file.summary.behaviorSwitchesFormatted,
         0,
       ),
-      defaultsortMoved: files.reduce((total, file) => total + file.summary.defaultsortMoved, 0),
-      categoriesMoved: files.reduce((total, file) => total + file.summary.categoriesMoved, 0),
+      defaultsortMoved: files.reduce(
+        (total, file) => total + file.summary.defaultsortMoved,
+        0,
+      ),
+      categoriesMoved: files.reduce(
+        (total, file) => total + file.summary.categoriesMoved,
+        0,
+      ),
+      localizedCategoryAliasesCanonicalized: files.reduce(
+        (total, file) =>
+          total + file.summary.localizedCategoryAliasesCanonicalized,
+        0,
+      ),
+      localizedDefaultsortAliasesCanonicalized: files.reduce(
+        (total, file) =>
+          total + file.summary.localizedDefaultsortAliasesCanonicalized,
+        0,
+      ),
+      localizedBehaviorSwitchesCanonicalized: files.reduce(
+        (total, file) =>
+          total + file.summary.localizedBehaviorSwitchesCanonicalized,
+        0,
+      ),
     },
   };
 }

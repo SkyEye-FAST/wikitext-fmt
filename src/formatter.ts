@@ -2,7 +2,10 @@ import type { FormatOptions } from "./options.js";
 import { resolveOptions } from "./options.js";
 import { getParserConfig, isRoundTripSafe, parseWikitext } from "./parser.js";
 import { normalizeBlankLines } from "./rules/blankLines.js";
-import { formatPageFooter, type FooterDiagnostics } from "./rules/categories.js";
+import {
+  formatPageFooter,
+  type FooterDiagnostics,
+} from "./rules/categories.js";
 import { formatHeadings } from "./rules/headings.js";
 import { formatTemplates } from "./rules/templates.js";
 import { isRuleEnabled } from "./rules/index.js";
@@ -30,6 +33,9 @@ const emptyFooterDiagnostics = (): FooterDiagnostics => ({
   behaviorSwitchesFormatted: 0,
   defaultsortMoved: 0,
   categoriesMoved: 0,
+  localizedCategoryAliasesCanonicalized: 0,
+  localizedDefaultsortAliasesCanonicalized: 0,
+  localizedBehaviorSwitchesCanonicalized: 0,
 });
 
 export function formatWikitextDetailedResult(
@@ -44,7 +50,8 @@ export function formatWikitextDetailedResult(
     if (!isRoundTripSafe(source, config)) {
       return {
         formatted: source,
-        warning: "The parser could not round-trip the input exactly; left it unchanged.",
+        warning:
+          "The parser could not round-trip the input exactly; left it unchanged.",
         tableDiagnostics,
         footerDiagnostics,
       };
@@ -58,7 +65,11 @@ export function formatWikitextDetailedResult(
         protectTables: false,
         protectComments: false,
       });
-      const tableResult = formatTablesWithDiagnostics(tableBlocks.text, config, resolved);
+      const tableResult = formatTablesWithDiagnostics(
+        tableBlocks.text,
+        config,
+        resolved,
+      );
       tableOutput = tableResult.formatted;
       tableDiagnostics = tableResult.diagnostics.map((diagnostic) => {
         const start = tableBlocks.originalIndex(diagnostic.start);
@@ -68,14 +79,16 @@ export function formatWikitextDetailedResult(
           start,
           end: tableBlocks.originalIndex(diagnostic.end),
           line,
-          ...(diagnostic.lineDiagnostics
-            ? {
-                lineDiagnostics: diagnostic.lineDiagnostics.map((lineDiagnostic) => ({
+          ...(diagnostic.lineDiagnostics ?
+            {
+              lineDiagnostics: diagnostic.lineDiagnostics.map(
+                (lineDiagnostic) => ({
                   ...lineDiagnostic,
                   sourceLine: line + lineDiagnostic.tableLine - 1,
-                })),
-              }
-            : {}),
+                }),
+              ),
+            }
+          : {}),
         };
       });
       tableOutput = tableBlocks.restore(tableOutput);
@@ -85,20 +98,30 @@ export function formatWikitextDetailedResult(
     // experimental table pass cannot make stable rules more aggressive.
     const protectedText = protectBlocks(tableOutput, { protectTables: true });
     let output = protectedText.text;
-    if (resolved.formatTemplates && isRuleEnabled("templates", resolved.level)) {
+    if (
+      resolved.formatTemplates &&
+      isRuleEnabled("templates", resolved.level)
+    ) {
       output = formatTemplates(output, config, resolved.lineWidth);
     }
-    if (resolved.formatHeadings && isRuleEnabled("headings", resolved.level)) output = formatHeadings(output);
-    if (resolved.formatLists && isRuleEnabled("lists", resolved.level)) output = formatLists(output);
-    if (resolved.normalizeBlankLines && isRuleEnabled("blankLines", resolved.level)) {
+    if (resolved.formatHeadings && isRuleEnabled("headings", resolved.level))
+      output = formatHeadings(output);
+    if (resolved.formatLists && isRuleEnabled("lists", resolved.level))
+      output = formatLists(output);
+    if (
+      resolved.normalizeBlankLines &&
+      isRuleEnabled("blankLines", resolved.level)
+    ) {
       output = normalizeBlankLines(output);
     }
     if (isRuleEnabled("htmlVoidTags", resolved.level)) {
       output = formatHtmlVoidTags(output, resolved.htmlVoidTagStyle);
     }
-    const categoriesEnabled = resolved.formatCategories && isRuleEnabled("categories", resolved.level);
-    const behaviorSwitchesEnabled = resolved.formatBehaviorSwitches
-      && isRuleEnabled("behaviorSwitches", resolved.level);
+    const categoriesEnabled =
+      resolved.formatCategories && isRuleEnabled("categories", resolved.level);
+    const behaviorSwitchesEnabled =
+      resolved.formatBehaviorSwitches &&
+      isRuleEnabled("behaviorSwitches", resolved.level);
     if (categoriesEnabled || behaviorSwitchesEnabled) {
       const footer = formatPageFooter(output, config, {
         formatCategories: categoriesEnabled,
@@ -116,7 +139,8 @@ export function formatWikitextDetailedResult(
     if (!isRoundTripSafe(output, config)) {
       return {
         formatted: source,
-        warning: "The formatted output did not parse safely; left the input unchanged.",
+        warning:
+          "The formatted output did not parse safely; left the input unchanged.",
         tableDiagnostics,
         footerDiagnostics,
       };
@@ -124,11 +148,19 @@ export function formatWikitextDetailedResult(
     return { formatted: output, tableDiagnostics, footerDiagnostics };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    return { formatted: source, warning: `Formatting failed safely: ${message}`, tableDiagnostics, footerDiagnostics };
+    return {
+      formatted: source,
+      warning: `Formatting failed safely: ${message}`,
+      tableDiagnostics,
+      footerDiagnostics,
+    };
   }
 }
 
-export function formatWikitextResult(source: string, options: FormatOptions = {}): FormatResult {
+export function formatWikitextResult(
+  source: string,
+  options: FormatOptions = {},
+): FormatResult {
   const {
     tableDiagnostics: _tableDiagnostics,
     footerDiagnostics: _footerDiagnostics,
@@ -137,11 +169,17 @@ export function formatWikitextResult(source: string, options: FormatOptions = {}
   return result;
 }
 
-export function formatWikitext(source: string, options: FormatOptions = {}): string {
+export function formatWikitext(
+  source: string,
+  options: FormatOptions = {},
+): string {
   return formatWikitextResult(source, options).formatted;
 }
 
-export function formatWikitextSafe(source: string, options: FormatOptions = {}): FormatResult {
+export function formatWikitextSafe(
+  source: string,
+  options: FormatOptions = {},
+): FormatResult {
   const {
     tableDiagnostics: _tableDiagnostics,
     footerDiagnostics: _footerDiagnostics,
@@ -164,7 +202,13 @@ export function formatWikitextSafeDetailed(
     const first = formatWikitextDetailedResult(source, options);
     tableDiagnostics = first.tableDiagnostics;
     footerDiagnostics = first.footerDiagnostics;
-    if (first.warning) return { formatted: source, warning: first.warning, tableDiagnostics, footerDiagnostics };
+    if (first.warning)
+      return {
+        formatted: source,
+        warning: first.warning,
+        tableDiagnostics,
+        footerDiagnostics,
+      };
     parseWikitext(first.formatted, config);
 
     const second = formatWikitextDetailedResult(first.formatted, options);
@@ -180,7 +224,8 @@ export function formatWikitextSafeDetailed(
     if (second.formatted !== first.formatted) {
       return {
         formatted: source,
-        warning: "Safe formatting verification failed: output is not idempotent.",
+        warning:
+          "Safe formatting verification failed: output is not idempotent.",
         tableDiagnostics,
         footerDiagnostics,
       };

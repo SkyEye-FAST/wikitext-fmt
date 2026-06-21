@@ -2,7 +2,10 @@ import { stat } from "node:fs/promises";
 import { isAbsolute, relative, resolve } from "node:path";
 import fg from "fast-glob";
 
-export async function expandInputPaths(patterns: readonly string[], cwd = process.cwd()): Promise<string[]> {
+export async function expandInputPaths(
+  patterns: readonly string[],
+  cwd = process.cwd(),
+): Promise<string[]> {
   const directory = resolve(cwd);
   const files = new Set<string>();
 
@@ -15,16 +18,23 @@ export async function expandInputPaths(patterns: readonly string[], cwd = proces
         dot: true,
         followSymbolicLinks: true,
       });
-      if (matches.length === 0) throw new Error(`Glob pattern matched no files: ${pattern}`);
-      for (const match of matches) files.add(isAbsolute(match) ? match : resolve(directory, match));
+      if (matches.length === 0)
+        throw new Error(`Glob pattern matched no files: ${pattern}`);
+      for (const match of matches)
+        files.add(isAbsolute(match) ? match : resolve(directory, match));
       continue;
     }
 
     const path = isAbsolute(pattern) ? pattern : resolve(directory, pattern);
     try {
-      if (!(await stat(path)).isFile()) throw new Error(`Input path is not a file: ${pattern}`);
+      if (!(await stat(path)).isFile())
+        throw new Error(`Input path is not a file: ${pattern}`);
     } catch (error) {
-      if (error instanceof Error && error.message.startsWith("Input path is not a file:")) throw error;
+      if (
+        error instanceof Error &&
+        error.message.startsWith("Input path is not a file:")
+      )
+        throw error;
       throw new Error(`Input file not found: ${pattern}`);
     }
     files.add(path);
@@ -33,6 +43,10 @@ export async function expandInputPaths(patterns: readonly string[], cwd = proces
   return [...files].sort((a, b) => {
     const left = relative(directory, a);
     const right = relative(directory, b);
-    return left < right ? -1 : left > right ? 1 : 0;
+    return (
+      left < right ? -1
+      : left > right ? 1
+      : 0
+    );
   });
 }

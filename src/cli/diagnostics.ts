@@ -10,6 +10,9 @@ export interface DiagnosticsSummary {
   behaviorSwitchesFormatted: number;
   defaultsortMoved: number;
   categoriesMoved: number;
+  localizedCategoryAliasesCanonicalized: number;
+  localizedDefaultsortAliasesCanonicalized: number;
+  localizedBehaviorSwitchesCanonicalized: number;
 }
 
 export interface FileDiagnostics {
@@ -27,14 +30,23 @@ export function createDiagnosticsRecord(
 ): FileDiagnostics {
   const summary: DiagnosticsSummary = {
     tables: result.tableDiagnostics.length,
-    formattedTables: result.tableDiagnostics.filter((diagnostic) => diagnostic.changed).length,
-    skippedTables: result.tableDiagnostics.filter((diagnostic) => !diagnostic.changed).length,
+    formattedTables: result.tableDiagnostics.filter(
+      (diagnostic) => diagnostic.changed,
+    ).length,
+    skippedTables: result.tableDiagnostics.filter(
+      (diagnostic) => !diagnostic.changed,
+    ).length,
     formattedLines: result.tableDiagnostics.reduce(
-      (count, diagnostic) => count + (diagnostic.lineDiagnostics?.filter((line) => line.changed).length ?? 0),
+      (count, diagnostic) =>
+        count +
+        (diagnostic.lineDiagnostics?.filter((line) => line.changed).length ??
+          0),
       0,
     ),
     skippedUnsafeLines: result.tableDiagnostics.reduce(
-      (count, diagnostic) => count + (diagnostic.lineDiagnostics?.filter((line) => line.reason).length ?? 0),
+      (count, diagnostic) =>
+        count +
+        (diagnostic.lineDiagnostics?.filter((line) => line.reason).length ?? 0),
       0,
     ),
     ...result.footerDiagnostics,

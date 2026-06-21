@@ -16,8 +16,11 @@ import {
   type FileDiagnostics,
 } from "./cli/diagnostics.js";
 import { createBatchReport } from "./cli/report.js";
-import { loadSiteInfoAliases } from "./cli/siteinfo.js";
-import { overrideLocalizationAliases } from "./localization/aliases.js";
+import { loadSiteInfoAliases } from "./localization/siteinfo.js";
+import {
+  overrideLocalizationAliases,
+  resolveLocalizationAliases,
+} from "./localization/aliases.js";
 
 interface CliOptions extends FormatOptions {
   write: boolean;
@@ -30,6 +33,7 @@ interface CliOptions extends FormatOptions {
   failOnWarning: boolean;
   reportPath?: string;
   siteApi?: string;
+  printLocalizationAliases: boolean;
   configPath?: string;
   noConfig: boolean;
   files: string[];
@@ -49,20 +53,40 @@ function parseArgs(args: string[]): CliOptions {
     diff: false,
     diagnosticsJson: false,
     failOnWarning: false,
+    printLocalizationAliases: false,
     noConfig: false,
     files: [],
   };
   for (let index = 0; index < args.length; index++) {
     const arg = args[index]!;
     switch (arg) {
-      case "--write": options.write = true; break;
-      case "--check": options.check = true; break;
-      case "--stdin": options.stdin = true; break;
-      case "--safe": options.safe = true; break;
-      case "--debug": options.debug = true; break;
-      case "--diff": options.diff = true; break;
-      case "--diagnostics-json": options.diagnosticsJson = true; break;
-      case "--fail-on-warning": options.failOnWarning = true; break;
+      case "--write":
+        options.write = true;
+        break;
+      case "--check":
+        options.check = true;
+        break;
+      case "--stdin":
+        options.stdin = true;
+        break;
+      case "--safe":
+        options.safe = true;
+        break;
+      case "--debug":
+        options.debug = true;
+        break;
+      case "--diff":
+        options.diff = true;
+        break;
+      case "--diagnostics-json":
+        options.diagnosticsJson = true;
+        break;
+      case "--fail-on-warning":
+        options.failOnWarning = true;
+        break;
+      case "--print-localization-aliases":
+        options.printLocalizationAliases = true;
+        break;
       case "--report": {
         const value = args[++index];
         if (!value) throw new Error("--report requires a path");
@@ -75,10 +99,16 @@ function parseArgs(args: string[]): CliOptions {
         options.configPath = value;
         break;
       }
-      case "--no-config": options.noConfig = true; break;
+      case "--no-config":
+        options.noConfig = true;
+        break;
       case "--level": {
         const value = args[++index];
-        if (value !== "safe" && value !== "normal" && value !== "experimental") {
+        if (
+          value !== "safe" &&
+          value !== "normal" &&
+          value !== "experimental"
+        ) {
           throw new Error("--level must be safe, normal, or experimental");
         }
         options.level = value;
@@ -87,7 +117,9 @@ function parseArgs(args: string[]): CliOptions {
       case "--html-void-tag-style": {
         const value = args[++index];
         if (value !== "html5" && value !== "xhtml" && value !== "preserve") {
-          throw new Error("--html-void-tag-style must be html5, xhtml, or preserve");
+          throw new Error(
+            "--html-void-tag-style must be html5, xhtml, or preserve",
+          );
         }
         options.htmlVoidTagStyle = value;
         break;
@@ -101,7 +133,9 @@ function parseArgs(args: string[]): CliOptions {
       case "--localization-source": {
         const value = args[++index];
         if (value !== "builtin" && value !== "siteinfo" && value !== "custom") {
-          throw new Error("--localization-source must be builtin, siteinfo, or custom");
+          throw new Error(
+            "--localization-source must be builtin, siteinfo, or custom",
+          );
         }
         options.localizationSource = value;
         break;
@@ -115,54 +149,100 @@ function parseArgs(args: string[]): CliOptions {
       case "--localized-syntax-style": {
         const value = args[++index];
         if (value !== "preserve" && value !== "canonical-english") {
-          throw new Error("--localized-syntax-style must be preserve or canonical-english");
+          throw new Error(
+            "--localized-syntax-style must be preserve or canonical-english",
+          );
         }
         options.localizedSyntaxStyle = value;
         break;
       }
-      case "--no-format-headings": options.formatHeadings = false; break;
-      case "--no-format-templates": options.formatTemplates = false; break;
-      case "--no-format-categories": options.formatCategories = false; break;
-      case "--no-format-lists": options.formatLists = false; break;
-      case "--no-format-behavior-switches": options.formatBehaviorSwitches = false; break;
+      case "--no-format-headings":
+        options.formatHeadings = false;
+        break;
+      case "--no-format-templates":
+        options.formatTemplates = false;
+        break;
+      case "--no-format-categories":
+        options.formatCategories = false;
+        break;
+      case "--no-format-lists":
+        options.formatLists = false;
+        break;
+      case "--no-format-behavior-switches":
+        options.formatBehaviorSwitches = false;
+        break;
       case "--behavior-switch-placement": {
         const value = args[++index];
         if (value !== "preserve" && value !== "footer") {
-          throw new Error("--behavior-switch-placement must be preserve or footer");
+          throw new Error(
+            "--behavior-switch-placement must be preserve or footer",
+          );
         }
         options.behaviorSwitchPlacement = value;
         break;
       }
-      case "--format-tables": options.formatTables = true; break;
-      case "--no-format-tables": options.formatTables = false; break;
+      case "--format-tables":
+        options.formatTables = true;
+        break;
+      case "--no-format-tables":
+        options.formatTables = false;
+        break;
       case "--table-cell-separator-style": {
         const value = args[++index];
         if (value !== "auto" && value !== "split" && value !== "preserve") {
-          throw new Error("--table-cell-separator-style must be auto, split, or preserve");
+          throw new Error(
+            "--table-cell-separator-style must be auto, split, or preserve",
+          );
         }
         options.tableCellSeparatorStyle = value;
         break;
       }
-      case "--no-normalize-blank-lines": options.normalizeBlankLines = false; break;
-      case "--help": stdout.write(`${usage()}\n`); process.exit(0); break;
+      case "--no-normalize-blank-lines":
+        options.normalizeBlankLines = false;
+        break;
+      case "--help":
+        stdout.write(`${usage()}\n`);
+        process.exit(0);
+        break;
       default:
         if (arg.startsWith("-")) throw new Error(`Unknown option: ${arg}`);
         options.files.push(arg);
     }
   }
-  if (options.write && options.check) throw new Error("--write and --check cannot be used together");
-  if (options.write && options.diff) throw new Error("--write and --diff cannot be used together");
-  if (options.debug && options.diagnosticsJson) throw new Error("--debug and --diagnostics-json cannot be used together");
-  if (options.configPath && options.noConfig) throw new Error("--config and --no-config cannot be used together");
-  if (options.stdin && options.files.length > 0) throw new Error("--stdin cannot be combined with file paths");
-  if (options.stdin && options.write) throw new Error("--write cannot be used with --stdin");
-  if (!options.stdin && options.files.length === 0) throw new Error("No input file specified");
+  if (options.write && options.check)
+    throw new Error("--write and --check cannot be used together");
+  if (options.write && options.diff)
+    throw new Error("--write and --diff cannot be used together");
+  if (options.debug && options.diagnosticsJson)
+    throw new Error("--debug and --diagnostics-json cannot be used together");
+  if (options.configPath && options.noConfig)
+    throw new Error("--config and --no-config cannot be used together");
+  if (options.stdin && options.files.length > 0)
+    throw new Error("--stdin cannot be combined with file paths");
+  if (options.stdin && options.write)
+    throw new Error("--write cannot be used with --stdin");
+  if (
+    options.printLocalizationAliases &&
+    (options.write || options.check || options.diff || options.stdin)
+  ) {
+    throw new Error(
+      "--print-localization-aliases cannot be combined with --write, --check, --diff, or --stdin",
+    );
+  }
+  if (
+    !options.printLocalizationAliases &&
+    !options.stdin &&
+    options.files.length === 0
+  ) {
+    throw new Error("No input file specified");
+  }
   return options;
 }
 
 async function readStdin(): Promise<string> {
   const chunks: Buffer[] = [];
-  for await (const chunk of stdin) chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+  for await (const chunk of stdin)
+    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
   return Buffer.concat(chunks).toString("utf8");
 }
 
@@ -176,6 +256,7 @@ function formatterOptions(options: CliOptions): FormatOptions {
     diff: _diff,
     diagnosticsJson: _diagnosticsJson,
     failOnWarning: _failOnWarning,
+    printLocalizationAliases: _printLocalizationAliases,
     reportPath: _reportPath,
     siteApi: _siteApi,
     configPath: _configPath,
@@ -186,21 +267,34 @@ function formatterOptions(options: CliOptions): FormatOptions {
   return formatOptions;
 }
 
-async function writeReport(path: string | undefined, files: FileDiagnostics[]): Promise<boolean> {
+async function writeReport(
+  path: string | undefined,
+  files: FileDiagnostics[],
+): Promise<boolean> {
   if (!path) return true;
   try {
-    await writeFile(path, `${JSON.stringify(createBatchReport(files), null, 2)}\n`, "utf8");
+    await writeFile(
+      path,
+      `${JSON.stringify(createBatchReport(files), null, 2)}\n`,
+      "utf8",
+    );
     return true;
   } catch (error) {
-    stderr.write(`Could not write report ${path}: ${error instanceof Error ? error.message : String(error)}\n`);
+    stderr.write(
+      `Could not write report ${path}: ${error instanceof Error ? error.message : String(error)}\n`,
+    );
     process.exitCode = 2;
     return false;
   }
 }
 
-function runFormatter(source: string, options: CliOptions, formatOptions: FormatOptions): FormatDetailedResult {
-  return options.safe
-    ? formatWikitextSafeDetailed(source, formatOptions)
+function runFormatter(
+  source: string,
+  options: CliOptions,
+  formatOptions: FormatOptions,
+): FormatDetailedResult {
+  return options.safe ?
+      formatWikitextSafeDetailed(source, formatOptions)
     : formatWikitextDetailedResult(source, formatOptions);
 }
 
@@ -215,14 +309,26 @@ function debugResult(
   if (!options.debug) return;
   const level = formatOptions.level ?? "normal";
   const mode = options.safe ? "safe" : "normal";
-  const status = result.warning ? "fallback" : result.formatted === source ? "unchanged" : "changed";
+  const status =
+    result.warning ? "fallback"
+    : result.formatted === source ? "unchanged"
+    : "changed";
   const config = configPath ? ` config=${configPath}` : " config=defaults";
-  stderr.write(`${label}: debug: mode=${mode} level=${level} status=${status}${config}\n`);
+  stderr.write(
+    `${label}: debug: mode=${mode} level=${level} status=${status}${config}\n`,
+  );
   for (const diagnostic of result.tableDiagnostics) {
-    const style = diagnostic.separatorStyle ? ` using ${diagnostic.separatorStyle} style` : "";
-    const styleReason = diagnostic.separatorStyleReason ? `: ${diagnostic.separatorStyleReason}` : "";
-    const outcome = diagnostic.changed
-      ? `formatted${style}${styleReason}`
+    const style =
+      diagnostic.separatorStyle ?
+        ` using ${diagnostic.separatorStyle} style`
+      : "";
+    const styleReason =
+      diagnostic.separatorStyleReason ?
+        `: ${diagnostic.separatorStyleReason}`
+      : "";
+    const outcome =
+      diagnostic.changed ?
+        `formatted${style}${styleReason}`
       : `skipped: ${diagnostic.reason ?? "unknown reason"}`;
     stderr.write(`${label}: table at line ${diagnostic.line} ${outcome}\n`);
   }
@@ -248,7 +354,9 @@ async function main(): Promise<void> {
   try {
     options = parseArgs(process.argv.slice(2));
   } catch (error) {
-    stderr.write(`${error instanceof Error ? error.message : String(error)}\n${usage()}\n`);
+    stderr.write(
+      `${error instanceof Error ? error.message : String(error)}\n${usage()}\n`,
+    );
     process.exitCode = 2;
     return;
   }
@@ -263,9 +371,15 @@ async function main(): Promise<void> {
     formatOptions = resolved.options;
     configPath = resolved.path;
     if (formatOptions.localizationSource === "siteinfo") {
-      if (!options.siteApi) throw new Error("--site-api is required when --localization-source is siteinfo");
+      if (!options.siteApi)
+        throw new Error(
+          "--site-api is required when --localization-source is siteinfo",
+        );
       const siteAliases = await loadSiteInfoAliases(options.siteApi);
-      formatOptions.localizationAliases = overrideLocalizationAliases(siteAliases, formatOptions.localizationAliases);
+      formatOptions.localizationAliases = overrideLocalizationAliases(
+        siteAliases,
+        formatOptions.localizationAliases,
+      );
     }
   } catch (error) {
     stderr.write(`${error instanceof Error ? error.message : String(error)}\n`);
@@ -273,14 +387,38 @@ async function main(): Promise<void> {
     return;
   }
 
+  if (options.printLocalizationAliases) {
+    stdout.write(
+      `${JSON.stringify(
+        resolveLocalizationAliases(
+          formatOptions.localizationSource ?? "builtin",
+          formatOptions.localizationAliases ?? {},
+        ),
+        null,
+        2,
+      )}\n`,
+    );
+    return;
+  }
+
   if (options.stdin) {
     const source = await readStdin();
     const result = runFormatter(source, options, formatOptions);
     const diagnostics = createDiagnosticsRecord("stdin", source, result);
-    reportDiagnostics("stdin", source, result, options, formatOptions, configPath);
-    if (result.warning && !options.diagnosticsJson) stderr.write(`warning: ${result.warning}\n`);
-    if (options.diff) stdout.write(createUnifiedDiff("stdin", source, result.formatted));
-    else if (options.check) process.exitCode = result.formatted === source ? 0 : 1;
+    reportDiagnostics(
+      "stdin",
+      source,
+      result,
+      options,
+      formatOptions,
+      configPath,
+    );
+    if (result.warning && !options.diagnosticsJson)
+      stderr.write(`warning: ${result.warning}\n`);
+    if (options.diff)
+      stdout.write(createUnifiedDiff("stdin", source, result.formatted));
+    else if (options.check)
+      process.exitCode = result.formatted === source ? 0 : 1;
     else stdout.write(result.formatted);
     if (options.diff && result.formatted !== source) process.exitCode = 1;
     if (options.failOnWarning && result.warning) process.exitCode = 1;
@@ -305,11 +443,13 @@ async function main(): Promise<void> {
     const result = runFormatter(source, options, formatOptions);
     diagnostics.push(createDiagnosticsRecord(file, source, result));
     reportDiagnostics(file, source, result, options, formatOptions, configPath);
-    if (result.warning && !options.diagnosticsJson) stderr.write(`${file}: warning: ${result.warning}\n`);
+    if (result.warning && !options.diagnosticsJson)
+      stderr.write(`${file}: warning: ${result.warning}\n`);
     if (result.warning) warned = true;
     if (result.formatted !== source) changed = true;
     if (options.write) await writeFile(file, result.formatted, "utf8");
-    else if (options.diff) stdout.write(createUnifiedDiff(file, source, result.formatted));
+    else if (options.diff)
+      stdout.write(createUnifiedDiff(file, source, result.formatted));
     else if (!options.check) stdout.write(result.formatted);
   }
   if ((options.check || options.diff) && changed) process.exitCode = 1;

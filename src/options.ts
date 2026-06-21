@@ -68,6 +68,8 @@ export const defaultOptions: Readonly<ResolvedFormatOptions> = {
   htmlVoidTagStyle: "html5",
 };
 
-export function resolveOptions(options: FormatOptions = {}): ResolvedFormatOptions {
+export function resolveOptions(
+  options: FormatOptions = {},
+): ResolvedFormatOptions {
   return { ...defaultOptions, ...options };
 }

@@ -102,6 +102,9 @@ describe("CLI output helpers", () => {
       behaviorSwitchesFormatted: 0,
       defaultsortMoved: 0,
       categoriesMoved: 0,
+      localizedCategoryAliasesCanonicalized: 0,
+      localizedDefaultsortAliasesCanonicalized: 0,
+      localizedBehaviorSwitchesCanonicalized: 0,
     });
     expect(report.files.map((file) => file.file)).toEqual(["changed.wiki", "unchanged.wiki"]);
   });

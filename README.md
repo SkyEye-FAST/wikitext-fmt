@@ -32,6 +32,7 @@ wikitext-fmt page.wiki --diagnostics-json --check
 wikitext-fmt page.wiki --safe --check --fail-on-warning
 wikitext-fmt "pages/**/*.wiki" --check --report report.json
 wikitext-fmt page.wiki --localization-source siteinfo --site-api https://wiki.example/w/api.php
+wikitext-fmt --print-localization-aliases --localization-source builtin
 ```
 
 Without `--write`, formatted wikitext is written to stdout. `--check` writes nothing and exits with status 1 when a file would change. Available switches are:
@@ -60,6 +61,7 @@ Without `--write`, formatted wikitext is written to stdout. `--check` writes not
 --localization-source builtin|siteinfo|custom
 --site-api <url>
 --localized-syntax-style preserve|canonical-english
+--print-localization-aliases
 --format-tables
 --no-format-tables
 --table-cell-separator-style auto|split|preserve
@@ -70,13 +72,15 @@ Explicit files and glob patterns can be mixed. Expanded paths are deduplicated a
 
 `--diff` writes unified diffs to stdout without modifying files and exits with status 1 when formatting would change the input. Diffs use three context lines by default and separate distant changes into multiple hunks. It works with file paths, globs, and `--stdin` (labelled `stdin`), and cannot be combined with `--write`.
 
-`--diagnostics-json` writes one JSON object per input to stderr. Each object includes `file`, `changed`, `warning`, table counters, footer counters (`behaviorSwitchesMoved`, `behaviorSwitchesFormatted`, `defaultsortMoved`, and `categoriesMoved`), and complete table diagnostics. Formatted text or diffs remain on stdout. JSON diagnostics cannot be combined with the text-oriented `--debug` mode.
+`--diagnostics-json` writes one JSON object per input to stderr. Each object includes `file`, `changed`, `warning`, table counters, footer counters (`behaviorSwitchesMoved`, `behaviorSwitchesFormatted`, `defaultsortMoved`, and `categoriesMoved`), canonicalization counters (`localizedCategoryAliasesCanonicalized`, `localizedDefaultsortAliasesCanonicalized`, and `localizedBehaviorSwitchesCanonicalized`), and complete table diagnostics. Formatted text or diffs remain on stdout. JSON diagnostics cannot be combined with the text-oriented `--debug` mode.
 
 `--safe` enables parse-before, parse-after, and idempotency verification. If verification fails, the original input is returned and a warning is written to stderr. `--debug` writes the selected mode, rule level, and result status to stderr without contaminating formatted stdout.
 
 `--fail-on-warning` changes warning handling only: if any input falls back with a formatter warning, the CLI exits non-zero. This is useful with `--safe --check`; warnings do not affect the exit code by default.
 
 `--report <path>` writes one JSON batch report after all inputs are processed. It contains each file's `changed`, `warning`, summary, and table diagnostics plus aggregate file/table counts. Reports never share stdout with formatted text or diffs and are compatible with normal output, `--check`, `--diff`, `--write`, and `--stdin`.
+
+`--print-localization-aliases` resolves the configured alias source and prints the final alias JSON to stdout without formatting input files. With `--localization-source siteinfo`, it requires `--site-api`.
 
 Formatting levels are cumulative:
 
@@ -140,7 +144,7 @@ Unknown keys and invalid option values are rejected instead of being silently ig
 ## API
 
 ```ts
-import { formatWikitext, formatWikitextSafe } from "wikitext-fmt";
+import { formatWikitext, formatWikitextSafe, loadSiteInfoAliases } from "wikitext-fmt";
 
 const output = formatWikitext(source, {
   parserConfig: "mediawiki",
@@ -165,6 +169,12 @@ if (result.warning) {
   console.warn(result.warning);
 }
 console.log(result.formatted);
+
+const siteAliases = await loadSiteInfoAliases("https://wiki.example/w/api.php");
+const siteOutput = formatWikitext(source, {
+  localizationSource: "siteinfo",
+  localizationAliases: siteAliases,
+});
 ```
 
 `formatWikitext()` remains the compact string-returning API. `formatWikitextResult()` exposes warnings without running the additional idempotency pass.
@@ -215,13 +225,24 @@ Standalone aliases for the MediaWiki `defaultsort` magic-word ID move before rec
 
 Localized syntax aliases are data-driven; the formatter does not infer them from translated words.
 
-- `localizationSource: "builtin"` (default) uses the generated MediaWiki core alias table. The initial table is extracted from `MessagesZh_hans.php`, `MessagesZh_hant.php`, `MessagesJa.php`, and `MessagesKo.php` by `scripts/update-mediawiki-aliases.ts`.
+- `localizationSource: "builtin"` (default) uses the generated MediaWiki core alias table. The initial table is extracted by `scripts/update-mediawiki-aliases.ts` from MediaWiki core message files for `ar`, `de`, `es`, `fr`, `it`, `ja`, `ko`, `pl`, `pt`, `ru`, `uk`, `zh-hans`, and `zh-hant`.
 - `localizationSource: "siteinfo"` requires `--site-api <url>`. The CLI requests namespace ID 14, namespace aliases, magic words, and double-underscore behavior switches from the site's `action=query&meta=siteinfo` API. Fetch or validation failure stops the CLI; it never silently falls back to built-in data.
 - `localizationSource: "custom"` uses canonical English syntax plus `localizationAliases`. Custom aliases also override conflicting built-in or siteinfo behavior-switch aliases.
 
 `localizedSyntaxStyle: "preserve"` (default) recognizes aliases but retains their exact spelling. `"canonical-english"` rewrites only a certainly matched namespace or magic-word keyword: category namespaces become `Category`, `defaultsort` becomes `DEFAULTSORT`, and behavior switches use their canonical English ID. Page titles, category names, sort keys, arguments, and normal text are never translated.
 
+In canonical English mode, duplicate behavior switches are de-duplicated by emitted canonical value. For example, localized `notoc` plus `__NOTOC__` at the footer produce one `__NOTOC__`.
+
+Canonicalization diagnostics count keyword rewrites only. Moving `[[Category:A]]` to the footer does not increment `localizedCategoryAliasesCanonicalized`; changing `[[分類:A]]` to `[[Category:A]]` does.
+
 Site-specific namespace and magic-word aliases require siteinfo or explicit custom aliases. Core API consumers selecting `siteinfo` must preload and pass `localizationAliases`; network access exists only in the CLI loader.
+
+Inspect aliases before formatting with:
+
+```sh
+wikitext-fmt --print-localization-aliases
+wikitext-fmt --print-localization-aliases --localization-source siteinfo --site-api https://wiki.example/w/api.php
+```
 
 ## Experimental table formatting
 

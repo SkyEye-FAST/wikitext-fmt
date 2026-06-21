@@ -1,4 +1,9 @@
-export { formatWikitext, formatWikitextResult, formatWikitextSafe, type FormatResult } from "./formatter.js";
+export {
+  formatWikitext,
+  formatWikitextResult,
+  formatWikitextSafe,
+  type FormatResult,
+} from "./formatter.js";
 export {
   defaultOptions,
   type BehaviorSwitchPlacement,
@@ -11,3 +16,4 @@ export {
   type TableCellSeparatorStyle,
 } from "./options.js";
 export { ruleLevels, type RuleName } from "./rules/index.js";
+export { loadSiteInfoAliases } from "./localization/siteinfo.js";

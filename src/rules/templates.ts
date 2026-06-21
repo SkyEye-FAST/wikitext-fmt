@@ -7,21 +7,34 @@ interface Replacement {
   value: string;
 }
 
-const RISKY = /(?:\uE000wikitext-fmt:|\{\||\|-|\|\}|<\/?(?:ref|gallery|nowiki)\b|\{\{|\}\}|<[^>]*$)/iu;
+const RISKY =
+  /(?:\uE000wikitext-fmt:|\{\||\|-|\|\}|<\/?(?:ref|gallery|nowiki)\b|\{\{|\}\}|<[^>]*$)/iu;
 
-export function formatTemplates(source: string, config: Config, lineWidth: number): string {
+export function formatTemplates(
+  source: string,
+  config: Config,
+  lineWidth: number,
+): string {
   const root = parseWikitext(source, config);
   const replacements: Replacement[] = [];
 
   for (const node of root.querySelectorAll("template")) {
     if (node.parentNode?.closest("template")) continue;
     const raw = node.toString();
-    if (raw.includes("\n") || !raw.startsWith("{{") || !raw.endsWith("}}") || RISKY.test(raw.slice(2, -2))) {
+    if (
+      raw.includes("\n") ||
+      !raw.startsWith("{{") ||
+      !raw.endsWith("}}") ||
+      RISKY.test(raw.slice(2, -2))
+    ) {
       continue;
     }
 
     const args = node.getAllArgs();
-    if (args.length === 0 || args.some((arg) => RISKY.test(arg.value) || arg.value.includes("\n"))) {
+    if (
+      args.length === 0 ||
+      args.some((arg) => RISKY.test(arg.value) || arg.value.includes("\n"))
+    ) {
       continue;
     }
 
@@ -54,12 +67,19 @@ export function formatTemplates(source: string, config: Config, lineWidth: numbe
     if (!safe || lines.some((line) => line.length > lineWidth)) continue;
 
     const start = node.getAbsoluteIndex();
-    replacements.push({ start, end: start + raw.length, value: lines.join("\n") });
+    replacements.push({
+      start,
+      end: start + raw.length,
+      value: lines.join("\n"),
+    });
   }
 
   let output = source;
   for (const replacement of replacements.sort((a, b) => b.start - a.start)) {
-    output = output.slice(0, replacement.start) + replacement.value + output.slice(replacement.end);
+    output =
+      output.slice(0, replacement.start) +
+      replacement.value +
+      output.slice(replacement.end);
   }
   return output;
 }
