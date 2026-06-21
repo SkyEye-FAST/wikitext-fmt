@@ -2,6 +2,14 @@ export type FormatLevel = "safe" | "normal" | "experimental";
 export type HtmlVoidTagStyle = "html5" | "xhtml" | "preserve";
 export type TableCellSeparatorStyle = "auto" | "split" | "preserve";
 export type BehaviorSwitchPlacement = "preserve" | "footer";
+export type LocalizationSource = "builtin" | "siteinfo" | "custom";
+export type LocalizedSyntaxStyle = "preserve" | "canonical-english";
+
+export interface LocalizationAliases {
+  categoryNamespaces?: string[];
+  defaultsortMagicWords?: string[];
+  behaviorSwitches?: Record<string, string[]>;
+}
 
 export interface FormatOptions {
   parserConfig?: string;
@@ -12,6 +20,9 @@ export interface FormatOptions {
   formatLists?: boolean;
   formatBehaviorSwitches?: boolean;
   behaviorSwitchPlacement?: BehaviorSwitchPlacement;
+  localizationSource?: LocalizationSource;
+  localizedSyntaxStyle?: LocalizedSyntaxStyle;
+  localizationAliases?: LocalizationAliases;
   formatTables?: boolean;
   tableCellSeparatorStyle?: TableCellSeparatorStyle;
   normalizeBlankLines?: boolean;
@@ -28,6 +39,9 @@ export interface ResolvedFormatOptions {
   formatLists: boolean;
   formatBehaviorSwitches: boolean;
   behaviorSwitchPlacement: BehaviorSwitchPlacement;
+  localizationSource: LocalizationSource;
+  localizedSyntaxStyle: LocalizedSyntaxStyle;
+  localizationAliases: LocalizationAliases;
   formatTables: boolean;
   tableCellSeparatorStyle: TableCellSeparatorStyle;
   normalizeBlankLines: boolean;
@@ -44,6 +58,9 @@ export const defaultOptions: Readonly<ResolvedFormatOptions> = {
   formatLists: true,
   formatBehaviorSwitches: true,
   behaviorSwitchPlacement: "preserve",
+  localizationSource: "builtin",
+  localizedSyntaxStyle: "preserve",
+  localizationAliases: {},
   formatTables: false,
   tableCellSeparatorStyle: "auto",
   normalizeBlankLines: true,

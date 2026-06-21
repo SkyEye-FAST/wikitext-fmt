@@ -104,6 +104,9 @@ export function formatWikitextDetailedResult(
         formatCategories: categoriesEnabled,
         formatBehaviorSwitches: behaviorSwitchesEnabled,
         behaviorSwitchPlacement: resolved.behaviorSwitchPlacement,
+        localizationSource: resolved.localizationSource,
+        localizedSyntaxStyle: resolved.localizedSyntaxStyle,
+        localizationAliases: resolved.localizationAliases,
       });
       output = footer.formatted;
       footerDiagnostics = footer.diagnostics;

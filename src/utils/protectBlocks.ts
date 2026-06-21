@@ -50,7 +50,7 @@ function ignoreRanges(source: string): Range[] {
     const block = source.slice(blockStart);
     const firstLine = /^(?:.*(?:\r?\n|$))/u.exec(block)?.[0] ?? block;
     let blockLength = firstLine.length;
-    if (!/^\s*(?:={2,6}|\[\[(?:Category|分类|分類):)/iu.test(firstLine)) {
+    if (!/^\s*(?:={2,6}|\[\[[^\]\n]+:)/u.test(firstLine)) {
       const paragraph = /^(?:[\s\S]*?)(?=\r?\n[ \t]*\r?\n|$)/u.exec(block)?.[0];
       blockLength = paragraph?.length ?? block.length;
     }

@@ -112,6 +112,24 @@ describe("CLI configuration", () => {
     expect(() => validateConfig({ behaviorSwitchPlacement: "header" })).toThrow(/preserve, footer/u);
   });
 
+  it("accepts custom localization aliases", () => {
+    expect(validateConfig({
+      localizationSource: "custom",
+      localizedSyntaxStyle: "canonical-english",
+      localizationAliases: {
+        categoryNamespaces: ["CatX"],
+        defaultsortMagicWords: ["SORTX:"],
+        behaviorSwitches: { notoc: ["NOTOCX"] },
+      },
+    })).toMatchObject({ localizationSource: "custom", localizedSyntaxStyle: "canonical-english" });
+  });
+
+  it("rejects unknown custom behavior switch IDs", () => {
+    expect(() => validateConfig({
+      localizationAliases: { behaviorSwitches: { invented: ["VALUE"] } },
+    })).toThrow(/Unknown behavior switch ID/u);
+  });
+
   it("rejects invalid table separator styles", () => {
     expect(() => validateConfig({ tableCellSeparatorStyle: "inline" })).toThrow(/auto, split, preserve/u);
   });

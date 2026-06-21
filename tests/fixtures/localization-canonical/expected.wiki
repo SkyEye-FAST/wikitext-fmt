@@ -1,0 +1,6 @@
+Body.
+
+__NOTOC__
+
+{{DEFAULTSORT:Example}}
+[[Category:Foo|Bar]]

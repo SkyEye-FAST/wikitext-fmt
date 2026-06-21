@@ -16,6 +16,8 @@ import {
   type FileDiagnostics,
 } from "./cli/diagnostics.js";
 import { createBatchReport } from "./cli/report.js";
+import { loadSiteInfoAliases } from "./cli/siteinfo.js";
+import { overrideLocalizationAliases } from "./localization/aliases.js";
 
 interface CliOptions extends FormatOptions {
   write: boolean;
@@ -27,6 +29,7 @@ interface CliOptions extends FormatOptions {
   diagnosticsJson: boolean;
   failOnWarning: boolean;
   reportPath?: string;
+  siteApi?: string;
   configPath?: string;
   noConfig: boolean;
   files: string[];
@@ -95,6 +98,28 @@ function parseArgs(args: string[]): CliOptions {
         options.parserConfig = value;
         break;
       }
+      case "--localization-source": {
+        const value = args[++index];
+        if (value !== "builtin" && value !== "siteinfo" && value !== "custom") {
+          throw new Error("--localization-source must be builtin, siteinfo, or custom");
+        }
+        options.localizationSource = value;
+        break;
+      }
+      case "--site-api": {
+        const value = args[++index];
+        if (!value) throw new Error("--site-api requires a URL");
+        options.siteApi = value;
+        break;
+      }
+      case "--localized-syntax-style": {
+        const value = args[++index];
+        if (value !== "preserve" && value !== "canonical-english") {
+          throw new Error("--localized-syntax-style must be preserve or canonical-english");
+        }
+        options.localizedSyntaxStyle = value;
+        break;
+      }
       case "--no-format-headings": options.formatHeadings = false; break;
       case "--no-format-templates": options.formatTemplates = false; break;
       case "--no-format-categories": options.formatCategories = false; break;
@@ -152,6 +177,7 @@ function formatterOptions(options: CliOptions): FormatOptions {
     diagnosticsJson: _diagnosticsJson,
     failOnWarning: _failOnWarning,
     reportPath: _reportPath,
+    siteApi: _siteApi,
     configPath: _configPath,
     noConfig: _noConfig,
     files: _files,
@@ -236,6 +262,11 @@ async function main(): Promise<void> {
     });
     formatOptions = resolved.options;
     configPath = resolved.path;
+    if (formatOptions.localizationSource === "siteinfo") {
+      if (!options.siteApi) throw new Error("--site-api is required when --localization-source is siteinfo");
+      const siteAliases = await loadSiteInfoAliases(options.siteApi);
+      formatOptions.localizationAliases = overrideLocalizationAliases(siteAliases, formatOptions.localizationAliases);
+    }
   } catch (error) {
     stderr.write(`${error instanceof Error ? error.message : String(error)}\n`);
     process.exitCode = 2;

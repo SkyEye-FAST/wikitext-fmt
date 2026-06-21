@@ -5,6 +5,9 @@ import type {
   FormatOptions,
   BehaviorSwitchPlacement,
   HtmlVoidTagStyle,
+  LocalizationAliases,
+  LocalizationSource,
+  LocalizedSyntaxStyle,
   TableCellSeparatorStyle,
 } from "../options.js";
 
@@ -70,6 +73,9 @@ export function validateConfig(value: unknown): FormatOptions {
     "formatLists",
     "formatBehaviorSwitches",
     "behaviorSwitchPlacement",
+    "localizationSource",
+    "localizedSyntaxStyle",
+    "localizationAliases",
     "formatTables",
     "tableCellSeparatorStyle",
     "normalizeBlankLines",
@@ -119,7 +125,61 @@ export function validateConfig(value: unknown): FormatOptions {
       ["preserve", "footer"],
     );
   }
+  if (record.localizationSource !== undefined) {
+    assertEnum<LocalizationSource>(
+      record.localizationSource,
+      "localizationSource",
+      ["builtin", "siteinfo", "custom"],
+    );
+  }
+  if (record.localizedSyntaxStyle !== undefined) {
+    assertEnum<LocalizedSyntaxStyle>(
+      record.localizedSyntaxStyle,
+      "localizedSyntaxStyle",
+      ["preserve", "canonical-english"],
+    );
+  }
+  if (record.localizationAliases !== undefined) {
+    validateLocalizationAliases(record.localizationAliases);
+  }
   return { ...record } as FormatOptions;
+}
+
+function validateStringArray(value: unknown, key: string): asserts value is string[] {
+  if (!Array.isArray(value) || value.some((entry) => typeof entry !== "string" || entry.length === 0)) {
+    throw new Error(`Configuration option ${key} must be an array of non-empty strings`);
+  }
+}
+
+function validateLocalizationAliases(value: unknown): asserts value is LocalizationAliases {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    throw new Error("Configuration option localizationAliases must be an object");
+  }
+  const aliases = value as Record<string, unknown>;
+  const allowed = new Set(["categoryNamespaces", "defaultsortMagicWords", "behaviorSwitches"]);
+  for (const key of Object.keys(aliases)) {
+    if (!allowed.has(key)) throw new Error(`Unknown localizationAliases option: ${key}`);
+  }
+  if (aliases.categoryNamespaces !== undefined) {
+    validateStringArray(aliases.categoryNamespaces, "localizationAliases.categoryNamespaces");
+  }
+  if (aliases.defaultsortMagicWords !== undefined) {
+    validateStringArray(aliases.defaultsortMagicWords, "localizationAliases.defaultsortMagicWords");
+  }
+  if (aliases.behaviorSwitches !== undefined) {
+    if (typeof aliases.behaviorSwitches !== "object" || aliases.behaviorSwitches === null || Array.isArray(aliases.behaviorSwitches)) {
+      throw new Error("Configuration option localizationAliases.behaviorSwitches must be an object");
+    }
+    const validIds = new Set([
+      "notoc", "forcetoc", "toc", "noeditsection", "newsectionlink", "nonewsectionlink",
+      "index", "noindex", "nogallery", "hiddencat", "nocontentconvert", "notitleconvert",
+      "staticredirect",
+    ]);
+    for (const [id, entries] of Object.entries(aliases.behaviorSwitches)) {
+      if (!validIds.has(id)) throw new Error(`Unknown behavior switch ID: ${id}`);
+      validateStringArray(entries, `localizationAliases.behaviorSwitches.${id}`);
+    }
+  }
 }
 
 export async function loadConfig(path: string): Promise<FormatOptions> {

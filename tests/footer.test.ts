@@ -6,6 +6,11 @@ import {
 } from "../src/rules/categories.js";
 
 const config = getParserConfig("mediawiki");
+const localization = {
+  localizationSource: "builtin",
+  localizedSyntaxStyle: "preserve",
+  localizationAliases: {},
+} as const;
 
 describe("page footer formatting", () => {
   it.each([
@@ -35,6 +40,7 @@ describe("page footer formatting", () => {
       formatCategories: true,
       formatBehaviorSwitches: true,
       behaviorSwitchPlacement: "footer",
+      ...localization,
     }).formatted).toBe(source);
   });
 
@@ -44,6 +50,7 @@ describe("page footer formatting", () => {
       formatCategories: true,
       formatBehaviorSwitches: true,
       behaviorSwitchPlacement: "footer",
+      ...localization,
     });
     expect(result.formatted).toBe(
       "Body\n\n__NOTOC__\n__NOINDEX__\n\n{{DEFAULTSORTKEY:Example}}\n[[Category:B]]\n",

@@ -31,6 +31,7 @@ wikitext-fmt page.wiki --diff
 wikitext-fmt page.wiki --diagnostics-json --check
 wikitext-fmt page.wiki --safe --check --fail-on-warning
 wikitext-fmt "pages/**/*.wiki" --check --report report.json
+wikitext-fmt page.wiki --localization-source siteinfo --site-api https://wiki.example/w/api.php
 ```
 
 Without `--write`, formatted wikitext is written to stdout. `--check` writes nothing and exits with status 1 when a file would change. Available switches are:
@@ -56,6 +57,9 @@ Without `--write`, formatted wikitext is written to stdout. `--check` writes not
 --no-format-lists
 --no-format-behavior-switches
 --behavior-switch-placement preserve|footer
+--localization-source builtin|siteinfo|custom
+--site-api <url>
+--localized-syntax-style preserve|canonical-english
 --format-tables
 --no-format-tables
 --table-cell-separator-style auto|split|preserve
@@ -116,6 +120,15 @@ Configuration keys match `FormatOptions`:
   "formatLists": true,
   "formatBehaviorSwitches": true,
   "behaviorSwitchPlacement": "preserve",
+  "localizationSource": "builtin",
+  "localizedSyntaxStyle": "preserve",
+  "localizationAliases": {
+    "categoryNamespaces": ["Project category"],
+    "defaultsortMagicWords": ["PROJECTSORT:"],
+    "behaviorSwitches": {
+      "notoc": ["__PROJECTNOTOC__"]
+    }
+  },
   "formatTables": false,
   "tableCellSeparatorStyle": "auto",
   "normalizeBlankLines": true
@@ -138,6 +151,8 @@ const output = formatWikitext(source, {
   formatLists: true,
   formatBehaviorSwitches: true,
   behaviorSwitchPlacement: "preserve",
+  localizationSource: "builtin",
+  localizedSyntaxStyle: "preserve",
   formatTables: false,
   tableCellSeparatorStyle: "auto",
   normalizeBlankLines: true,
@@ -151,8 +166,6 @@ if (result.warning) {
 }
 console.log(result.formatted);
 ```
-
-`formatWikitextSafe()` never intentionally exposes parser or formatter exceptions. It verifies that input and output parse with WikiParser-Node and that formatting the output again is unchanged. On failure it returns `{ formatted: source, warning }`.
 
 `formatWikitext()` remains the compact string-returning API. `formatWikitextResult()` exposes warnings without running the additional idempotency pass.
 
@@ -181,7 +194,7 @@ List lines containing templates, table syntax, HTML, or extension tags are prese
 
 ## Page footer and behavior switches
 
-The normal-level behavior-switch rule recognizes standalone `__NOTOC__`, `__FORCETOC__`, `__NOEDITSECTION__`, `__NEWSECTIONLINK__`, `__NONEWSECTIONLINK__`, `__INDEX__`, and `__NOINDEX__` lines. Its default `behaviorSwitchPlacement: "preserve"` only removes trailing horizontal whitespace and leaves each switch in place. Embedded switches and switches inside templates, tables, refs, comments, or protected blocks are not changed.
+The normal-level behavior-switch rule recognizes standalone aliases for the supported MediaWiki behavior-switch IDs. Its default `behaviorSwitchPlacement: "preserve"` only removes trailing horizontal whitespace and leaves each switch in place. Embedded switches and switches inside templates, tables, refs, comments, or protected blocks are not changed.
 
 Set `behaviorSwitchPlacement: "footer"` or use `--behavior-switch-placement footer` to move recognized standalone switches to the footer while preserving their order. Exact duplicate switch lines are removed in footer mode. Explicit footer mode produces these groups with one blank line between them:
 
@@ -196,7 +209,19 @@ __NOEDITSECTION__
 [[Category:B]]
 ```
 
-Standalone `{{DEFAULTSORT:...}}`, `{{DEFAULTSORTKEY:...}}`, and `{{デフォルトソート:...}}` parser-recognized lines move before categories. Their spelling and content are preserved apart from trailing whitespace. Categories retain namespace spelling, sort keys, and relative order; unknown category-like links remain in place. Disable switch handling with `--no-format-behavior-switches` or `formatBehaviorSwitches: false`.
+Standalone aliases for the MediaWiki `defaultsort` magic-word ID move before recognized namespace-ID-14 category links. Categories retain titles, sort keys, and relative order; category-talk namespaces and unknown category-like links remain in place. Disable switch handling with `--no-format-behavior-switches` or `formatBehaviorSwitches: false`.
+
+### Localization data
+
+Localized syntax aliases are data-driven; the formatter does not infer them from translated words.
+
+- `localizationSource: "builtin"` (default) uses the generated MediaWiki core alias table. The initial table is extracted from `MessagesZh_hans.php`, `MessagesZh_hant.php`, `MessagesJa.php`, and `MessagesKo.php` by `scripts/update-mediawiki-aliases.ts`.
+- `localizationSource: "siteinfo"` requires `--site-api <url>`. The CLI requests namespace ID 14, namespace aliases, magic words, and double-underscore behavior switches from the site's `action=query&meta=siteinfo` API. Fetch or validation failure stops the CLI; it never silently falls back to built-in data.
+- `localizationSource: "custom"` uses canonical English syntax plus `localizationAliases`. Custom aliases also override conflicting built-in or siteinfo behavior-switch aliases.
+
+`localizedSyntaxStyle: "preserve"` (default) recognizes aliases but retains their exact spelling. `"canonical-english"` rewrites only a certainly matched namespace or magic-word keyword: category namespaces become `Category`, `defaultsort` becomes `DEFAULTSORT`, and behavior switches use their canonical English ID. Page titles, category names, sort keys, arguments, and normal text are never translated.
+
+Site-specific namespace and magic-word aliases require siteinfo or explicit custom aliases. Core API consumers selecting `siteinfo` must preload and pass `localizationAliases`; network access exists only in the CLI loader.
 
 ## Experimental table formatting
 
@@ -234,15 +259,15 @@ wikitext-fmt page.wiki --safe --debug --level experimental --format-tables
 
 - Only simple, one-line templates are expanded.
 - Template parameters are not reordered.
-- Only standalone `[[Category:...]]`, `[[分类:...]]`, and `[[分類:...]]` lines are moved, without sorting or namespace rewriting.
+- Only standalone category namespace aliases backed by the selected localization data are moved; categories are never sorted.
 - List formatting is limited to safe spacing and trailing-whitespace cleanup on ordinary single-line items.
-- Only the documented standalone behavior switches and parser-recognized DEFAULTSORT aliases participate in footer formatting.
+- Only aliases backed by built-in MediaWiki data, siteinfo, or explicit custom configuration participate in footer formatting.
 - Experimental table formatting is disabled by default and only handles simple standalone wikitables.
 - Unsafe template- or HTML-containing table lines are preserved even when other safe rows are formatted.
 - Nested, unbalanced, template-contained, placeholder-containing, and structurally unclear tables are preserved entirely.
 - Table columns are not aligned or padded, and rows, cells, and attributes are never reordered.
 - Single-block ignore handling is deliberately line/paragraph oriented. Range ignores are preferred for complex content.
-- Site-specific syntax requires an appropriate parser configuration.
+- Site-specific parser grammar still requires an appropriate parser configuration in addition to localization aliases.
 
 Ignore a range with:
 
@@ -261,6 +286,7 @@ pnpm test
 pnpm test:run
 pnpm build
 pnpm check
+pnpm localization:update /path/to/mediawiki/languages/messages
 ```
 
 GitHub Actions runs frozen pnpm installs, builds, and the complete test suite on Node.js 22 and 24 for every push and pull request.

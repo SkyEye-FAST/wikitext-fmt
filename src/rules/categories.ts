@@ -1,19 +1,12 @@
 import type { Config } from "wikiparser-node";
 import type { ResolvedFormatOptions } from "../options.js";
+import {
+  behaviorSwitchIds,
+  resolveLocalizationAliases,
+  type BehaviorSwitchId,
+} from "../localization/aliases.js";
 import { parseWikitext } from "../parser.js";
 import { hasFinalNewline, withFinalNewline } from "../utils/text.js";
-
-const CATEGORY_LINE = /^\[\[(?:Category|分类|分類):([^\]\n|]+)(?:\|([^\]\n]*))?\]\][ \t]*$/iu;
-const DEFAULTSORT_LINE = /^\{\{(?:DEFAULTSORT|DEFAULTSORTKEY|デフォルトソート):[^{}\n]+\}\}[ \t]*$/iu;
-const BEHAVIOR_SWITCH_NAMES = new Set([
-  "notoc",
-  "forcetoc",
-  "noeditsection",
-  "newsectionlink",
-  "nonewsectionlink",
-  "index",
-  "noindex",
-]);
 
 export interface FooterDiagnostics {
   behaviorSwitchesMoved: number;
@@ -30,21 +23,75 @@ export interface PageFooterResult {
 interface FooterEntry {
   index: number;
   value: string;
+  originalValue: string;
 }
 
-export function isStandaloneBehaviorSwitchLine(line: string): boolean {
-  const match = /^__([A-Z]+)__[ \t]*$/iu.exec(line);
-  return match?.[1] !== undefined && BEHAVIOR_SWITCH_NAMES.has(match[1].toLowerCase());
+function behaviorAliasToken(alias: string): string {
+  return /^(?:__.*__|＿＿.*＿＿)$/u.test(alias) ? alias : `__${alias}__`;
 }
 
-function lineDetails(source: string, start: number): { index: number; line: string } {
-  const lineStart = source.lastIndexOf("\n", start - 1) + 1;
-  const nextNewline = source.indexOf("\n", start);
-  const lineEnd = nextNewline < 0 ? source.length : nextNewline;
-  return {
-    index: source.slice(0, lineStart).split("\n").length - 1,
-    line: source.slice(lineStart, lineEnd),
-  };
+function behaviorLookup(
+  aliases: ReturnType<typeof resolveLocalizationAliases>["behaviorSwitches"],
+): Map<string, BehaviorSwitchId> {
+  const candidates = new Map<string, BehaviorSwitchId | undefined>();
+  for (const [id, values] of Object.entries(aliases) as Array<[BehaviorSwitchId, string[]]>) {
+    for (const value of values) {
+      const token = behaviorAliasToken(value);
+      const previous = candidates.get(token);
+      candidates.set(token, previous === undefined && !candidates.has(token) ? id : previous === id ? id : undefined);
+    }
+  }
+  return new Map([...candidates].filter((entry): entry is [string, BehaviorSwitchId] => entry[1] !== undefined));
+}
+
+export function isStandaloneBehaviorSwitchLine(line: string, aliases?: Map<string, BehaviorSwitchId>): boolean {
+  const trimmed = line.trimEnd();
+  if (trimmed.length === 0 || line.trimStart() !== line) return false;
+  if (aliases) return aliases.has(trimmed);
+  return behaviorSwitchIds.some((id) => trimmed === `__${id.toUpperCase()}__`);
+}
+
+function templateRanges(source: string, config: Config): Array<{ start: number; end: number }> {
+  return parseWikitext(source, config).querySelectorAll("template").map((node) => ({
+    start: node.getAbsoluteIndex(),
+    end: node.getAbsoluteIndex() + node.toString().length,
+  }));
+}
+
+function isInsideTemplate(
+  start: number,
+  end: number,
+  ranges: ReadonlyArray<{ start: number; end: number }>,
+): boolean {
+  return ranges.some((range) => range.start <= start && range.end >= end && (range.start < start || range.end > end));
+}
+
+function matchCategory(
+  line: string,
+  aliases: ReadonlySet<string>,
+  canonicalEnglish: boolean,
+): string | undefined {
+  const match = /^\[\[([^:\]\n]+):([^\]\n|]+(?:\|[^\]\n]*)?)\]\][ \t]*$/u.exec(line);
+  if (!match?.[1] || match[2] === undefined || !aliases.has(match[1].replaceAll("_", " ").toLocaleLowerCase())) {
+    return undefined;
+  }
+  return `[[${canonicalEnglish ? "Category" : match[1]}:${match[2]}]]`;
+}
+
+function matchDefaultsort(
+  line: string,
+  aliases: readonly string[],
+  canonicalEnglish: boolean,
+): string | undefined {
+  const trimmed = line.trimEnd();
+  for (const alias of aliases) {
+    const prefix = `{{${alias}`;
+    if (!trimmed.startsWith(prefix) || !trimmed.endsWith("}}")) continue;
+    const value = trimmed.slice(prefix.length, -2);
+    if (!value || /[{}\n]/u.test(value)) return undefined;
+    return `{{${canonicalEnglish ? "DEFAULTSORT:" : alias}${value}}}`;
+  }
+  return undefined;
 }
 
 function countMoved(entries: readonly FooterEntry[], outputLines: readonly string[]): number {
@@ -63,7 +110,12 @@ export function formatPageFooter(
   config: Config,
   options: Pick<
     ResolvedFormatOptions,
-    "formatCategories" | "formatBehaviorSwitches" | "behaviorSwitchPlacement"
+    | "formatCategories"
+    | "formatBehaviorSwitches"
+    | "behaviorSwitchPlacement"
+    | "localizationSource"
+    | "localizedSyntaxStyle"
+    | "localizationAliases"
   >,
 ): PageFooterResult {
   const diagnostics: FooterDiagnostics = {
@@ -75,43 +127,56 @@ export function formatPageFooter(
   const finalNewline = hasFinalNewline(source);
   const lines = source.split("\n");
   if (finalNewline) lines.pop();
-  const root = parseWikitext(source, config);
+  const aliases = resolveLocalizationAliases(options.localizationSource, options.localizationAliases);
+  const categoryAliases = new Set(
+    aliases.categoryNamespaces.map((alias) => alias.replaceAll("_", " ").toLocaleLowerCase()),
+  );
+  const switchAliases = behaviorLookup(aliases.behaviorSwitches);
+  const canonicalEnglish = options.localizedSyntaxStyle === "canonical-english";
+  const ranges = templateRanges(source, config);
+  const lineStarts: number[] = [];
+  let offset = 0;
+  for (const line of lines) {
+    lineStarts.push(offset);
+    offset += line.length + 1;
+  }
 
   const categories: FooterEntry[] = [];
   const categoryIndexes = new Set<number>();
   if (options.formatCategories) {
-    for (const node of root.querySelectorAll("category")) {
-      if (node.parentNode?.closest("template")) continue;
-      const details = lineDetails(source, node.getAbsoluteIndex());
-      if (!CATEGORY_LINE.test(details.line) || categoryIndexes.has(details.index)) continue;
-      categories.push({ index: details.index, value: details.line.trimEnd() });
-      categoryIndexes.add(details.index);
+    for (const [index, line] of lines.entries()) {
+      const value = matchCategory(line, categoryAliases, canonicalEnglish);
+      const start = lineStarts[index] ?? 0;
+      if (!value || isInsideTemplate(start, start + line.trimEnd().length, ranges)) continue;
+      categories.push({ index, value, originalValue: line.trimEnd() });
+      categoryIndexes.add(index);
     }
   }
 
   const defaultsorts: FooterEntry[] = [];
   const defaultsortIndexes = new Set<number>();
   if (options.formatCategories) {
-    for (const node of root.querySelectorAll("magic-word")) {
-      if (node.name !== "defaultsort" || node.parentNode?.closest("template")) continue;
-      const details = lineDetails(source, node.getAbsoluteIndex());
-      if (!DEFAULTSORT_LINE.test(details.line) || defaultsortIndexes.has(details.index)) continue;
-      defaultsorts.push({ index: details.index, value: details.line.trimEnd() });
-      defaultsortIndexes.add(details.index);
+    for (const [index, line] of lines.entries()) {
+      const value = matchDefaultsort(line, aliases.defaultsortMagicWords, canonicalEnglish);
+      const start = lineStarts[index] ?? 0;
+      if (!value || isInsideTemplate(start, start + line.trimEnd().length, ranges)) continue;
+      defaultsorts.push({ index, value, originalValue: line.trimEnd() });
+      defaultsortIndexes.add(index);
     }
   }
 
   const behaviorSwitches: FooterEntry[] = [];
   const behaviorSwitchIndexes = new Set<number>();
   if (options.formatBehaviorSwitches) {
-    for (const node of root.querySelectorAll("double-underscore")) {
-      if (!BEHAVIOR_SWITCH_NAMES.has(node.name) || node.parentNode?.closest("template")) continue;
-      const details = lineDetails(source, node.getAbsoluteIndex());
-      if (!isStandaloneBehaviorSwitchLine(details.line) || behaviorSwitchIndexes.has(details.index)) continue;
-      const value = details.line.trimEnd();
-      if (value !== details.line) diagnostics.behaviorSwitchesFormatted++;
-      behaviorSwitches.push({ index: details.index, value });
-      behaviorSwitchIndexes.add(details.index);
+    for (const [index, line] of lines.entries()) {
+      const originalValue = line.trimEnd();
+      const id = switchAliases.get(originalValue);
+      const start = lineStarts[index] ?? 0;
+      if (!id || isInsideTemplate(start, start + originalValue.length, ranges)) continue;
+      const value = canonicalEnglish ? `__${id.toUpperCase()}__` : originalValue;
+      if (value !== line) diagnostics.behaviorSwitchesFormatted++;
+      behaviorSwitches.push({ index, value, originalValue });
+      behaviorSwitchIndexes.add(index);
     }
   }
 
@@ -121,7 +186,9 @@ export function formatPageFooter(
   }
 
   const movedBehaviorSwitches = options.behaviorSwitchPlacement === "footer"
-    ? behaviorSwitches.filter((entry, index, entries) => entries.findIndex(({ value }) => value === entry.value) === index)
+    ? behaviorSwitches.filter(
+        (entry, index, entries) => entries.findIndex(({ originalValue }) => originalValue === entry.originalValue) === index,
+      )
     : [];
   const removedIndexes = new Set([...categoryIndexes, ...defaultsortIndexes]);
   if (options.behaviorSwitchPlacement === "footer") {

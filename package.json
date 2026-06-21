@@ -24,7 +24,8 @@
     "build": "tsc",
     "test": "vitest",
     "test:run": "vitest run",
-    "check": "pnpm build && pnpm test:run"
+    "check": "pnpm build && pnpm test:run",
+    "localization:update": "node --experimental-strip-types scripts/update-mediawiki-aliases.ts"
   },
   "engines": {
     "node": "^22.13.0 || >=24.11.0"
