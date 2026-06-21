@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      fast-glob:
+        specifier: ^3.3.3
+        version: 3.3.3
       wikiparser-node:
         specifier: ^1.44.0
         version: 1.44.0(stylelint-config-recommended@18.0.0(stylelint@17.13.0(typescript@6.0.3)))(stylelint@17.13.0(typescript@6.0.3))

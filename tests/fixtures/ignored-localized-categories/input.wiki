@@ -1,0 +1,21 @@
+<!-- [[分类:注释]] -->
+<nowiki>[[分類:原样]]</nowiki>
+<pre>
+[[分类:预格式]]
+</pre>
+<syntaxhighlight lang="wikitext">[[分類:代码]]</syntaxhighlight>
+<source lang="wikitext">[[分类:源代码]]</source>
+<math>[[分類:公式]]</math>
+<chem>[[分类:化学式]]</chem>
+<ref>[[分类:引用]]</ref>
+<gallery>
+File:Example.jpg|[[分類:图集]]
+</gallery>
+{{Box
+| category = [[分类:模板]]
+}}
+{| class="wikitable"
+| [[分類:表格]]
+|}
+正文。
+[[分类:页脚]]

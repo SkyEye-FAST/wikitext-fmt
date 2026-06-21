@@ -2,7 +2,7 @@ import type { Config } from "wikiparser-node";
 import { parseWikitext } from "../parser.js";
 import { hasFinalNewline, withFinalNewline } from "../utils/text.js";
 
-const CATEGORY_LINE = /^[ \t]*\[\[Category:([^\]\n|]+)(?:\|([^\]\n]*))?\]\][ \t]*$/iu;
+const CATEGORY_LINE = /^[ \t]*\[\[(?:Category|分类|分類):([^\]\n|]+)(?:\|([^\]\n]*))?\]\][ \t]*$/iu;
 const DEFAULTSORT_LINE = /^[ \t]*\{\{DEFAULTSORT:[^{}\n]+\}\}[ \t]*$/iu;
 
 export function formatCategories(source: string, config: Config): string {

@@ -24,13 +24,14 @@
     "build": "tsc",
     "test": "vitest",
     "test:run": "vitest run",
-    "format:check": "node dist/cli.js --check"
+    "check": "pnpm build && pnpm test:run"
   },
   "engines": {
     "node": "^20.19.0 || ^22.13.0 || >=24.11.0"
   },
   "packageManager": "pnpm@11.5.2",
   "dependencies": {
+    "fast-glob": "^3.3.3",
     "wikiparser-node": "^1.44.0"
   },
   "devDependencies": {

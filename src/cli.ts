@@ -3,6 +3,8 @@ import { readFile, writeFile } from "node:fs/promises";
 import { stdin, stderr, stdout } from "node:process";
 import { formatWikitextResult, formatWikitextSafe, type FormatResult } from "./formatter.js";
 import type { FormatOptions } from "./options.js";
+import { resolveCliConfig } from "./cli/config.js";
+import { expandInputPaths } from "./cli/paths.js";
 
 interface CliOptions extends FormatOptions {
   write: boolean;
@@ -10,15 +12,25 @@ interface CliOptions extends FormatOptions {
   stdin: boolean;
   safe: boolean;
   debug: boolean;
+  configPath?: string;
+  noConfig: boolean;
   files: string[];
 }
 
 function usage(): string {
-  return "Usage: wikitext-fmt [--write | --check] [--stdin] [--safe] [--debug] [--level safe|normal|experimental] [--html-void-tag-style html5|xhtml|preserve] [options] <file...>";
+  return "Usage: wikitext-fmt [--write | --check] [--stdin] [--safe] [--debug] [--config <path> | --no-config] [--level safe|normal|experimental] [options] <file-or-glob...>";
 }
 
 function parseArgs(args: string[]): CliOptions {
-  const options: CliOptions = { write: false, check: false, stdin: false, safe: false, debug: false, files: [] };
+  const options: CliOptions = {
+    write: false,
+    check: false,
+    stdin: false,
+    safe: false,
+    debug: false,
+    noConfig: false,
+    files: [],
+  };
   for (let index = 0; index < args.length; index++) {
     const arg = args[index]!;
     switch (arg) {
@@ -27,6 +39,13 @@ function parseArgs(args: string[]): CliOptions {
       case "--stdin": options.stdin = true; break;
       case "--safe": options.safe = true; break;
       case "--debug": options.debug = true; break;
+      case "--config": {
+        const value = args[++index];
+        if (!value) throw new Error("--config requires a path");
+        options.configPath = value;
+        break;
+      }
+      case "--no-config": options.noConfig = true; break;
       case "--level": {
         const value = args[++index];
         if (value !== "safe" && value !== "normal" && value !== "experimental") {
@@ -60,6 +79,7 @@ function parseArgs(args: string[]): CliOptions {
     }
   }
   if (options.write && options.check) throw new Error("--write and --check cannot be used together");
+  if (options.configPath && options.noConfig) throw new Error("--config and --no-config cannot be used together");
   if (options.stdin && options.files.length > 0) throw new Error("--stdin cannot be combined with file paths");
   if (options.stdin && options.write) throw new Error("--write cannot be used with --stdin");
   if (!options.stdin && options.files.length === 0) throw new Error("No input file specified");
@@ -79,24 +99,34 @@ function formatterOptions(options: CliOptions): FormatOptions {
     stdin: _stdin,
     safe: _safe,
     debug: _debug,
+    configPath: _configPath,
+    noConfig: _noConfig,
     files: _files,
     ...formatOptions
   } = options;
   return formatOptions;
 }
 
-function runFormatter(source: string, options: CliOptions): FormatResult {
+function runFormatter(source: string, options: CliOptions, formatOptions: FormatOptions): FormatResult {
   return options.safe
-    ? formatWikitextSafe(source, formatterOptions(options))
-    : formatWikitextResult(source, formatterOptions(options));
+    ? formatWikitextSafe(source, formatOptions)
+    : formatWikitextResult(source, formatOptions);
 }
 
-function debugResult(label: string, source: string, result: FormatResult, options: CliOptions): void {
+function debugResult(
+  label: string,
+  source: string,
+  result: FormatResult,
+  options: CliOptions,
+  formatOptions: FormatOptions,
+  configPath?: string,
+): void {
   if (!options.debug) return;
-  const level = options.level ?? "normal";
+  const level = formatOptions.level ?? "normal";
   const mode = options.safe ? "safe" : "normal";
   const status = result.warning ? "fallback" : result.formatted === source ? "unchanged" : "changed";
-  stderr.write(`${label}: debug: mode=${mode} level=${level} status=${status}\n`);
+  const config = configPath ? ` config=${configPath}` : " config=defaults";
+  stderr.write(`${label}: debug: mode=${mode} level=${level} status=${status}${config}\n`);
 }
 
 async function main(): Promise<void> {
@@ -109,21 +139,45 @@ async function main(): Promise<void> {
     return;
   }
 
+  let formatOptions: FormatOptions;
+  let configPath: string | undefined;
+  try {
+    const resolved = await resolveCliConfig(formatterOptions(options), {
+      configPath: options.configPath,
+      noConfig: options.noConfig,
+    });
+    formatOptions = resolved.options;
+    configPath = resolved.path;
+  } catch (error) {
+    stderr.write(`${error instanceof Error ? error.message : String(error)}\n`);
+    process.exitCode = 2;
+    return;
+  }
+
   if (options.stdin) {
     const source = await readStdin();
-    const result = runFormatter(source, options);
-    debugResult("stdin", source, result, options);
+    const result = runFormatter(source, options, formatOptions);
+    debugResult("stdin", source, result, options, formatOptions, configPath);
     if (result.warning) stderr.write(`warning: ${result.warning}\n`);
     if (options.check) process.exitCode = result.formatted === source ? 0 : 1;
     else stdout.write(result.formatted);
     return;
   }
 
+  let files: string[];
+  try {
+    files = await expandInputPaths(options.files);
+  } catch (error) {
+    stderr.write(`${error instanceof Error ? error.message : String(error)}\n`);
+    process.exitCode = 2;
+    return;
+  }
+
   let changed = false;
-  for (const file of options.files) {
+  for (const file of files) {
     const source = await readFile(file, "utf8");
-    const result = runFormatter(source, options);
-    debugResult(file, source, result, options);
+    const result = runFormatter(source, options, formatOptions);
+    debugResult(file, source, result, options, formatOptions, configPath);
     if (result.warning) stderr.write(`${file}: warning: ${result.warning}\n`);
     if (result.formatted !== source) changed = true;
     if (options.write) await writeFile(file, result.formatted, "utf8");

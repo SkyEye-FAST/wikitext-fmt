@@ -52,4 +52,11 @@ describe("formatter API", () => {
   it("can disable individual rules", () => {
     expect(formatWikitext("==Title==\n", { formatHeadings: false })).toBe("==Title==\n");
   });
+
+  it("falls back without changing CRLF input when exact round-tripping is unavailable", () => {
+    const input = "==Title==\r\nText\r\n";
+    const result = formatWikitextSafe(input);
+    expect(result.formatted).toBe(input);
+    expect(result.warning).toMatch(/round-trip/u);
+  });
 });

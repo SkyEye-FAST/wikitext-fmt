@@ -4,6 +4,8 @@
 
 The formatter intentionally handles only structures that can be changed with a small, predictable transformation. It does **not** guarantee that every wikitext construct will be formatted. Risky templates, tables, protected extension tags, and ignored regions are preserved rather than aggressively rewritten.
 
+It is not a full replacement for Pywikibot's `cosmetic_changes.py`. Its scope and defaults are deliberately narrower, including HTML5-style `<br>` output rather than XHTML-style `<br />` output.
+
 ## Install and build
 
 Node.js 20 or newer and pnpm are required.
@@ -22,6 +24,8 @@ wikitext-fmt page.wiki --check
 cat page.wiki | wikitext-fmt --stdin
 wikitext-fmt page.wiki --safe --level safe
 wikitext-fmt page.wiki --debug
+wikitext-fmt "pages/**/*.wiki" --check
+wikitext-fmt "pages/**/*.wiki" --write
 ```
 
 Without `--write`, formatted wikitext is written to stdout. `--check` writes nothing and exits with status 1 when a file would change. Available switches are:
@@ -32,6 +36,8 @@ Without `--write`, formatted wikitext is written to stdout. `--check` writes not
 --stdin
 --safe
 --debug
+--config <path>
+--no-config
 --level safe|normal|experimental
 --html-void-tag-style html5|xhtml|preserve
 --parser-config <name-or-json-path>
@@ -41,19 +47,54 @@ Without `--write`, formatted wikitext is written to stdout. `--check` writes not
 --no-normalize-blank-lines
 ```
 
+Explicit files and glob patterns can be mixed. Expanded paths are deduplicated and processed in stable sorted order. Directories are not formatted, and an unmatched glob exits with status 2 and a clear error.
+
 `--safe` enables parse-before, parse-after, and idempotency verification. If verification fails, the original input is returned and a warning is written to stderr. `--debug` writes the selected mode, rule level, and result status to stderr without contaminating formatted stdout.
 
 Formatting levels are cumulative:
 
 | Level | Enabled rules |
 | --- | --- |
-| `safe` | Heading spacing and blank-line normalization |
+| `safe` | Heading spacing, blank-line normalization, and ordinary HTML void-tag normalization |
 | `normal` | Safe rules, simple templates, and simple category movement |
 | `experimental` | Safe and normal rules plus future opt-in rules |
 
 The default is `normal`. No experimental formatter rule is currently implemented or enabled by default. Tables remain a dangerous-structure signal and are never formatted.
 
 The default parser configuration name is `mediawiki`, which maps to `wikiparser-node`'s generic `default` configuration. Names shipped by the parser, such as `enwiki` or `zhwiki`, and paths to custom JSON configurations are also accepted.
+
+## Configuration files
+
+The CLI searches from the current working directory upward for the first supported JSON configuration file:
+
+```text
+.wikitextfmtrc
+.wikitextfmtrc.json
+wikitext-fmt.config.json
+```
+
+Use `--config <path>` to select a file explicitly or `--no-config` to disable discovery. The precedence is:
+
+```text
+CLI options > explicit --config file > discovered config file > defaults
+```
+
+Configuration keys match `FormatOptions`:
+
+```json
+{
+  "parserConfig": "mediawiki",
+  "lineWidth": 120,
+  "level": "normal",
+  "htmlVoidTagStyle": "html5",
+  "formatHeadings": true,
+  "formatTemplates": true,
+  "formatCategories": true,
+  "normalizeBlankLines": true
+}
+```
+
+Unknown keys and invalid option values are rejected instead of being silently ignored. Configuration discovery and loading are CLI concerns; the formatter core does not read files or inspect the working directory.
 
 ## API
 
@@ -100,7 +141,7 @@ The levels describe formatter confidence, not a proof of semantic equivalence fo
 
 - Only simple, one-line templates are expanded.
 - Template parameters are not reordered.
-- Only standalone `[[Category:...]]` lines are moved, without sorting.
+- Only standalone `[[Category:...]]`, `[[分类:...]]`, and `[[分類:...]]` lines are moved, without sorting or namespace rewriting.
 - Tables are preserved and are not formatted.
 - Single-block ignore handling is deliberately line/paragraph oriented. Range ignores are preferred for complex content.
 - Site-specific syntax requires an appropriate parser configuration.
@@ -121,7 +162,10 @@ content left unchanged
 pnpm test
 pnpm test:run
 pnpm build
+pnpm check
 ```
+
+GitHub Actions runs frozen pnpm installs, builds, and the complete test suite on Node.js 20, 22, and 24 for every push and pull request.
 
 The repository remains a single pnpm package. Core modules do not import the CLI; a workspace split is deferred until core and CLI need independent publication or dependency lifecycles.
 
