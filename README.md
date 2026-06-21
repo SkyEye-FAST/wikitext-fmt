@@ -8,7 +8,7 @@ It is not a full replacement for Pywikibot's `cosmetic_changes.py`. Its scope an
 
 ## Install and build
 
-Node.js 20 or newer and pnpm are required.
+Supported runtimes are Node.js 22.13+ on the 22.x line, or Node.js 24.11+. pnpm is required.
 
 ```sh
 pnpm install
@@ -165,7 +165,7 @@ pnpm build
 pnpm check
 ```
 
-GitHub Actions runs frozen pnpm installs, builds, and the complete test suite on Node.js 20, 22, and 24 for every push and pull request.
+GitHub Actions runs frozen pnpm installs, builds, and the complete test suite on Node.js 22 and 24 for every push and pull request.
 
 The repository remains a single pnpm package. Core modules do not import the CLI; a workspace split is deferred until core and CLI need independent publication or dependency lifecycles.
 

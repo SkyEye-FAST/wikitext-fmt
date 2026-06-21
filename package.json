@@ -27,7 +27,7 @@
     "check": "pnpm build && pnpm test:run"
   },
   "engines": {
-    "node": "^20.19.0 || ^22.13.0 || >=24.11.0"
+    "node": "^22.13.0 || >=24.11.0"
   },
   "packageManager": "pnpm@11.5.2",
   "dependencies": {
