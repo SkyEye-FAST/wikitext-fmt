@@ -1,6 +1,6 @@
 {| class="wikitable sortable" data-sort-type="number"
 ! scope="col" | Rank
-! scope="col" | Entry
+! scope="col" class="unsortable" | Entry
 ! scope="col" | Score
 ! scope="col" | Updated
 |-
@@ -13,4 +13,8 @@
 | [[Example Beta|Beta]]
 | 91.8
 | 2026-02-03
+|-
+| colspan="2" rowspan="1" | Combined
+| 186.0
+| 2026-03-01
 |}

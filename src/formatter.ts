@@ -43,7 +43,10 @@ export function formatWikitextDetailedResult(
     parseWikitext(source, config);
     let tableOutput = source;
     if (resolved.formatTables && isRuleEnabled("tables", resolved.level)) {
-      const tableBlocks = protectBlocks(tableOutput, { protectTables: false });
+      const tableBlocks = protectBlocks(tableOutput, {
+        protectTables: false,
+        protectComments: false,
+      });
       const tableResult = formatTablesWithDiagnostics(tableBlocks.text, config, resolved);
       tableOutput = tableResult.formatted;
       tableDiagnostics = tableResult.diagnostics.map((diagnostic) => {

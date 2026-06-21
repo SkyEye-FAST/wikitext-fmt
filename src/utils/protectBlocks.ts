@@ -20,6 +20,7 @@ export interface ProtectedText {
 
 export interface ProtectBlocksOptions {
   protectTables?: boolean;
+  protectComments?: boolean;
 }
 
 interface Range {
@@ -72,7 +73,7 @@ function mergeRanges(ranges: Range[]): Range[] {
   return merged;
 }
 
-function structuralRanges(source: string, protectTables: boolean): Range[] {
+function structuralRanges(source: string, protectTables: boolean, protectComments: boolean): Range[] {
   const ranges: Range[] = [];
   const tags = PROTECTED_TAGS.join("|");
   const tagPattern = new RegExp(`<(${tags})\\b[^>]*>[\\s\\S]*?<\\/\\1\\s*>`, "giu");
@@ -88,8 +89,10 @@ function structuralRanges(source: string, protectTables: boolean): Range[] {
     ranges.push({ start: match.index, end: source.length });
   }
 
-  for (const match of source.matchAll(/<!--[\s\S]*?(?:-->|$)/gu)) {
-    ranges.push({ start: match.index, end: match.index + match[0].length });
+  if (protectComments) {
+    for (const match of source.matchAll(/<!--[\s\S]*?(?:-->|$)/gu)) {
+      ranges.push({ start: match.index, end: match.index + match[0].length });
+    }
   }
 
   if (protectTables) {
@@ -118,7 +121,11 @@ function structuralRanges(source: string, protectTables: boolean): Range[] {
 export function protectBlocks(source: string, options: ProtectBlocksOptions = {}): ProtectedText {
   const ranges = mergeRanges([
     ...ignoreRanges(source),
-    ...structuralRanges(source, options.protectTables ?? true),
+    ...structuralRanges(
+      source,
+      options.protectTables ?? true,
+      options.protectComments ?? true,
+    ),
   ]);
   const values: string[] = [];
   const mappings: Array<{

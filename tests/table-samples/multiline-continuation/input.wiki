@@ -1,0 +1,10 @@
+{| class="wikitable"
+! Item !! Notes
+|-
+| Alpha
+First observation line
+
+Second observation line
+|-
+| Beta || Complete
+|}

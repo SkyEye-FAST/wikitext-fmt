@@ -3,6 +3,7 @@
 ! Category
 ! Value
 |-
+<!-- reviewed row -->
 | Sample A
 | Primary
 | 42

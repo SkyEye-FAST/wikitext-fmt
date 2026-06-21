@@ -9,6 +9,8 @@ import {
 import type { FormatOptions } from "./options.js";
 import { resolveCliConfig } from "./cli/config.js";
 import { expandInputPaths } from "./cli/paths.js";
+import { createUnifiedDiff } from "./cli/diff.js";
+import { serializeDiagnostics } from "./cli/diagnostics.js";
 
 interface CliOptions extends FormatOptions {
   write: boolean;
@@ -16,13 +18,15 @@ interface CliOptions extends FormatOptions {
   stdin: boolean;
   safe: boolean;
   debug: boolean;
+  diff: boolean;
+  diagnosticsJson: boolean;
   configPath?: string;
   noConfig: boolean;
   files: string[];
 }
 
 function usage(): string {
-  return "Usage: wikitext-fmt [--write | --check] [--stdin] [--safe] [--debug] [--config <path> | --no-config] [--level safe|normal|experimental] [options] <file-or-glob...>";
+  return "Usage: wikitext-fmt [--write | --check | --diff] [--stdin] [--safe] [--debug | --diagnostics-json] [--config <path> | --no-config] [--level safe|normal|experimental] [options] <file-or-glob...>";
 }
 
 function parseArgs(args: string[]): CliOptions {
@@ -32,6 +36,8 @@ function parseArgs(args: string[]): CliOptions {
     stdin: false,
     safe: false,
     debug: false,
+    diff: false,
+    diagnosticsJson: false,
     noConfig: false,
     files: [],
   };
@@ -43,6 +49,8 @@ function parseArgs(args: string[]): CliOptions {
       case "--stdin": options.stdin = true; break;
       case "--safe": options.safe = true; break;
       case "--debug": options.debug = true; break;
+      case "--diff": options.diff = true; break;
+      case "--diagnostics-json": options.diagnosticsJson = true; break;
       case "--config": {
         const value = args[++index];
         if (!value) throw new Error("--config requires a path");
@@ -93,6 +101,8 @@ function parseArgs(args: string[]): CliOptions {
     }
   }
   if (options.write && options.check) throw new Error("--write and --check cannot be used together");
+  if (options.write && options.diff) throw new Error("--write and --diff cannot be used together");
+  if (options.debug && options.diagnosticsJson) throw new Error("--debug and --diagnostics-json cannot be used together");
   if (options.configPath && options.noConfig) throw new Error("--config and --no-config cannot be used together");
   if (options.stdin && options.files.length > 0) throw new Error("--stdin cannot be combined with file paths");
   if (options.stdin && options.write) throw new Error("--write cannot be used with --stdin");
@@ -113,6 +123,8 @@ function formatterOptions(options: CliOptions): FormatOptions {
     stdin: _stdin,
     safe: _safe,
     debug: _debug,
+    diff: _diff,
+    diagnosticsJson: _diagnosticsJson,
     configPath: _configPath,
     noConfig: _noConfig,
     files: _files,
@@ -151,6 +163,21 @@ function debugResult(
   }
 }
 
+function reportDiagnostics(
+  label: string,
+  source: string,
+  result: FormatDetailedResult,
+  options: CliOptions,
+  formatOptions: FormatOptions,
+  configPath?: string,
+): void {
+  if (options.diagnosticsJson) {
+    stderr.write(`${serializeDiagnostics(label, source, result)}\n`);
+    return;
+  }
+  debugResult(label, source, result, options, formatOptions, configPath);
+}
+
 async function main(): Promise<void> {
   let options: CliOptions;
   try {
@@ -179,10 +206,12 @@ async function main(): Promise<void> {
   if (options.stdin) {
     const source = await readStdin();
     const result = runFormatter(source, options, formatOptions);
-    debugResult("stdin", source, result, options, formatOptions, configPath);
-    if (result.warning) stderr.write(`warning: ${result.warning}\n`);
-    if (options.check) process.exitCode = result.formatted === source ? 0 : 1;
+    reportDiagnostics("stdin", source, result, options, formatOptions, configPath);
+    if (result.warning && !options.diagnosticsJson) stderr.write(`warning: ${result.warning}\n`);
+    if (options.diff) stdout.write(createUnifiedDiff("stdin", source, result.formatted));
+    else if (options.check) process.exitCode = result.formatted === source ? 0 : 1;
     else stdout.write(result.formatted);
+    if (options.diff && result.formatted !== source) process.exitCode = 1;
     return;
   }
 
@@ -199,13 +228,14 @@ async function main(): Promise<void> {
   for (const file of files) {
     const source = await readFile(file, "utf8");
     const result = runFormatter(source, options, formatOptions);
-    debugResult(file, source, result, options, formatOptions, configPath);
-    if (result.warning) stderr.write(`${file}: warning: ${result.warning}\n`);
+    reportDiagnostics(file, source, result, options, formatOptions, configPath);
+    if (result.warning && !options.diagnosticsJson) stderr.write(`${file}: warning: ${result.warning}\n`);
     if (result.formatted !== source) changed = true;
     if (options.write) await writeFile(file, result.formatted, "utf8");
+    else if (options.diff) stdout.write(createUnifiedDiff(file, source, result.formatted));
     else if (!options.check) stdout.write(result.formatted);
   }
-  if (options.check && changed) process.exitCode = 1;
+  if ((options.check || options.diff) && changed) process.exitCode = 1;
 }
 
 await main();

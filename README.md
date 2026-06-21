@@ -27,6 +27,8 @@ wikitext-fmt page.wiki --debug
 wikitext-fmt "pages/**/*.wiki" --check
 wikitext-fmt "pages/**/*.wiki" --write
 wikitext-fmt page.wiki --level experimental --format-tables
+wikitext-fmt page.wiki --diff
+wikitext-fmt page.wiki --diagnostics-json --check
 ```
 
 Without `--write`, formatted wikitext is written to stdout. `--check` writes nothing and exits with status 1 when a file would change. Available switches are:
@@ -37,6 +39,8 @@ Without `--write`, formatted wikitext is written to stdout. `--check` writes not
 --stdin
 --safe
 --debug
+--diff
+--diagnostics-json
 --config <path>
 --no-config
 --level safe|normal|experimental
@@ -52,6 +56,10 @@ Without `--write`, formatted wikitext is written to stdout. `--check` writes not
 ```
 
 Explicit files and glob patterns can be mixed. Expanded paths are deduplicated and processed in stable sorted order. Directories are not formatted, and an unmatched glob exits with status 2 and a clear error.
+
+`--diff` writes a unified diff to stdout without modifying files and exits with status 1 when formatting would change the input. It works with file paths, globs, and `--stdin`, and cannot be combined with `--write`.
+
+`--diagnostics-json` writes one JSON object per input to stderr. Each object includes `file`, `changed`, `warning`, and complete table diagnostics including line numbers, separator style/reason, and line diagnostics. Formatted text or diffs remain on stdout. JSON diagnostics cannot be combined with the text-oriented `--debug` mode.
 
 `--safe` enables parse-before, parse-after, and idempotency verification. If verification fails, the original input is returned and a warning is written to stderr. `--debug` writes the selected mode, rule level, and result status to stderr without contaminating formatted stdout.
 
@@ -166,9 +174,11 @@ Auto detection is table-local rather than file-wide. Unsafe rows make auto prefe
 
 Debug diagnostics include both the selected style and reason, for example `formatted using split style: many columns`. These diagnostics are only written when `--debug` is enabled.
 
-Within a structurally safe table, safe rows may be formatted while cell lines containing templates, HTML or extension tags, unsafe separators, or unbalanced brackets/quotes remain byte-for-byte unchanged. Debug diagnostics report these as skipped unsafe lines.
+Within a structurally safe table, safe rows may be formatted while cell lines containing templates, HTML or extension tags, unsafe separators, or unbalanced brackets/quotes remain byte-for-byte unchanged. Standalone HTML comment lines are recognized and preserved without inspecting or rewriting comment content.
 
-Nested or unbalanced tables, tables inside templates, tables containing protected placeholders, and tables with unclear line structure are still preserved entirely. Multiline cell continuation lines are currently treated as unclear structure rather than being reformatted.
+Multiline cell continuation lines are also preserved conservatively. The cell line immediately preceding a continuation is not split, while later independent safe rows can still format. Nested or unbalanced tables, tables inside templates, tables containing other protected placeholders, and genuinely unclear line structures remain preserved entirely.
+
+Cell/header attribute analysis supports multiple ordinary attributes such as `colspan`, `rowspan`, `scope`, `class`, and `style` without reordering them. Separators inside quoted attribute values remain unsafe and prevent that line from being split.
 
 Internal table analysis records meaningful skip reasons. They are never printed during normal operation; add `--debug` to an experimental table run to report which table start lines were formatted or skipped and why. Use `--safe` when enabling experimental table formatting on real pages so parsing and idempotency are verified before accepting output:
 
@@ -226,7 +236,7 @@ Table testing is intentionally layered:
 
 - `tests/tables.test.ts` uses table-driven unit cases for heuristic decisions, diagnostics, and structural safety.
 - Six compact fixtures cover exact user-visible formatter output without duplicating every internal decision reason.
-- `tests/table-samples` contains four realistic expected-diff calibrations for compact, sortable, mixed-style, and template-containing tables.
+- `tests/table-samples` contains realistic expected-diff calibrations for compact, sortable, mixed-style, template-containing, commented, and multiline-cell tables.
 - Files under `real-pages` run in both default and experimental-table modes as broad regression guards.
 
 Fixtures with table formatting opt in through `options.json`. Table samples verify exact calibrated output, while real-page tests do not require every table to change; preserving a complex table can be the correct conservative result.

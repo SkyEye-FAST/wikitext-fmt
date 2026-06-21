@@ -3,6 +3,7 @@ import { formatWikitextDetailedResult } from "../src/formatter.js";
 import { getParserConfig } from "../src/parser.js";
 import { resolveOptions } from "../src/options.js";
 import {
+  analyzeCellAttributesForTesting,
   analyzeSimpleTableForTesting,
   formatTablesWithDiagnostics,
 } from "../src/rules/tables.js";
@@ -14,7 +15,7 @@ describe("experimental table analysis diagnostics", () => {
     ["HTML tag", "{|\n| <span>value<\/span>\n|}", /HTML|tag/u],
     ["nested table", "{|\n|\n{|\n| nested\n|}\n|}", /nested/u],
     ["unbalanced table", "{|\n| value", /unbalanced/u],
-    ["quoted separator", "{|\n| style=\"A || B\" | C || D\n|}", /unsafe data cell separator/u],
+    ["quoted separator", "{|\n| style=\"A || B\" | C || D\n|}", /unsafe separator in quoted cell attributes/u],
     ["unbalanced wikilink", "{|\n| [[A || B\n|}", /unsafe data cell separator/u],
     ["unclear line", "{|\nplain text\n|}", /unclear table line type/u],
   ])("reports %s", (_name, raw, reason) => {
@@ -149,5 +150,52 @@ describe("experimental table analysis diagnostics", () => {
       tableCellSeparatorStyle: "auto",
     });
     expect(result.tableDiagnostics.map(({ separatorStyle }) => separatorStyle)).toEqual(["preserve", "split"]);
+  });
+
+  it.each([
+    ["single style", ' style="text-align:center" | A || B', "||", true, false],
+    ["colspan and rowspan", ' colspan="2" rowspan="3" | A || B', "||", true, false],
+    ["header scope and class", ' scope="col" class="unsortable" | Name !! Value', "!!", true, false],
+    ["quoted unsafe separator", ' data-x="A || B" | C || D', "||", true, true],
+    ["no attributes", " [[A|Display]] || B", "||", false, false],
+  ] as const)("analyzes %s cell attributes", (_name, content, separator, hasAttributes, hasUnsafeSeparator) => {
+    expect(analyzeCellAttributesForTesting(content, separator)).toEqual({
+      hasAttributes,
+      hasUnsafeSeparator,
+    });
+  });
+
+  it("preserves comments and continuation groups while formatting later safe rows", () => {
+    const input = [
+      "{|",
+      "! Name !! Value",
+      "|-",
+      "<!-- row comment -->",
+      "| Alpha",
+      "continued text",
+      "|-",
+      "| Beta || 2",
+      "|}",
+    ].join("\n");
+    const result = analyzeSimpleTableForTesting(input, {
+      lineWidth: 120,
+      tableCellSeparatorStyle: "auto",
+    });
+    expect(result).toMatchObject({
+      changed: true,
+      value: [
+        "{|",
+        "! Name",
+        "! Value",
+        "|-",
+        "<!-- row comment -->",
+        "| Alpha",
+        "continued text",
+        "|-",
+        "| Beta",
+        "| 2",
+        "|}",
+      ].join("\n"),
+    });
   });
 });

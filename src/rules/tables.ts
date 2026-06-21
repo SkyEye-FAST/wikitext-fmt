@@ -112,10 +112,18 @@ function formatCellLine(
   content: string,
   marker: "!" | "|",
   separatorStyle: Exclude<TableCellSeparatorStyle, "auto">,
+  hasContinuation = false,
 ): TableLineFormatResult {
+  if (hasContinuation) {
+    return { changed: false, value: line, reason: "cell has continuation line" };
+  }
   const reason = lineRiskReason(line);
   if (reason) return { changed: false, value: line, reason };
   const separator = marker === "!" ? "!!" : "||";
+  const attributes = analyzeCellAttributesForTesting(content, separator);
+  if (attributes.hasUnsafeSeparator) {
+    return { changed: false, value: line, reason: "unsafe separator in quoted cell attributes" };
+  }
   const cells = splitSimpleCells(content, separator);
   if (!cells) {
     return {
@@ -130,13 +138,27 @@ function formatCellLine(
   return value === line ? { changed: false, value: line } : { changed: true, value };
 }
 
-function hasCellAttributes(content: string): boolean {
-  return /^\s*(?:[\w:-]+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s|]+)\s*)+\|\s*/u.test(content);
+export interface CellAttributeAnalysis {
+  hasAttributes: boolean;
+  hasUnsafeSeparator: boolean;
+}
+
+export function analyzeCellAttributesForTesting(
+  content: string,
+  separator: "!!" | "||",
+): CellAttributeAnalysis {
+  const match = /^\s*(?:[\w:-]+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s|]+)\s*)+\|\s*/u.exec(content);
+  if (!match) return { hasAttributes: false, hasUnsafeSeparator: false };
+  const attributes = match[0];
+  const hasUnsafeSeparator = [...attributes.matchAll(/(["'])(.*?)\1/gu)]
+    .some((quoted) => quoted[2]?.includes(separator));
+  return { hasAttributes: true, hasUnsafeSeparator };
 }
 
 function detectTableCellSeparatorStyle(
   lines: readonly string[],
   options: Pick<ResolvedFormatOptions, "lineWidth" | "tableCellSeparatorStyle">,
+  continuedCellLines: ReadonlySet<number>,
 ): { style: Exclude<TableCellSeparatorStyle, "auto">; reason: string } {
   if (options.tableCellSeparatorStyle === "split") {
     return { style: "split", reason: "explicit split option" };
@@ -146,12 +168,15 @@ function detectTableCellSeparatorStyle(
   }
 
   const cellLines = lines.slice(1, -1).map((line, index) => {
+    const tableLineIndex = index + 1;
     const header = /^\s*!(.*)$/u.exec(line);
     const data = /^\s*\|(?![-+\}])(.*)$/u.exec(line);
     if (!header && !data) return undefined;
     const marker = header ? "!" : "|";
     const content = (header ?? data)![1]!;
-    if (lineRiskReason(line)) return { index, marker, content, safe: false as const };
+    if (lineRiskReason(line) || continuedCellLines.has(tableLineIndex)) {
+      return { index, marker, content, safe: false as const };
+    }
     const cells = splitSimpleCells(content, marker === "!" ? "!!" : "||");
     return cells
       ? { index, marker, content, cells, safe: true as const }
@@ -160,7 +185,10 @@ function detectTableCellSeparatorStyle(
 
   const safeLines = cellLines.filter((line) => line.safe);
   const maximumCellCount = Math.max(1, ...safeLines.map((line) => line.cells.length));
-  const hasAttributes = cellLines.some((line) => hasCellAttributes(line.content));
+  const hasAttributes = cellLines.some((line) => analyzeCellAttributesForTesting(
+    line.content,
+    line.marker === "!" ? "!!" : "||",
+  ).hasAttributes);
   const hasLongInlineLine = safeLines.some((line) => line.cells.length > 1 && lines[line.index + 1]!.length > options.lineWidth);
   const inlineLineCount = safeLines.filter((line) => line.cells.length > 1).length;
   const hasUnsafeRows = cellLines.some((line) => !line.safe);
@@ -184,11 +212,35 @@ function detectTableCellSeparatorStyle(
   return { style: "preserve", reason: "simple compact inline table" };
 }
 
-function isRecognizedBodyLine(line: string): boolean {
-  return /^\s*\|-/u.test(line)
-    || /^\s*\|\+/u.test(line)
-    || /^\s*!/u.test(line)
-    || /^\s*\|(?!\})/u.test(line);
+function isCommentLine(line: string): boolean {
+  return /^\s*<!--[\s\S]*-->\s*$/u.test(line);
+}
+
+function analyzeContinuationLines(lines: readonly string[]):
+  | { continuedCellLines: Set<number>; continuationLines: Set<number> }
+  | { reason: string } {
+  const continuedCellLines = new Set<number>();
+  const continuationLines = new Set<number>();
+  let openCellLine: number | undefined;
+
+  for (let index = 1; index < lines.length - 1; index++) {
+    const line = lines[index]!;
+    if (isCommentLine(line)) continue;
+    if (/^\s*!/u.test(line) || /^\s*\|(?![-+\}])/u.test(line)) {
+      openCellLine = index;
+      continue;
+    }
+    if (/^\s*\|[-+]/u.test(line)) {
+      openCellLine = undefined;
+      continue;
+    }
+    if (openCellLine === undefined) {
+      return { reason: `unclear table line type at line ${index + 1}` };
+    }
+    continuedCellLines.add(openCellLine);
+    continuationLines.add(index);
+  }
+  return { continuedCellLines, continuationLines };
 }
 
 export function analyzeSimpleTableForTesting(
@@ -206,12 +258,14 @@ export function analyzeSimpleTableForTesting(
   if (lines.slice(1).some((line) => /^\s*\{\|/u.test(line))) {
     return { changed: false, reason: "contains nested table" };
   }
-  const unclearIndex = lines.slice(1, -1).findIndex((line) => !isRecognizedBodyLine(line));
-  if (unclearIndex >= 0) {
-    return { changed: false, reason: `unclear table line type at line ${unclearIndex + 2}` };
-  }
+  const continuationAnalysis = analyzeContinuationLines(lines);
+  if ("reason" in continuationAnalysis) return { changed: false, reason: continuationAnalysis.reason };
 
-  const separatorDecision = detectTableCellSeparatorStyle(lines, options);
+  const separatorDecision = detectTableCellSeparatorStyle(
+    lines,
+    options,
+    continuationAnalysis.continuedCellLines,
+  );
   const separatorStyle = separatorDecision.style;
 
   const output: string[] = [];
@@ -226,12 +280,28 @@ export function analyzeSimpleTableForTesting(
       result = formatStructuralLine(line, "|}", "");
     } else if (/^\s*\|-/u.test(line) || /^\s*\|\+/u.test(line)) {
       result = formatStructuralLine(line, line.trimEnd());
+    } else if (isCommentLine(line)) {
+      result = { changed: false, value: line };
+    } else if (continuationAnalysis.continuationLines.has(index)) {
+      result = { changed: false, value: line, reason: "continuation line preserved" };
     } else {
       const header = /^\s*!(.*)$/u.exec(line);
       const data = /^\s*\|(?![-+}])(.*)$/u.exec(line);
       result = header
-        ? formatCellLine(line, header[1]!, "!", separatorStyle)
-        : formatCellLine(line, data![1]!, "|", separatorStyle);
+        ? formatCellLine(
+            line,
+            header[1]!,
+            "!",
+            separatorStyle,
+            continuationAnalysis.continuedCellLines.has(index),
+          )
+        : formatCellLine(
+            line,
+            data![1]!,
+            "|",
+            separatorStyle,
+            continuationAnalysis.continuedCellLines.has(index),
+          );
     }
     output.push(result.value);
     lineDiagnostics.push({
