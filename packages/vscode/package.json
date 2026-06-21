@@ -1,0 +1,99 @@
+{
+  "activationEvents": [
+    "onLanguage:wikitext",
+    "onLanguage:mediawiki"
+  ],
+  "categories": [
+    "Formatters"
+  ],
+  "contributes": {
+    "commands": [
+      {
+        "command": "wikitext-fmt.formatDocument",
+        "title": "wikitext-fmt: Format Document"
+      }
+    ],
+    "configuration": {
+      "properties": {
+        "wikitextFmt.formatReferences": {
+          "default": false,
+          "description": "Enable experimental reference formatting.",
+          "type": "boolean"
+        },
+        "wikitextFmt.formatSectionSpacing": {
+          "default": false,
+          "description": "Enable experimental section spacing formatting.",
+          "type": "boolean"
+        },
+        "wikitextFmt.formatTables": {
+          "default": false,
+          "description": "Enable experimental table formatting.",
+          "type": "boolean"
+        },
+        "wikitextFmt.formatTemplateParameters": {
+          "default": false,
+          "description": "Enable experimental multiline template parameter formatting.",
+          "type": "boolean"
+        },
+        "wikitextFmt.htmlVoidTagStyle": {
+          "default": "html5",
+          "description": "HTML void tag style.",
+          "enum": [
+            "html5",
+            "xhtml",
+            "preserve"
+          ],
+          "type": "string"
+        },
+        "wikitextFmt.level": {
+          "default": "normal",
+          "description": "Formatter rule level.",
+          "enum": [
+            "safe",
+            "normal",
+            "experimental"
+          ],
+          "type": "string"
+        },
+        "wikitextFmt.safe": {
+          "default": true,
+          "description": "Run with parse and idempotency safety checks.",
+          "type": "boolean"
+        }
+      },
+      "title": "wikitext-fmt"
+    },
+    "languages": [
+      {
+        "aliases": [
+          "Wikitext",
+          "wikitext"
+        ],
+        "extensions": [
+          ".wiki",
+          ".wikitext",
+          ".mediawiki"
+        ],
+        "id": "wikitext"
+      }
+    ]
+  },
+  "dependencies": {
+    "wikitext-fmt": "workspace:*"
+  },
+  "description": "VS Code wrapper for the conservative wikitext-fmt formatter",
+  "displayName": "wikitext-fmt",
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "license": "GPL-3.0-or-later",
+  "main": "./dist/extension.js",
+  "name": "wikitext-fmt-vscode",
+  "private": true,
+  "publisher": "SkyEye_FAST",
+  "scripts": {
+    "build": "pnpm --filter wikitext-fmt build && tsc -p tsconfig.json"
+  },
+  "type": "module",
+  "version": "0.1.0"
+}

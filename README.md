@@ -167,6 +167,51 @@ Configuration keys match `FormatOptions`:
 
 Unknown keys and invalid option values are rejected instead of being silently ignored. Configuration discovery and loading are CLI concerns; the formatter core does not read files or inspect the working directory.
 
+## VS Code extension wrapper
+
+An initial VS Code wrapper lives in `packages/vscode`. It contributes the `wikitext` language id for `.wiki`, `.wikitext`, and `.mediawiki` files, registers Format Document providers for `wikitext` and `mediawiki`, and calls the existing formatter core API. It does not include syntax highlighting, an LSP server, siteinfo fetching, or Marketplace publishing.
+
+Build it with:
+
+```sh
+pnpm --filter wikitext-fmt-vscode build
+```
+
+The extension command is:
+
+```text
+wikitext-fmt.formatDocument
+```
+
+Supported settings are:
+
+```json
+{
+  "wikitextFmt.safe": true,
+  "wikitextFmt.level": "normal",
+  "wikitextFmt.htmlVoidTagStyle": "html5",
+  "wikitextFmt.formatTables": false,
+  "wikitextFmt.formatReferences": false,
+  "wikitextFmt.formatSectionSpacing": false,
+  "wikitextFmt.formatTemplateParameters": false
+}
+```
+
+Use VS Code's Format Document command, or enable format-on-save for wikitext files:
+
+```json
+{
+  "[wikitext]": {
+    "editor.defaultFormatter": "skyeye-fast.wikitext-fmt-vscode",
+    "editor.formatOnSave": true
+  },
+  "[mediawiki]": {
+    "editor.defaultFormatter": "skyeye-fast.wikitext-fmt-vscode",
+    "editor.formatOnSave": true
+  }
+}
+```
+
 ## API
 
 ```ts
@@ -474,7 +519,7 @@ pnpm localization:update /path/to/mediawiki/languages/messages
 
 GitHub Actions runs frozen pnpm installs, builds, and the complete test suite on Node.js 22 and 24 for every push and pull request.
 
-The repository remains a single pnpm package. Core modules do not import the CLI; a workspace split is deferred until core and CLI need independent publication or dependency lifecycles.
+The repository is a pnpm workspace. The root package contains the formatter core and CLI; `packages/vscode` is a thin VS Code wrapper that depends on the root package and does not duplicate formatter rules. Core modules do not import the CLI or the editor wrapper.
 
 Regression fixtures use this layout:
 
@@ -496,7 +541,7 @@ Table testing is intentionally layered:
 
 Fixtures with table formatting opt in through `options.json`. Table samples verify exact calibrated output, while real-page tests do not require every table to change; preserving a complex table can be the correct conservative result.
 
-Planned work includes a VS Code extension, a Prettier plugin, broader conservative table coverage, and improved site-specific parser configuration.
+Planned work includes a Prettier plugin, broader conservative table coverage, and improved site-specific parser configuration.
 
 ## License
 
