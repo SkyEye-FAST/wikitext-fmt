@@ -1,0 +1,10 @@
+{| class="wikitable"
+| ==No heading formatting==
+
+
+
+| {{Foo|a=1}}
+|-
+| [[Category:Inside table]]
+|}
+== Outside ==

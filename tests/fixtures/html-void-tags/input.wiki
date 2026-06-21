@@ -1,0 +1,9 @@
+First<br />second
+<hr />
+Third<wbr />word
+<ref />
+<references />
+<nowiki><br /> <hr> <wbr /></nowiki>
+<syntaxhighlight lang="html"><br />
+<hr>
+</syntaxhighlight>

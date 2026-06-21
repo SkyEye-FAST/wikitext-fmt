@@ -1,0 +1,5 @@
+[[Category:B]]
+Text.
+
+[[Category:A|A]]
+More.

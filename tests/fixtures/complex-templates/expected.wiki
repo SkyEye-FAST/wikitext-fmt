@@ -1,0 +1,5 @@
+{{Foo|body=<ref>citation</ref>|a=1}}
+{{Foo|body={{Bar|x=1}}|a=1}}
+{{Foo|body={| class=wikitable
+| cell
+|}|a=1}}

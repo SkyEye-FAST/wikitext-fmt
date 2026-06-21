@@ -1,0 +1,6 @@
+Text.
+
+More.
+
+[[Category:B]]
+[[Category:A|A]]

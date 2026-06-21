@@ -1,0 +1,8 @@
+{{Foo
+| a = 1
+| b = 2
+}}
+{{Bar
+| first
+| second
+}}

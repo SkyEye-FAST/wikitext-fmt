@@ -1,0 +1,23 @@
+{{Short description|Example regression page}}
+==Overview==
+This is a representative article with a citation.<ref name="source">A source with {{Cite web|title=Example|url=https://example.test}}</ref>
+
+===List===
+* First item
+* Second item with [[Example|a link]]
+
+{| class="wikitable"
+! Name !! Value
+|-
+| Alpha || 1
+|-
+| Beta || {{N/a}}
+|}
+
+<syntaxhighlight lang="lua">
+local value = "{{not a template}}"
+</syntaxhighlight>
+
+{{DEFAULTSORT:Regression, Sample}}
+[[Category:Examples]]
+[[Category:Formatter tests|Regression]]

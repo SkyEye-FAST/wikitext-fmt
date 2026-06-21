@@ -1,0 +1,8 @@
+==Title==
+<!-- wikitext-fmt-ignore-start -->
+==No==
+
+
+
+{{Foo|a=1}}
+<!-- wikitext-fmt-ignore-end -->
