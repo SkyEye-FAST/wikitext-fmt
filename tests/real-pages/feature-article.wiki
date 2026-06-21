@@ -1,0 +1,18 @@
+__NOTOC__
+[[Category:Features]]
+Lead paragraph.
+==Overview==
+Body paragraph.
+
+{{Infobox
+| name=Feature page
+| image = [[File:Feature.png|thumb]]
+| caption = [[Unsafe|caption]]
+| 中文=测试
+}}
+
+[[File:Feature.png|thumb|right|300px|alt=Feature]]   
+
+[[en:Feature page]]
+[[zh-hant:功能頁面]]
+{{DEFAULTSORT:Feature Page}}

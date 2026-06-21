@@ -25,6 +25,43 @@ describe("rule interaction hardening", () => {
     ).toBe("{{Infobox\n| name = value\n}}\n[[File:A.png|thumb|right]]\n");
   });
 
+  it("combines template parameter formatting with category footer movement", () => {
+    const input = "[[Category:A]]\n{{Infobox\n| name=value\n}}\nBody\n";
+    expect(
+      formatWikitext(input, {
+        level: "experimental",
+        formatTemplateParameters: true,
+      }),
+    ).toBe("{{Infobox\n| name = value\n}}\nBody\n\n[[Category:A]]\n");
+  });
+
+  it("combines template parameter formatting with table preservation", () => {
+    const input =
+      '{{Infobox\n| name=value\n}}\n{| class="wikitable"\n! A !! B   \n|}\n';
+    expect(
+      formatWikitext(input, {
+        level: "experimental",
+        formatTemplateParameters: true,
+      }),
+    ).toBe(
+      '{{Infobox\n| name = value\n}}\n{| class="wikitable"\n! A !! B   \n|}\n',
+    );
+  });
+
+  it("combines template parameters with canonical localization", () => {
+    const input =
+      "{{Infobox\n| 名称=テスト\n}}\n[[ファイル:A.png|サムネイル|右]]\n[[分類:例]]\n";
+    expect(
+      formatWikitext(input, {
+        level: "experimental",
+        formatTemplateParameters: true,
+        localizedSyntaxStyle: "canonical-english",
+      }),
+    ).toBe(
+      "{{Infobox\n| 名称 = テスト\n}}\n[[File:A.png|thumb|right]]\n\n[[Category:例]]\n",
+    );
+  });
+
   it("combines interlanguage footer placement with categories", () => {
     expect(
       formatWikitext("[[en:Foo]]\nBody\n[[Category:A]]\n", {

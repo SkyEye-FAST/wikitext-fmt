@@ -340,6 +340,8 @@ Only simple named parameter lines are normalized. Parameter names may contain Un
 
 The current multiline-value policy is conservative but not whole-block fatal: continuation lines are preserved unchanged, and later safe parameter lines in the same simple template may still be formatted. Lines with comments, unnamed or numeric positional parameters, multiline values, nested templates, parser functions, tables, lists, HTML or extension tags, or unsafe piped wikilinks are preserved. Blocks containing nested templates are skipped entirely.
 
+Run experimental template, interlanguage, section-spacing, and table rules with `--safe` on real pages. The test suite runs real page-shaped fixtures through option matrices to guard parseability and idempotency, but site-specific wikitext can still require parser and localization configuration.
+
 ### Localization data
 
 Localized syntax aliases are data-driven; the formatter does not infer them from translated words.

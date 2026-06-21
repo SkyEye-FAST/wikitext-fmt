@@ -16,7 +16,7 @@ interface TemplateBlock {
   end: number;
 }
 
-const PARAM_LINE = /^([ \t]*)\|([\p{L}\p{N}_ -]+)[ \t]*=[ \t]*(.*)$/u;
+const PARAM_LINE = /^([ \t]*)\|([\p{L}\p{N}\p{M}_ -]+)[ \t]*=[ \t]*(.*)$/u;
 const RISKY_VALUE =
   /(?:\{\{|\}\}|\{\||\|\}|^[-*#:;]|<!--|<[A-Za-z!/]|#(?:if|switch|expr|invoke|tag):|\[\[[^\]\n]*\|[^\]\n]*\]\])/iu;
 

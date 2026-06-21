@@ -67,6 +67,11 @@ describe("experimental multiline template parameter formatting", () => {
     expect(formatWikitext(input, options)).toBe(input);
   });
 
+  it("preserves table content containing template braces", () => {
+    const input = "{|\n| {{Template\n| a=b\n}}\n|}\n";
+    expect(formatWikitext(input, options)).toBe(input);
+  });
+
   it.each([
     "{{Template\n| safe=value\n| nested = {{Nested|x=1}}\n| later = value\n}}\n",
     "{{Template\n| safe=value\n| parser = {{#if:x|y|z}}\n| later = value\n}}\n",
