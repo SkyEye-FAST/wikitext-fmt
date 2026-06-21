@@ -8,9 +8,20 @@ interface Replacement {
   value: string;
 }
 
-export type TableFormatResult =
+export type TableLineFormatResult =
   | { changed: true; value: string }
-  | { changed: false; reason: string };
+  | { changed: false; value: string; reason?: string };
+
+export interface TableLineDiagnostic {
+  tableLine: number;
+  sourceLine?: number;
+  changed: boolean;
+  reason?: string;
+}
+
+export type TableAnalysisResult =
+  | { changed: true; value: string; lineDiagnostics: TableLineDiagnostic[] }
+  | { changed: false; reason: string; lineDiagnostics?: TableLineDiagnostic[] };
 
 export interface TableDiagnostic {
   start: number;
@@ -18,6 +29,7 @@ export interface TableDiagnostic {
   line: number;
   changed: boolean;
   reason?: string;
+  lineDiagnostics?: TableLineDiagnostic[];
 }
 
 export interface TableFormatWithDiagnosticsResult {
@@ -68,10 +80,44 @@ function splitSimpleCells(content: string, separator: "!!" | "||"): string[] | u
   return parts.some((part) => part.trim() === "") ? undefined : parts;
 }
 
-export function analyzeSimpleTableForTesting(raw: string): TableFormatResult {
+function lineRiskReason(line: string): string | undefined {
+  if (/\{\{|\}\}/u.test(line)) return "contains template or template-like syntax";
+  if (/<[a-z!/]/iu.test(line)) return "contains HTML or extension tag";
+  if (/[{}]/u.test(line)) return "contains ambiguous brace syntax";
+  return undefined;
+}
+
+function formatStructuralLine(line: string, value: string, riskContent = line): TableLineFormatResult {
+  const reason = lineRiskReason(riskContent);
+  if (reason) return { changed: false, value: line, reason };
+  return value === line ? { changed: false, value: line } : { changed: true, value };
+}
+
+function formatCellLine(line: string, content: string, marker: "!" | "|"): TableLineFormatResult {
+  const reason = lineRiskReason(line);
+  if (reason) return { changed: false, value: line, reason };
+  const separator = marker === "!" ? "!!" : "||";
+  const cells = splitSimpleCells(content, separator);
+  if (!cells) {
+    return {
+      changed: false,
+      value: line,
+      reason: marker === "!" ? "unsafe header cell separator" : "unsafe data cell separator",
+    };
+  }
+  const value = cells.map((cell) => `${marker}${cell}`).join("\n");
+  return value === line ? { changed: false, value: line } : { changed: true, value };
+}
+
+function isRecognizedBodyLine(line: string): boolean {
+  return /^\s*\|-/u.test(line)
+    || /^\s*\|\+/u.test(line)
+    || /^\s*!/u.test(line)
+    || /^\s*\|(?!\})/u.test(line);
+}
+
+export function analyzeSimpleTableForTesting(raw: string): TableAnalysisResult {
   if (/\uE000wikitext-fmt:/u.test(raw)) return { changed: false, reason: "contains protected placeholder" };
-  if (/<[a-z!/]/iu.test(raw)) return { changed: false, reason: "contains HTML or extension tag" };
-  if (/\{\{|\}\}/u.test(raw)) return { changed: false, reason: "contains template or template-like syntax" };
   const lines = raw.split("\n");
   if (lines.length < 2 || !/^\s*\{\|/u.test(lines[0]!) || !/^\s*\|\}\s*$/u.test(lines.at(-1)!)) {
     return { changed: false, reason: "unbalanced table start or end" };
@@ -79,49 +125,45 @@ export function analyzeSimpleTableForTesting(raw: string): TableFormatResult {
   if (lines.slice(1).some((line) => /^\s*\{\|/u.test(line))) {
     return { changed: false, reason: "contains nested table" };
   }
-  if (lines.slice(1, -1).some((line) => /[{}]/u.test(line))) {
-    return { changed: false, reason: "contains ambiguous brace syntax" };
+  const unclearIndex = lines.slice(1, -1).findIndex((line) => !isRecognizedBodyLine(line));
+  if (unclearIndex >= 0) {
+    return { changed: false, reason: `unclear table line type at line ${unclearIndex + 2}` };
   }
 
   const output: string[] = [];
+  const lineDiagnostics: TableLineDiagnostic[] = [];
   for (let index = 0; index < lines.length; index++) {
     const line = lines[index]!;
+    let result: TableLineFormatResult;
     if (index === 0) {
-      output.push(`{|${line.replace(/^\s*\{\|/u, "").trimEnd()}`);
-      continue;
+      const attributes = line.replace(/^\s*\{\|/u, "");
+      result = formatStructuralLine(line, `{|${attributes.trimEnd()}`, attributes);
+    } else if (index === lines.length - 1) {
+      result = formatStructuralLine(line, "|}", "");
+    } else if (/^\s*\|-/u.test(line) || /^\s*\|\+/u.test(line)) {
+      result = formatStructuralLine(line, line.trimEnd());
+    } else {
+      const header = /^\s*!(.*)$/u.exec(line);
+      const data = /^\s*\|(?![-+}])(.*)$/u.exec(line);
+      result = header
+        ? formatCellLine(line, header[1]!, "!")
+        : formatCellLine(line, data![1]!, "|");
     }
-    if (index === lines.length - 1) {
-      output.push("|}");
-      continue;
-    }
-    if (/^\s*\|-/.test(line)) {
-      output.push(line.trimEnd());
-      continue;
-    }
-    if (/^\s*\|\+/.test(line)) {
-      output.push(line.trimEnd());
-      continue;
-    }
-    const header = /^\s*!(.*)$/u.exec(line);
-    if (header) {
-      const cells = splitSimpleCells(header[1]!, "!!");
-      if (!cells) return { changed: false, reason: "unsafe header cell separator" };
-      output.push(...cells.map((cell) => `!${cell}`));
-      continue;
-    }
-    const data = /^\s*\|(?![-+}])(.*)$/u.exec(line);
-    if (data) {
-      const cells = splitSimpleCells(data[1]!, "||");
-      if (!cells) return { changed: false, reason: "unsafe data cell separator" };
-      output.push(...cells.map((cell) => `|${cell}`));
-      continue;
-    }
-    return { changed: false, reason: `unclear table line type at line ${index + 1}` };
+    output.push(result.value);
+    lineDiagnostics.push({
+      tableLine: index + 1,
+      changed: result.changed,
+      ...(result.changed || !result.reason ? {} : { reason: result.reason }),
+    });
   }
   const value = output.join("\n");
-  return value === raw
-    ? { changed: false, reason: "already formatted" }
-    : { changed: true, value };
+  if (value !== raw) return { changed: true, value, lineDiagnostics };
+  const skipped = lineDiagnostics.find((diagnostic) => diagnostic.reason);
+  return {
+    changed: false,
+    reason: skipped?.reason ?? "already formatted",
+    lineDiagnostics,
+  };
 }
 
 export function formatTablesWithDiagnostics(
@@ -137,7 +179,7 @@ export function formatTablesWithDiagnostics(
     const start = node.getAbsoluteIndex();
     const raw = node.toString();
     const end = start + raw.length;
-    let result: TableFormatResult;
+    let result: TableAnalysisResult;
     if (node.parentNode?.closest("template")) {
       result = { changed: false, reason: "table is inside a template" };
     } else if (source.lastIndexOf("\n", start - 1) + 1 !== start) {
@@ -145,12 +187,21 @@ export function formatTablesWithDiagnostics(
     } else {
       result = analyzeSimpleTableForTesting(raw);
     }
+    const startLine = lineNumberAt(source, start);
+    const lineDiagnostics = result.lineDiagnostics?.map((diagnostic) => ({
+      ...diagnostic,
+      sourceLine: startLine + diagnostic.tableLine - 1,
+    }));
+    const hasSkippedUnsafeLines = result.changed && lineDiagnostics?.some((diagnostic) => diagnostic.reason);
     diagnostics.push({
       start,
       end,
-      line: lineNumberAt(source, start),
+      line: startLine,
       changed: result.changed,
-      ...(result.changed ? {} : { reason: result.reason }),
+      ...(result.changed
+        ? hasSkippedUnsafeLines ? { reason: "formatted with skipped unsafe lines" } : {}
+        : { reason: result.reason }),
+      ...(lineDiagnostics ? { lineDiagnostics } : {}),
     });
     if (result.changed) replacements.push({ start, end, value: result.value });
   }

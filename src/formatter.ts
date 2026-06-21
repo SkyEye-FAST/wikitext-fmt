@@ -48,11 +48,20 @@ export function formatWikitextDetailedResult(
       tableOutput = tableResult.formatted;
       tableDiagnostics = tableResult.diagnostics.map((diagnostic) => {
         const start = tableBlocks.originalIndex(diagnostic.start);
+        const line = lineNumberAt(source, start);
         return {
           ...diagnostic,
           start,
           end: tableBlocks.originalIndex(diagnostic.end),
-          line: lineNumberAt(source, start),
+          line,
+          ...(diagnostic.lineDiagnostics
+            ? {
+                lineDiagnostics: diagnostic.lineDiagnostics.map((lineDiagnostic) => ({
+                  ...lineDiagnostic,
+                  sourceLine: line + lineDiagnostic.tableLine - 1,
+                })),
+              }
+            : {}),
         };
       });
       tableOutput = tableBlocks.restore(tableOutput);

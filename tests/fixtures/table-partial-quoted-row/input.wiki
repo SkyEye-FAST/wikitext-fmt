@@ -1,0 +1,7 @@
+{| class="wikitable"
+! Name !! Value
+|-
+| data-x="A || B" | C || D
+|-
+| E || F
+|}

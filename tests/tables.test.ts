@@ -47,7 +47,7 @@ describe("experimental table analysis diagnostics", () => {
   });
 
   it("returns changed output for a supported table", () => {
-    expect(analyzeSimpleTableForTesting("{|\n! A !! B\n|}")).toEqual({
+    expect(analyzeSimpleTableForTesting("{|\n! A !! B\n|}")).toMatchObject({
       changed: true,
       value: "{|\n! A\n! B\n|}",
     });
@@ -82,5 +82,31 @@ describe("experimental table analysis diagnostics", () => {
       formatTables: true,
     });
     expect(result.tableDiagnostics).toEqual([]);
+  });
+
+  it("reports partial formatting when unsafe rows are preserved", () => {
+    const source = "{|\n! A !! B\n|-\n| {{N/a}} || 1\n|-\n| C || D\n|}\n";
+    const result = formatWikitextDetailedResult(source, {
+      level: "experimental",
+      formatTables: true,
+    });
+    expect(result.formatted).toContain("! A\n! B");
+    expect(result.formatted).toContain("| {{N/a}} || 1");
+    expect(result.formatted).toContain("| C\n| D");
+    expect(result.tableDiagnostics).toEqual([
+      expect.objectContaining({
+        changed: true,
+        reason: "formatted with skipped unsafe lines",
+      }),
+    ]);
+    expect(result.tableDiagnostics[0]?.lineDiagnostics).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          tableLine: 4,
+          changed: false,
+          reason: "contains template or template-like syntax",
+        }),
+      ]),
+    );
   });
 });

@@ -1,5 +1,6 @@
 {| class="wikitable"
-! A !! B
+! A
+! B
 |-
 | <span>One</span> || Two
 |}

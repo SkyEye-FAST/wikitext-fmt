@@ -1,5 +1,6 @@
 {| class="wikitable"
-! Status !! Value
+! Status
+! Value
 |-
 | Missing || {{N/a}}
 |}

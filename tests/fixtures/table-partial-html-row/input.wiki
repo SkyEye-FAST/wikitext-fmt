@@ -1,0 +1,7 @@
+{| class="wikitable"
+! Name !! Value
+|-
+| <span>Alpha</span> || 1
+|-
+| Beta || 2
+|}

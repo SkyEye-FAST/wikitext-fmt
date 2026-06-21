@@ -134,7 +134,9 @@ function debugResult(
   const config = configPath ? ` config=${configPath}` : " config=defaults";
   stderr.write(`${label}: debug: mode=${mode} level=${level} status=${status}${config}\n`);
   for (const diagnostic of result.tableDiagnostics) {
-    const outcome = diagnostic.changed ? "formatted" : `skipped: ${diagnostic.reason ?? "unknown reason"}`;
+    const outcome = diagnostic.changed
+      ? diagnostic.reason ?? "formatted"
+      : `skipped: ${diagnostic.reason ?? "unknown reason"}`;
     stderr.write(`${label}: table at line ${diagnostic.line} ${outcome}\n`);
   }
 }
