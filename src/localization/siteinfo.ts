@@ -58,8 +58,9 @@ export async function loadSiteInfoAliases(
     | Record<string, SiteInfoNamespace>
     | SiteInfoNamespace[]
     | undefined;
-  const namespaceValues =
-    Array.isArray(namespaces) ? namespaces : Object.values(namespaces ?? {});
+  const namespaceValues = Array.isArray(namespaces)
+    ? namespaces
+    : Object.values(namespaces ?? {});
   const categoryNamespaces = namespaceValues
     .filter((namespace) => namespace.id === 14)
     .flatMap((namespace) => [
@@ -89,12 +90,14 @@ export async function loadSiteInfoAliases(
   const behaviorIdSet = new Set<string>(behaviorSwitchIds);
   const behaviorSwitches: Record<string, string[]> = {};
   let defaultsortMagicWords: string[] = [];
+  let redirectMagicWords: string[] = [];
   for (const magicWord of (query.magicwords as
     | SiteInfoMagicWord[]
     | undefined) ?? []) {
     const name = magicWord.name?.toLowerCase();
     if (!name || !Array.isArray(magicWord.aliases)) continue;
     if (name === "defaultsort") defaultsortMagicWords = magicWord.aliases;
+    if (name === "redirect") redirectMagicWords = magicWord.aliases;
     if (
       behaviorIdSet.has(name) &&
       (doubleUnderscoreIds.size === 0 || doubleUnderscoreIds.has(name))
@@ -108,5 +111,10 @@ export async function loadSiteInfoAliases(
       `MediaWiki siteinfo response from ${apiUrl} did not include namespace ID 14`,
     );
   }
-  return { categoryNamespaces, defaultsortMagicWords, behaviorSwitches };
+  return {
+    categoryNamespaces,
+    defaultsortMagicWords,
+    redirectMagicWords,
+    behaviorSwitches,
+  };
 }

@@ -19,5 +19,8 @@ const aliases = await import(
 if (!aliases.default.categoryNamespaces.includes("Kategorie")) {
   throw new Error("generated localization aliases were not emitted to dist");
 }
+if (!aliases.default.redirectMagicWords.includes("#REDIRECT")) {
+  throw new Error("generated redirect aliases were not emitted to dist");
+}
 
 console.log("release smoke ok");

@@ -66,6 +66,7 @@ if (files.length === 0)
 
 const categoryNamespaces = new Set<string>();
 const defaultsortMagicWords = new Set<string>();
+const redirectMagicWords = new Set<string>();
 const behaviorSwitches: Record<string, Set<string>> = {};
 
 for (const file of files) {
@@ -93,6 +94,8 @@ for (const file of files) {
     );
     if (id === "defaultsort")
       aliases.forEach((alias) => defaultsortMagicWords.add(alias));
+    if (id === "redirect")
+      aliases.forEach((alias) => redirectMagicWords.add(alias));
     if (behaviorIds.has(id)) {
       behaviorSwitches[id] ??= new Set<string>();
       aliases.forEach((alias) => behaviorSwitches[id]!.add(alias));
@@ -108,6 +111,7 @@ const generated = {
   generatedBy: "scripts/update-mediawiki-aliases.ts",
   categoryNamespaces: [...categoryNamespaces].sort(),
   defaultsortMagicWords: [...defaultsortMagicWords].sort(),
+  redirectMagicWords: [...redirectMagicWords].sort(),
   behaviorSwitches: Object.fromEntries(
     Object.entries(behaviorSwitches)
       .sort(([a], [b]) => a.localeCompare(b))

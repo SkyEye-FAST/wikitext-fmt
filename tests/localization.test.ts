@@ -182,6 +182,7 @@ describe("MediaWiki localization data", () => {
               ],
               magicwords: [
                 { name: "defaultsort", aliases: ["SORTX:", "DEFAULTSORT:"] },
+                { name: "redirect", aliases: ["#REDIRECTX", "#REDIRECT"] },
                 { name: "notoc", aliases: ["__NOTOCX__", "__NOTOC__"] },
               ],
               doubleunderscores: ["notoc"],
@@ -198,6 +199,7 @@ describe("MediaWiki localization data", () => {
     expect(aliases).toEqual({
       categoryNamespaces: ["KategorieX", "Category", "CatX"],
       defaultsortMagicWords: ["SORTX:", "DEFAULTSORT:"],
+      redirectMagicWords: ["#REDIRECTX", "#REDIRECT"],
       behaviorSwitches: { notoc: ["__NOTOCX__", "__NOTOC__"] },
     });
     expect(

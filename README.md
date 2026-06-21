@@ -56,6 +56,7 @@ Without `--write`, formatted wikitext is written to stdout. `--check` writes not
 --no-format-templates
 --no-format-categories
 --no-format-lists
+--no-format-redirects
 --no-format-behavior-switches
 --behavior-switch-placement preserve|footer
 --localization-source builtin|siteinfo|custom
@@ -72,23 +73,23 @@ Explicit files and glob patterns can be mixed. Expanded paths are deduplicated a
 
 `--diff` writes unified diffs to stdout without modifying files and exits with status 1 when formatting would change the input. Diffs use three context lines by default and separate distant changes into multiple hunks. It works with file paths, globs, and `--stdin` (labelled `stdin`), and cannot be combined with `--write`.
 
-`--diagnostics-json` writes one JSON object per input to stderr. Each object includes `file`, `changed`, `warning`, table counters, footer counters (`behaviorSwitchesMoved`, `behaviorSwitchesFormatted`, `defaultsortMoved`, and `categoriesMoved`), canonicalization counters (`localizedCategoryAliasesCanonicalized`, `localizedDefaultsortAliasesCanonicalized`, and `localizedBehaviorSwitchesCanonicalized`), and complete table diagnostics. Formatted text or diffs remain on stdout. JSON diagnostics cannot be combined with the text-oriented `--debug` mode.
+`--diagnostics-json` writes one JSON object per input to stderr. Each object includes `file`, `changed`, `warning`, table counters, footer counters (`behaviorSwitchesMoved`, `behaviorSwitchesFormatted`, `defaultsortMoved`, and `categoriesMoved`), redirect counters (`redirectsFormatted`), canonicalization counters (`localizedCategoryAliasesCanonicalized`, `localizedDefaultsortAliasesCanonicalized`, `localizedBehaviorSwitchesCanonicalized`, and `localizedRedirectAliasesCanonicalized`), and complete table diagnostics. Formatted text or diffs remain on stdout. JSON diagnostics cannot be combined with the text-oriented `--debug` mode.
 
 `--safe` enables parse-before, parse-after, and idempotency verification. If verification fails, the original input is returned and a warning is written to stderr. `--debug` writes the selected mode, rule level, and result status to stderr without contaminating formatted stdout.
 
 `--fail-on-warning` changes warning handling only: if any input falls back with a formatter warning, the CLI exits non-zero. This is useful with `--safe --check`; warnings do not affect the exit code by default.
 
-`--report <path>` writes one JSON batch report after all inputs are processed. It contains each file's `changed`, `warning`, summary, and table diagnostics plus aggregate file/table counts. Reports never share stdout with formatted text or diffs and are compatible with normal output, `--check`, `--diff`, `--write`, and `--stdin`. The report schema is experimental before 1.0; changes should be additive where practical, but consumers should not treat it as stable yet.
+`--report <path>` writes one JSON batch report after all inputs are processed. It contains each file's `changed`, `warning`, summary, and table diagnostics plus aggregate file, table, footer, redirect, and canonicalization counts. Reports never share stdout with formatted text or diffs and are compatible with normal output, `--check`, `--diff`, `--write`, and `--stdin`. The report schema is experimental before 1.0; changes should be additive where practical, but consumers should not treat it as stable yet.
 
 `--print-localization-aliases` resolves the configured alias source and prints the final alias JSON to stdout without formatting input files. With `--localization-source siteinfo`, it requires `--site-api`.
 
 Formatting levels are cumulative:
 
-| Level | Enabled rules |
-| --- | --- |
-| `safe` | Heading spacing, blank-line normalization, and ordinary HTML void-tag normalization |
-| `normal` | Safe rules, simple templates, page-footer metadata, behavior switches, and conservative list spacing |
-| `experimental` | Safe and normal rules plus explicitly enabled experimental rules |
+| Level          | Enabled rules                                                                                                   |
+| -------------- | --------------------------------------------------------------------------------------------------------------- |
+| `safe`         | Heading spacing, blank-line normalization, and ordinary HTML void-tag normalization                             |
+| `normal`       | Safe rules, simple templates, redirects, page-footer metadata, behavior switches, and conservative list spacing |
+| `experimental` | Safe and normal rules plus explicitly enabled experimental rules                                                |
 
 The default is `normal`. Table formatting is experimental and disabled by default; it runs only when both `--level experimental` and `--format-tables` are provided.
 
@@ -122,6 +123,7 @@ Configuration keys match `FormatOptions`:
   "formatTemplates": true,
   "formatCategories": true,
   "formatLists": true,
+  "formatRedirects": true,
   "formatBehaviorSwitches": true,
   "behaviorSwitchPlacement": "preserve",
   "localizationSource": "builtin",
@@ -129,6 +131,7 @@ Configuration keys match `FormatOptions`:
   "localizationAliases": {
     "categoryNamespaces": ["Project category"],
     "defaultsortMagicWords": ["PROJECTSORT:"],
+    "redirectMagicWords": ["#PROJECTREDIRECT"],
     "behaviorSwitches": {
       "notoc": ["__PROJECTNOTOC__"]
     }
@@ -144,7 +147,11 @@ Unknown keys and invalid option values are rejected instead of being silently ig
 ## API
 
 ```ts
-import { formatWikitext, formatWikitextSafe, loadSiteInfoAliases } from "wikitext-fmt";
+import {
+  formatWikitext,
+  formatWikitextSafe,
+  loadSiteInfoAliases,
+} from "wikitext-fmt";
 
 const output = formatWikitext(source, {
   parserConfig: "mediawiki",
@@ -153,6 +160,7 @@ const output = formatWikitext(source, {
   formatTemplates: true,
   formatCategories: true,
   formatLists: true,
+  formatRedirects: true,
   formatBehaviorSwitches: true,
   behaviorSwitchPlacement: "preserve",
   localizationSource: "builtin",
@@ -190,6 +198,7 @@ Every current rule has an exported reliability level in `ruleLevels`:
 - `templates`: `normal`
 - `categories`: `normal`
 - `lists`: `normal`
+- `redirects`: `normal`
 - `behaviorSwitches`: `normal`
 - `htmlVoidTags`: `safe`
 - `tables`: `experimental`
@@ -202,7 +211,15 @@ The levels describe formatter confidence, not a proof of semantic equivalence fo
 
 The normal-level list rule handles ordinary single-line items beginning with combinations of `*`, `#`, `:`, and `;`. It adds one missing space after the marker sequence and removes trailing horizontal whitespace. Existing spacing, blank lines, nesting markers, and definition-list structure remain intact.
 
-List lines containing templates, table syntax, HTML, or extension tags are preserved unchanged. Protected blocks such as `nowiki`, `pre`, and `syntaxhighlight` are never inspected by this rule. Disable it with `--no-format-lists` or `formatLists: false`.
+List lines containing templates, table syntax, wikilinks, HTML, or extension tags are preserved unchanged. Protected blocks such as `nowiki`, `pre`, and `syntaxhighlight` are never inspected by this rule. Disable it with `--no-format-lists` or `formatLists: false`.
+
+## Redirect formatting
+
+The normal-level redirect rule handles only a redirect on the first non-empty page line. It recognizes the selected localization data's `redirect` magic-word aliases and normalizes spacing from `#REDIRECT[[Target]]` to `#REDIRECT [[Target]]`.
+
+With `localizedSyntaxStyle: "preserve"`, the original alias spelling is kept, such as `#転送 [[Target]]`. With `"canonical-english"`, recognized localized aliases are emitted as `#REDIRECT [[Target]]`, and `localizedRedirectAliasesCanonicalized` is incremented when the keyword changes.
+
+The rule is intentionally narrow. It skips redirect-like lines that are not first non-empty content, have unbalanced links, include templates in the target, contain multiple links, have trailing text or comments, or include HTML on the same line. Disable it with `--no-format-redirects` or `formatRedirects: false`.
 
 ## Page footer and behavior switches
 
@@ -228,10 +245,10 @@ Standalone aliases for the MediaWiki `defaultsort` magic-word ID move before rec
 Localized syntax aliases are data-driven; the formatter does not infer them from translated words.
 
 - `localizationSource: "builtin"` (default) uses the generated MediaWiki core alias table. The initial table is extracted by `scripts/update-mediawiki-aliases.ts` from MediaWiki core message files for `ar`, `de`, `es`, `fr`, `it`, `ja`, `ko`, `pl`, `pt`, `ru`, `uk`, `zh-hans`, and `zh-hant`.
-- `localizationSource: "siteinfo"` requires `--site-api <url>`. The CLI requests namespace ID 14, namespace aliases, magic words, and double-underscore behavior switches from the site's `action=query&meta=siteinfo` API. Fetch or validation failure stops the CLI; it never silently falls back to built-in data.
+- `localizationSource: "siteinfo"` requires `--site-api <url>`. The CLI requests namespace ID 14, namespace aliases, magic words including `defaultsort` and `redirect`, and double-underscore behavior switches from the site's `action=query&meta=siteinfo` API. Fetch or validation failure stops the CLI; it never silently falls back to built-in data.
 - `localizationSource: "custom"` uses canonical English syntax plus `localizationAliases`. Custom aliases also override conflicting built-in or siteinfo behavior-switch aliases.
 
-`localizedSyntaxStyle: "preserve"` (default) recognizes aliases but retains their exact spelling. `"canonical-english"` rewrites only a certainly matched namespace or magic-word keyword: category namespaces become `Category`, `defaultsort` becomes `DEFAULTSORT`, and behavior switches use their canonical English ID. Page titles, category names, sort keys, arguments, and normal text are never translated.
+`localizedSyntaxStyle: "preserve"` (default) recognizes aliases but retains their exact spelling. `"canonical-english"` rewrites only a certainly matched namespace or magic-word keyword: category namespaces become `Category`, `defaultsort` becomes `DEFAULTSORT`, redirects become `#REDIRECT`, and behavior switches use their canonical English ID. Page titles, redirect targets, category names, sort keys, arguments, and normal text are never translated.
 
 In canonical English mode, duplicate behavior switches are de-duplicated by emitted canonical value. For example, localized `notoc` plus `__NOTOC__` at the footer produce one `__NOTOC__`.
 
@@ -311,8 +328,11 @@ pnpm test
 pnpm test:run
 pnpm build
 pnpm check
+pnpm smoke
 pnpm localization:update /path/to/mediawiki/languages/messages
 ```
+
+`pnpm smoke` expects `pnpm build` to have run. It imports `dist/index.js`, runs `dist/cli.js --help`, checks that `loadSiteInfoAliases` is exported, verifies generated MediaWiki alias data is available from `dist`, and exercises `--print-localization-aliases --localization-source builtin` without network access.
 
 GitHub Actions runs frozen pnpm installs, builds, and the complete test suite on Node.js 22 and 24 for every push and pull request.
 
@@ -344,7 +364,7 @@ Planned work includes a VS Code extension, a Prettier plugin, broader conservati
 
 The project is released under the [GPL v3 License](LICENSE).
 
-``` text
+```text
     wikitext-fmt
     Copyright (C) 2026 SkyEye_FAST
 

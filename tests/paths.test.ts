@@ -17,13 +17,20 @@ async function fixtureDirectory(): Promise<string> {
 }
 
 afterEach(async () => {
-  await Promise.all(temporaryDirectories.splice(0).map((directory) => rm(directory, { recursive: true, force: true })));
+  await Promise.all(
+    temporaryDirectories
+      .splice(0)
+      .map((directory) => rm(directory, { recursive: true, force: true })),
+  );
 });
 
 describe("CLI input expansion", () => {
   it("combines explicit files and globs in stable sorted order without duplicates", async () => {
     const root = await fixtureDirectory();
-    const paths = await expandInputPaths(["pages/b.wiki", "pages/**/*.wiki"], root);
+    const paths = await expandInputPaths(
+      ["pages/b.wiki", "pages/**/*.wiki"],
+      root,
+    );
     expect(paths.map((path) => relative(root, path))).toEqual([
       "pages/b.wiki",
       "pages/nested/a.wiki",
@@ -32,11 +39,15 @@ describe("CLI input expansion", () => {
 
   it("rejects unmatched globs", async () => {
     const root = await fixtureDirectory();
-    await expect(expandInputPaths(["missing/**/*.wiki"], root)).rejects.toThrow(/matched no files/u);
+    await expect(expandInputPaths(["missing/**/*.wiki"], root)).rejects.toThrow(
+      /matched no files/u,
+    );
   });
 
   it("rejects directories", async () => {
     const root = await fixtureDirectory();
-    await expect(expandInputPaths(["pages"], root)).rejects.toThrow(/not a file/u);
+    await expect(expandInputPaths(["pages"], root)).rejects.toThrow(
+      /not a file/u,
+    );
   });
 });

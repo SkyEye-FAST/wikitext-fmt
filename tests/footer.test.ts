@@ -25,27 +25,28 @@ describe("page footer formatting", () => {
     expect(isStandaloneBehaviorSwitchLine(line)).toBe(true);
   });
 
-  it.each([
-    "Text __NOTOC__",
-    "__NOTOC__ text",
-    " __NOTOC__",
-    "__UNKNOWN__",
-  ])("rejects non-standalone behavior switch %s", (line) => {
-    expect(isStandaloneBehaviorSwitchLine(line)).toBe(false);
-  });
+  it.each(["Text __NOTOC__", "__NOTOC__ text", " __NOTOC__", "__UNKNOWN__"])(
+    "rejects non-standalone behavior switch %s",
+    (line) => {
+      expect(isStandaloneBehaviorSwitchLine(line)).toBe(false);
+    },
+  );
 
   it("preserves behavior switches inside templates", () => {
     const source = "{{Foo|value=\n__NOTOC__   \n}}\n";
-    expect(formatPageFooter(source, config, {
-      formatCategories: true,
-      formatBehaviorSwitches: true,
-      behaviorSwitchPlacement: "footer",
-      ...localization,
-    }).formatted).toBe(source);
+    expect(
+      formatPageFooter(source, config, {
+        formatCategories: true,
+        formatBehaviorSwitches: true,
+        behaviorSwitchPlacement: "footer",
+        ...localization,
+      }).formatted,
+    ).toBe(source);
   });
 
   it("orders switches, DEFAULTSORT aliases, and categories conservatively", () => {
-    const source = "[[Category:B]]\n__NOTOC__   \nBody\n{{DEFAULTSORTKEY:Example}}   \n__NOINDEX__\n";
+    const source =
+      "[[Category:B]]\n__NOTOC__   \nBody\n{{DEFAULTSORTKEY:Example}}   \n__NOINDEX__\n";
     const result = formatPageFooter(source, config, {
       formatCategories: true,
       formatBehaviorSwitches: true,

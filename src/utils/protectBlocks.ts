@@ -30,7 +30,8 @@ interface Range {
 
 function ignoreRanges(source: string): Range[] {
   const ranges: Range[] = [];
-  const rangePattern = /<!--\s*wikitext-fmt-ignore-start\s*-->[\s\S]*?(?:<!--\s*wikitext-fmt-ignore-end\s*-->|$)/giu;
+  const rangePattern =
+    /<!--\s*wikitext-fmt-ignore-start\s*-->[\s\S]*?(?:<!--\s*wikitext-fmt-ignore-end\s*-->|$)/giu;
   for (const match of source.matchAll(rangePattern)) {
     ranges.push({ start: match.index, end: match.index + match[0].length });
   }
@@ -73,10 +74,17 @@ function mergeRanges(ranges: Range[]): Range[] {
   return merged;
 }
 
-function structuralRanges(source: string, protectTables: boolean, protectComments: boolean): Range[] {
+function structuralRanges(
+  source: string,
+  protectTables: boolean,
+  protectComments: boolean,
+): Range[] {
   const ranges: Range[] = [];
   const tags = PROTECTED_TAGS.join("|");
-  const tagPattern = new RegExp(`<(${tags})\\b[^>]*>[\\s\\S]*?<\\/\\1\\s*>`, "giu");
+  const tagPattern = new RegExp(
+    `<(${tags})\\b[^>]*>[\\s\\S]*?<\\/\\1\\s*>`,
+    "giu",
+  );
   for (const match of source.matchAll(tagPattern)) {
     ranges.push({ start: match.index, end: match.index + match[0].length });
   }
@@ -108,17 +116,24 @@ function structuralRanges(source: string, protectTables: boolean, protectComment
         tableDepth--;
         if (tableDepth === 0 && tableStart !== undefined) {
           const newlineLength = line.match(/\r?\n$/u)?.[0].length ?? 0;
-          ranges.push({ start: tableStart, end: match.index + line.length - newlineLength });
+          ranges.push({
+            start: tableStart,
+            end: match.index + line.length - newlineLength,
+          });
           tableStart = undefined;
         }
       }
     }
-    if (tableStart !== undefined) ranges.push({ start: tableStart, end: source.length });
+    if (tableStart !== undefined)
+      ranges.push({ start: tableStart, end: source.length });
   }
   return ranges;
 }
 
-export function protectBlocks(source: string, options: ProtectBlocksOptions = {}): ProtectedText {
+export function protectBlocks(
+  source: string,
+  options: ProtectBlocksOptions = {},
+): ProtectedText {
   const ranges = mergeRanges([
     ...ignoreRanges(source),
     ...structuralRanges(
@@ -156,16 +171,24 @@ export function protectBlocks(source: string, options: ProtectBlocksOptions = {}
   return {
     text,
     restore(value: string): string {
-      const pattern = new RegExp(`${PLACEHOLDER_PREFIX}(\\d+)${PLACEHOLDER_SUFFIX}`, "gu");
-      return value.replace(pattern, (_, index: string) => values[Number(index)] ?? _);
+      const pattern = new RegExp(
+        `${PLACEHOLDER_PREFIX}(\\d+)${PLACEHOLDER_SUFFIX}`,
+        "gu",
+      );
+      return value.replace(
+        pattern,
+        (_, index: string) => values[Number(index)] ?? _,
+      );
     },
     originalIndex(index: number): number {
       let delta = 0;
       for (const mapping of mappings) {
         if (index < mapping.protectedStart) break;
         if (index < mapping.protectedEnd) return mapping.originalStart;
-        delta += (mapping.originalEnd - mapping.originalStart)
-          - (mapping.protectedEnd - mapping.protectedStart);
+        delta +=
+          mapping.originalEnd -
+          mapping.originalStart -
+          (mapping.protectedEnd - mapping.protectedStart);
       }
       return index + delta;
     },

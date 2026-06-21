@@ -5,7 +5,10 @@ import { describe, expect, it } from "vitest";
 import { formatWikitext, formatWikitextSafe } from "../src/index.js";
 import type { FormatOptions } from "../src/index.js";
 
-const fixturesRoot = resolve(dirname(fileURLToPath(import.meta.url)), "fixtures");
+const fixturesRoot = resolve(
+  dirname(fileURLToPath(import.meta.url)),
+  "fixtures",
+);
 const fixtureNames = (await readdir(fixturesRoot, { withFileTypes: true }))
   .filter((entry) => entry.isDirectory())
   .map((entry) => entry.name)
@@ -13,7 +16,9 @@ const fixtureNames = (await readdir(fixturesRoot, { withFileTypes: true }))
 
 async function readFixtureOptions(directory: string): Promise<FormatOptions> {
   try {
-    return JSON.parse(await readFile(resolve(directory, "options.json"), "utf8")) as FormatOptions;
+    return JSON.parse(
+      await readFile(resolve(directory, "options.json"), "utf8"),
+    ) as FormatOptions;
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === "ENOENT") return {};
     throw error;

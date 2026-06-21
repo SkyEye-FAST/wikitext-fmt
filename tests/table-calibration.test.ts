@@ -5,7 +5,10 @@ import { describe, expect, it } from "vitest";
 import { formatWikitextSafe } from "../src/index.js";
 import { getParserConfig, parseWikitext } from "../src/parser.js";
 
-const samplesRoot = resolve(dirname(fileURLToPath(import.meta.url)), "table-samples");
+const samplesRoot = resolve(
+  dirname(fileURLToPath(import.meta.url)),
+  "table-samples",
+);
 const samples = (await readdir(samplesRoot, { withFileTypes: true }))
   .filter((entry) => entry.isDirectory())
   .map((entry) => entry.name)

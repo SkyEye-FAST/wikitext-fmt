@@ -6,6 +6,7 @@ export type RuleName =
   | "templates"
   | "categories"
   | "lists"
+  | "redirects"
   | "behaviorSwitches"
   | "htmlVoidTags"
   | "tables";
@@ -16,6 +17,7 @@ export const ruleLevels = {
   templates: "normal",
   categories: "normal",
   lists: "normal",
+  redirects: "normal",
   behaviorSwitches: "normal",
   htmlVoidTags: "safe",
   tables: "experimental",

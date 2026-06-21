@@ -116,8 +116,8 @@ function formatStructuralLine(
 ): TableLineFormatResult {
   const reason = lineRiskReason(riskContent);
   if (reason) return { changed: false, value: line, reason };
-  return value === line ?
-      { changed: false, value: line }
+  return value === line
+    ? { changed: false, value: line }
     : { changed: true, value };
 }
 
@@ -159,17 +159,17 @@ function formatCellLine(
       changed: false,
       value: line,
       reason:
-        marker === "!" ?
-          "unsafe header cell separator"
-        : "unsafe data cell separator",
+        marker === "!"
+          ? "unsafe header cell separator"
+          : "unsafe data cell separator",
     };
   }
   const value =
-    separatorStyle === "split" ?
-      cells.map((cell) => `${marker}${cell}`).join("\n")
-    : `${marker}${content.trimEnd()}`;
-  return value === line ?
-      { changed: false, value: line }
+    separatorStyle === "split"
+      ? cells.map((cell) => `${marker}${cell}`).join("\n")
+      : `${marker}${content.trimEnd()}`;
+  return value === line
+    ? { changed: false, value: line }
     : { changed: true, value };
 }
 
@@ -269,8 +269,8 @@ function detectTableCellSeparatorStyle(
         return { index, marker, content, safe: false as const };
       }
       const cells = splitSimpleCells(content, marker === "!" ? "!!" : "||");
-      return cells ?
-          { index, marker, content, cells, safe: true as const }
+      return cells
+        ? { index, marker, content, cells, safe: true as const }
         : { index, marker, content, safe: false as const };
     })
     .filter((line) => line !== undefined);
@@ -419,9 +419,8 @@ export function analyzeSimpleTableForTesting(
     } else {
       const header = /^\s*!(.*)$/u.exec(line);
       const data = /^\s*\|(?![-+}])(.*)$/u.exec(line);
-      result =
-        header ?
-          formatCellLine(
+      result = header
+        ? formatCellLine(
             line,
             header[1]!,
             "!",
@@ -497,17 +496,17 @@ export function formatTablesWithDiagnostics(
       end,
       line: startLine,
       changed: result.changed,
-      ...(result.changed ?
-        hasSkippedUnsafeLines ?
-          { reason: "formatted with skipped unsafe lines" }
-        : {}
-      : { reason: result.reason }),
-      ...(result.separatorStyle ?
-        { separatorStyle: result.separatorStyle }
-      : {}),
-      ...(result.separatorStyleReason ?
-        { separatorStyleReason: result.separatorStyleReason }
-      : {}),
+      ...(result.changed
+        ? hasSkippedUnsafeLines
+          ? { reason: "formatted with skipped unsafe lines" }
+          : {}
+        : { reason: result.reason }),
+      ...(result.separatorStyle
+        ? { separatorStyle: result.separatorStyle }
+        : {}),
+      ...(result.separatorStyleReason
+        ? { separatorStyleReason: result.separatorStyleReason }
+        : {}),
       ...(lineDiagnostics ? { lineDiagnostics } : {}),
     });
     if (result.changed) replacements.push({ start, end, value: result.value });

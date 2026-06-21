@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { createUnifiedDiff } from "../src/cli/diff.js";
-import { createDiagnosticsRecord, serializeDiagnostics } from "../src/cli/diagnostics.js";
+import {
+  createDiagnosticsRecord,
+  serializeDiagnostics,
+} from "../src/cli/diagnostics.js";
 import { createBatchReport } from "../src/cli/report.js";
 import { formatWikitextDetailedResult } from "../src/formatter.js";
 
@@ -21,11 +24,18 @@ describe("CLI output helpers", () => {
   });
 
   it("creates separate hunks for distant changes", () => {
-    const before = Array.from({ length: 20 }, (_, index) => `line ${index + 1}`);
+    const before = Array.from(
+      { length: 20 },
+      (_, index) => `line ${index + 1}`,
+    );
     const after = [...before];
     after[1] = "changed near start";
     after[17] = "changed near end";
-    const diff = createUnifiedDiff("stdin", `${before.join("\n")}\n`, `${after.join("\n")}\n`);
+    const diff = createUnifiedDiff(
+      "stdin",
+      `${before.join("\n")}\n`,
+      `${after.join("\n")}\n`,
+    );
     expect(diff.match(/^@@/gmu)).toHaveLength(2);
     expect(diff).toContain("--- stdin\n+++ stdin\n");
     expect(diff).toContain("-line 2\n+changed near start");
@@ -39,7 +49,9 @@ describe("CLI output helpers", () => {
       formatTables: true,
       tableCellSeparatorStyle: "auto",
     });
-    const diagnostics = JSON.parse(serializeDiagnostics("page.wiki", source, result)) as {
+    const diagnostics = JSON.parse(
+      serializeDiagnostics("page.wiki", source, result),
+    ) as {
       file: string;
       changed: boolean;
       warning: string | null;
@@ -74,7 +86,9 @@ describe("CLI output helpers", () => {
       separatorStyle: "split",
       separatorStyleReason: "many columns",
     });
-    expect(diagnostics.tableDiagnostics[0]?.lineDiagnostics.length).toBeGreaterThan(0);
+    expect(
+      diagnostics.tableDiagnostics[0]?.lineDiagnostics.length,
+    ).toBeGreaterThan(0);
   });
 
   it("aggregates per-file diagnostics into a batch report", () => {
@@ -105,7 +119,12 @@ describe("CLI output helpers", () => {
       localizedCategoryAliasesCanonicalized: 0,
       localizedDefaultsortAliasesCanonicalized: 0,
       localizedBehaviorSwitchesCanonicalized: 0,
+      redirectsFormatted: 0,
+      localizedRedirectAliasesCanonicalized: 0,
     });
-    expect(report.files.map((file) => file.file)).toEqual(["changed.wiki", "unchanged.wiki"]);
+    expect(report.files.map((file) => file.file)).toEqual([
+      "changed.wiki",
+      "unchanged.wiki",
+    ]);
   });
 });

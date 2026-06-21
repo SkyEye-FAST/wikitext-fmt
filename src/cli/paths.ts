@@ -43,10 +43,6 @@ export async function expandInputPaths(
   return [...files].sort((a, b) => {
     const left = relative(directory, a);
     const right = relative(directory, b);
-    return (
-      left < right ? -1
-      : left > right ? 1
-      : 0
-    );
+    return left < right ? -1 : left > right ? 1 : 0;
   });
 }

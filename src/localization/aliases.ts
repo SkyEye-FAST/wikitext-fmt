@@ -22,6 +22,7 @@ export type BehaviorSwitchId = (typeof behaviorSwitchIds)[number];
 export interface ResolvedLocalizationAliases {
   categoryNamespaces: string[];
   defaultsortMagicWords: string[];
+  redirectMagicWords: string[];
   behaviorSwitches: Record<BehaviorSwitchId, string[]>;
 }
 
@@ -37,6 +38,7 @@ function canonicalAliases(): ResolvedLocalizationAliases {
   return {
     categoryNamespaces: ["Category"],
     defaultsortMagicWords: ["DEFAULTSORT:", "DEFAULTSORTKEY:"],
+    redirectMagicWords: ["#REDIRECT"],
     behaviorSwitches: Object.fromEntries(
       behaviorSwitchIds.map((id) => [id, [`__${id.toUpperCase()}__`]]),
     ) as Record<BehaviorSwitchId, string[]>,
@@ -59,6 +61,12 @@ export function mergeLocalizationAliases(
       result.defaultsortMagicWords = unique([
         ...(result.defaultsortMagicWords ?? []),
         ...source.defaultsortMagicWords,
+      ]);
+    }
+    if (source.redirectMagicWords) {
+      result.redirectMagicWords = unique([
+        ...(result.redirectMagicWords ?? []),
+        ...source.redirectMagicWords,
       ]);
     }
     if (source.behaviorSwitches) {
@@ -86,6 +94,7 @@ export function overrideLocalizationAliases(
   const result = mergeLocalizationAliases(base, {
     categoryNamespaces: override?.categoryNamespaces,
     defaultsortMagicWords: override?.defaultsortMagicWords,
+    redirectMagicWords: override?.redirectMagicWords,
   });
   result.behaviorSwitches = Object.fromEntries(
     Object.entries(base.behaviorSwitches ?? {}).map(([id, aliases]) => [
@@ -121,6 +130,7 @@ export function resolveLocalizationAliases(
   const hasAliasData =
     (customAliases.categoryNamespaces?.length ?? 0) > 0 ||
     (customAliases.defaultsortMagicWords?.length ?? 0) > 0 ||
+    (customAliases.redirectMagicWords?.length ?? 0) > 0 ||
     Object.values(customAliases.behaviorSwitches ?? {}).some(
       (aliases) => aliases.length > 0,
     );
@@ -152,6 +162,9 @@ export function resolveLocalizationAliases(
     ),
     defaultsortMagicWords: unique(
       merged.defaultsortMagicWords ?? base.defaultsortMagicWords,
+    ),
+    redirectMagicWords: unique(
+      merged.redirectMagicWords ?? base.redirectMagicWords,
     ),
     behaviorSwitches,
   };

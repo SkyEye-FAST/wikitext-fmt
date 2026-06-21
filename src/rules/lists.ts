@@ -1,6 +1,6 @@
 const LIST_LINE = /^([*#:;]+)([ \t]*)(\S.*)$/u;
 const RISKY_LIST_CONTENT =
-  /(?:\{\{|\}\}|\{\||\|\}|<\/?[A-Za-z!]|\uE000wikitext-fmt:)/u;
+  /(?:\{\{|\}\}|\{\||\|\}|\[\[|\]\]|<\/?[A-Za-z!]|\uE000wikitext-fmt:)/u;
 
 /** Format only ordinary, single-line list items with no nested wikitext structures. */
 export function formatLists(source: string): string {

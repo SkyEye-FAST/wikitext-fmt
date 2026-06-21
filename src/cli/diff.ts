@@ -125,9 +125,11 @@ export function createUnifiedDiff(
     output.push(`@@ -${oldStart},${oldCount} +${newStart},${newCount} @@`);
     for (const operation of hunk) {
       const marker =
-        operation.type === "context" ? " "
-        : operation.type === "remove" ? "-"
-        : "+";
+        operation.type === "context"
+          ? " "
+          : operation.type === "remove"
+            ? "-"
+            : "+";
       output.push(`${marker}${operation.line}`);
     }
   }

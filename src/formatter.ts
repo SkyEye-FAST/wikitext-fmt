@@ -12,6 +12,10 @@ import { isRuleEnabled } from "./rules/index.js";
 import { formatHtmlVoidTags } from "./rules/htmlVoidTags.js";
 import { formatLists } from "./rules/lists.js";
 import {
+  formatRedirects,
+  type RedirectDiagnostics,
+} from "./rules/redirects.js";
+import {
   formatTablesWithDiagnostics,
   lineNumberAt,
   type TableDiagnostic,
@@ -26,6 +30,7 @@ export interface FormatResult {
 export interface FormatDetailedResult extends FormatResult {
   tableDiagnostics: TableDiagnostic[];
   footerDiagnostics: FooterDiagnostics;
+  redirectDiagnostics: RedirectDiagnostics;
 }
 
 const emptyFooterDiagnostics = (): FooterDiagnostics => ({
@@ -38,6 +43,11 @@ const emptyFooterDiagnostics = (): FooterDiagnostics => ({
   localizedBehaviorSwitchesCanonicalized: 0,
 });
 
+const emptyRedirectDiagnostics = (): RedirectDiagnostics => ({
+  redirectsFormatted: 0,
+  localizedRedirectAliasesCanonicalized: 0,
+});
+
 export function formatWikitextDetailedResult(
   source: string,
   options: FormatOptions = {},
@@ -45,6 +55,7 @@ export function formatWikitextDetailedResult(
   const resolved = resolveOptions(options);
   let tableDiagnostics: TableDiagnostic[] = [];
   let footerDiagnostics = emptyFooterDiagnostics();
+  let redirectDiagnostics = emptyRedirectDiagnostics();
   try {
     const config = getParserConfig(resolved.parserConfig);
     if (!isRoundTripSafe(source, config)) {
@@ -54,6 +65,7 @@ export function formatWikitextDetailedResult(
           "The parser could not round-trip the input exactly; left it unchanged.",
         tableDiagnostics,
         footerDiagnostics,
+        redirectDiagnostics,
       };
     }
 
@@ -79,16 +91,16 @@ export function formatWikitextDetailedResult(
           start,
           end: tableBlocks.originalIndex(diagnostic.end),
           line,
-          ...(diagnostic.lineDiagnostics ?
-            {
-              lineDiagnostics: diagnostic.lineDiagnostics.map(
-                (lineDiagnostic) => ({
-                  ...lineDiagnostic,
-                  sourceLine: line + lineDiagnostic.tableLine - 1,
-                }),
-              ),
-            }
-          : {}),
+          ...(diagnostic.lineDiagnostics
+            ? {
+                lineDiagnostics: diagnostic.lineDiagnostics.map(
+                  (lineDiagnostic) => ({
+                    ...lineDiagnostic,
+                    sourceLine: line + lineDiagnostic.tableLine - 1,
+                  }),
+                ),
+              }
+            : {}),
         };
       });
       tableOutput = tableBlocks.restore(tableOutput);
@@ -106,6 +118,18 @@ export function formatWikitextDetailedResult(
     }
     if (resolved.formatHeadings && isRuleEnabled("headings", resolved.level))
       output = formatHeadings(output);
+    if (
+      resolved.formatRedirects &&
+      isRuleEnabled("redirects", resolved.level)
+    ) {
+      const redirect = formatRedirects(output, {
+        localizationSource: resolved.localizationSource,
+        localizedSyntaxStyle: resolved.localizedSyntaxStyle,
+        localizationAliases: resolved.localizationAliases,
+      });
+      output = redirect.formatted;
+      redirectDiagnostics = redirect.diagnostics;
+    }
     if (resolved.formatLists && isRuleEnabled("lists", resolved.level))
       output = formatLists(output);
     if (
@@ -143,9 +167,15 @@ export function formatWikitextDetailedResult(
           "The formatted output did not parse safely; left the input unchanged.",
         tableDiagnostics,
         footerDiagnostics,
+        redirectDiagnostics,
       };
     }
-    return { formatted: output, tableDiagnostics, footerDiagnostics };
+    return {
+      formatted: output,
+      tableDiagnostics,
+      footerDiagnostics,
+      redirectDiagnostics,
+    };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     return {
@@ -153,6 +183,7 @@ export function formatWikitextDetailedResult(
       warning: `Formatting failed safely: ${message}`,
       tableDiagnostics,
       footerDiagnostics,
+      redirectDiagnostics,
     };
   }
 }
@@ -164,6 +195,7 @@ export function formatWikitextResult(
   const {
     tableDiagnostics: _tableDiagnostics,
     footerDiagnostics: _footerDiagnostics,
+    redirectDiagnostics: _redirectDiagnostics,
     ...result
   } = formatWikitextDetailedResult(source, options);
   return result;
@@ -183,6 +215,7 @@ export function formatWikitextSafe(
   const {
     tableDiagnostics: _tableDiagnostics,
     footerDiagnostics: _footerDiagnostics,
+    redirectDiagnostics: _redirectDiagnostics,
     ...result
   } = formatWikitextSafeDetailed(source, options);
   return result;
@@ -194,6 +227,7 @@ export function formatWikitextSafeDetailed(
 ): FormatDetailedResult {
   let tableDiagnostics: TableDiagnostic[] = [];
   let footerDiagnostics = emptyFooterDiagnostics();
+  let redirectDiagnostics = emptyRedirectDiagnostics();
   try {
     const resolved = resolveOptions(options);
     const config = getParserConfig(resolved.parserConfig);
@@ -202,12 +236,14 @@ export function formatWikitextSafeDetailed(
     const first = formatWikitextDetailedResult(source, options);
     tableDiagnostics = first.tableDiagnostics;
     footerDiagnostics = first.footerDiagnostics;
+    redirectDiagnostics = first.redirectDiagnostics;
     if (first.warning)
       return {
         formatted: source,
         warning: first.warning,
         tableDiagnostics,
         footerDiagnostics,
+        redirectDiagnostics,
       };
     parseWikitext(first.formatted, config);
 
@@ -218,6 +254,7 @@ export function formatWikitextSafeDetailed(
         warning: `Safe formatting verification failed: ${second.warning}`,
         tableDiagnostics,
         footerDiagnostics,
+        redirectDiagnostics,
       };
     }
     parseWikitext(second.formatted, config);
@@ -228,6 +265,7 @@ export function formatWikitextSafeDetailed(
           "Safe formatting verification failed: output is not idempotent.",
         tableDiagnostics,
         footerDiagnostics,
+        redirectDiagnostics,
       };
     }
     return first;
@@ -238,6 +276,7 @@ export function formatWikitextSafeDetailed(
       warning: `Safe formatting failed: ${message}`,
       tableDiagnostics,
       footerDiagnostics,
+      redirectDiagnostics,
     };
   }
 }

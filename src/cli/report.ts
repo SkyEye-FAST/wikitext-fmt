@@ -42,6 +42,9 @@ export function createBatchReport(files: FileDiagnostics[]): BatchReport {
         diagnostics.localizedDefaultsortAliasesCanonicalized,
       localizedBehaviorSwitchesCanonicalized:
         diagnostics.localizedBehaviorSwitchesCanonicalized,
+      redirectsFormatted: diagnostics.redirectsFormatted,
+      localizedRedirectAliasesCanonicalized:
+        diagnostics.localizedRedirectAliasesCanonicalized,
     },
   };
 }

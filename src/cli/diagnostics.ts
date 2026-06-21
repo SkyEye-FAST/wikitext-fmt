@@ -13,6 +13,8 @@ export interface DiagnosticsSummary {
   localizedCategoryAliasesCanonicalized: number;
   localizedDefaultsortAliasesCanonicalized: number;
   localizedBehaviorSwitchesCanonicalized: number;
+  redirectsFormatted: number;
+  localizedRedirectAliasesCanonicalized: number;
 }
 
 export interface FileDiagnostics {
@@ -37,6 +39,8 @@ export function emptyDiagnosticsSummary(): DiagnosticsSummary {
     localizedCategoryAliasesCanonicalized: 0,
     localizedDefaultsortAliasesCanonicalized: 0,
     localizedBehaviorSwitchesCanonicalized: 0,
+    redirectsFormatted: 0,
+    localizedRedirectAliasesCanonicalized: 0,
   };
 }
 
@@ -77,6 +81,7 @@ export function createDiagnosticsSummary(
       0,
     ),
     ...result.footerDiagnostics,
+    ...result.redirectDiagnostics,
   };
 }
 

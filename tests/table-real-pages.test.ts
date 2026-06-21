@@ -5,8 +5,13 @@ import { describe, expect, it } from "vitest";
 import { formatWikitextSafe } from "../src/index.js";
 import { getParserConfig, parseWikitext } from "../src/parser.js";
 
-const pagesRoot = resolve(dirname(fileURLToPath(import.meta.url)), "real-pages");
-const pages = (await readdir(pagesRoot)).filter((name) => extname(name) === ".wiki").sort();
+const pagesRoot = resolve(
+  dirname(fileURLToPath(import.meta.url)),
+  "real-pages",
+);
+const pages = (await readdir(pagesRoot))
+  .filter((name) => extname(name) === ".wiki")
+  .sort();
 const parserConfig = getParserConfig("mediawiki");
 const options = { level: "experimental", formatTables: true } as const;
 

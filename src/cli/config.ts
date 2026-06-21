@@ -82,6 +82,7 @@ export function validateConfig(value: unknown): FormatOptions {
     "formatCategories",
     "formatLists",
     "formatBehaviorSwitches",
+    "formatRedirects",
     "behaviorSwitchPlacement",
     "localizationSource",
     "localizedSyntaxStyle",
@@ -118,6 +119,7 @@ export function validateConfig(value: unknown): FormatOptions {
     "formatCategories",
     "formatLists",
     "formatBehaviorSwitches",
+    "formatRedirects",
     "formatTables",
     "normalizeBlankLines",
   ] as const) {
@@ -197,6 +199,7 @@ function validateLocalizationAliases(
   const allowed = new Set([
     "categoryNamespaces",
     "defaultsortMagicWords",
+    "redirectMagicWords",
     "behaviorSwitches",
   ]);
   for (const key of Object.keys(aliases)) {
@@ -213,6 +216,12 @@ function validateLocalizationAliases(
     validateStringArray(
       aliases.defaultsortMagicWords,
       "localizationAliases.defaultsortMagicWords",
+    );
+  }
+  if (aliases.redirectMagicWords !== undefined) {
+    validateStringArray(
+      aliases.redirectMagicWords,
+      "localizationAliases.redirectMagicWords",
     );
   }
   if (aliases.behaviorSwitches !== undefined) {

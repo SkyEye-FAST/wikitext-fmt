@@ -150,6 +150,9 @@ export function parseArgs(args: string[]): CliOptions {
       case "--no-format-behavior-switches":
         options.formatBehaviorSwitches = false;
         break;
+      case "--no-format-redirects":
+        options.formatRedirects = false;
+        break;
       case "--behavior-switch-placement": {
         const value = args[++index];
         if (value !== "preserve" && value !== "footer") {
