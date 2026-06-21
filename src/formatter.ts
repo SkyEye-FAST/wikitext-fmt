@@ -1,32 +1,23 @@
 import type { FormatOptions } from "./options.js";
 import { resolveOptions } from "./options.js";
+import {
+  emptyDetailedDiagnostics,
+  fallbackDetailedResult,
+  stripDiagnostics,
+  type DetailedDiagnostics,
+} from "./diagnostics.js";
 import { getParserConfig, isRoundTripSafe, parseWikitext } from "./parser.js";
 import { normalizeBlankLines } from "./rules/blankLines.js";
-import {
-  formatPageFooter,
-  type FooterDiagnostics,
-} from "./rules/categories.js";
+import { formatPageFooter } from "./rules/categories.js";
 import { formatHeadings } from "./rules/headings.js";
 import { formatTemplates } from "./rules/templates.js";
 import { isRuleEnabled } from "./rules/index.js";
 import { formatHtmlVoidTags } from "./rules/htmlVoidTags.js";
 import { formatLists } from "./rules/lists.js";
-import {
-  formatFileLinks,
-  type FileLinkDiagnostics,
-} from "./rules/fileLinks.js";
-import {
-  formatRedirects,
-  type RedirectDiagnostics,
-} from "./rules/redirects.js";
-import {
-  formatSectionSpacing,
-  type SectionSpacingDiagnostics,
-} from "./rules/sectionSpacing.js";
-import {
-  formatTemplateParameters,
-  type TemplateParameterDiagnostics,
-} from "./rules/templateParameters.js";
+import { formatFileLinks } from "./rules/fileLinks.js";
+import { formatRedirects } from "./rules/redirects.js";
+import { formatSectionSpacing } from "./rules/sectionSpacing.js";
+import { formatTemplateParameters } from "./rules/templateParameters.js";
 import {
   formatTablesWithDiagnostics,
   lineNumberAt,
@@ -40,73 +31,28 @@ export interface FormatResult {
 }
 
 export interface FormatDetailedResult extends FormatResult {
-  tableDiagnostics: TableDiagnostic[];
-  footerDiagnostics: FooterDiagnostics;
-  redirectDiagnostics: RedirectDiagnostics;
-  fileLinkDiagnostics: FileLinkDiagnostics;
-  sectionSpacingDiagnostics: SectionSpacingDiagnostics;
-  templateParameterDiagnostics: TemplateParameterDiagnostics;
+  tableDiagnostics: DetailedDiagnostics["tableDiagnostics"];
+  footerDiagnostics: DetailedDiagnostics["footerDiagnostics"];
+  redirectDiagnostics: DetailedDiagnostics["redirectDiagnostics"];
+  fileLinkDiagnostics: DetailedDiagnostics["fileLinkDiagnostics"];
+  sectionSpacingDiagnostics: DetailedDiagnostics["sectionSpacingDiagnostics"];
+  templateParameterDiagnostics: DetailedDiagnostics["templateParameterDiagnostics"];
 }
-
-const emptyFooterDiagnostics = (): FooterDiagnostics => ({
-  behaviorSwitchesMoved: 0,
-  behaviorSwitchesFormatted: 0,
-  defaultsortMoved: 0,
-  categoriesMoved: 0,
-  localizedCategoryAliasesCanonicalized: 0,
-  localizedDefaultsortAliasesCanonicalized: 0,
-  localizedBehaviorSwitchesCanonicalized: 0,
-  interlanguageLinksMoved: 0,
-  interlanguageLinksFormatted: 0,
-});
-
-const emptyRedirectDiagnostics = (): RedirectDiagnostics => ({
-  redirectsFormatted: 0,
-  localizedRedirectAliasesCanonicalized: 0,
-});
-
-const emptyFileLinkDiagnostics = (): FileLinkDiagnostics => ({
-  fileLinksFormatted: 0,
-  localizedFileNamespaceAliasesCanonicalized: 0,
-  localizedImageOptionsCanonicalized: 0,
-});
-
-const emptySectionSpacingDiagnostics = (): SectionSpacingDiagnostics => ({
-  sectionSpacingBeforeHeadingsInserted: 0,
-  sectionSpacingAfterHeadingsInserted: 0,
-});
-
-const emptyTemplateParameterDiagnostics = (): TemplateParameterDiagnostics => ({
-  templateParametersFormatted: 0,
-  templateParameterLinesFormatted: 0,
-  templateParameterLinesSkippedUnsafe: 0,
-});
 
 export function formatWikitextDetailedResult(
   source: string,
   options: FormatOptions = {},
 ): FormatDetailedResult {
   const resolved = resolveOptions(options);
-  let tableDiagnostics: TableDiagnostic[] = [];
-  let footerDiagnostics = emptyFooterDiagnostics();
-  let redirectDiagnostics = emptyRedirectDiagnostics();
-  let fileLinkDiagnostics = emptyFileLinkDiagnostics();
-  let sectionSpacingDiagnostics = emptySectionSpacingDiagnostics();
-  let templateParameterDiagnostics = emptyTemplateParameterDiagnostics();
+  const diagnostics = emptyDetailedDiagnostics();
   try {
     const config = getParserConfig(resolved.parserConfig);
     if (!isRoundTripSafe(source, config)) {
-      return {
-        formatted: source,
-        warning:
-          "The parser could not round-trip the input exactly; left it unchanged.",
-        tableDiagnostics,
-        footerDiagnostics,
-        redirectDiagnostics,
-        fileLinkDiagnostics,
-        sectionSpacingDiagnostics,
-        templateParameterDiagnostics,
-      };
+      return fallbackDetailedResult(
+        source,
+        "The parser could not round-trip the input exactly; left it unchanged.",
+        diagnostics,
+      );
     }
 
     // Parse once before transformations so malformed input fails closed.
@@ -123,26 +69,28 @@ export function formatWikitextDetailedResult(
         resolved,
       );
       tableOutput = tableResult.formatted;
-      tableDiagnostics = tableResult.diagnostics.map((diagnostic) => {
-        const start = tableBlocks.originalIndex(diagnostic.start);
-        const line = lineNumberAt(source, start);
-        return {
-          ...diagnostic,
-          start,
-          end: tableBlocks.originalIndex(diagnostic.end),
-          line,
-          ...(diagnostic.lineDiagnostics
-            ? {
-                lineDiagnostics: diagnostic.lineDiagnostics.map(
-                  (lineDiagnostic) => ({
-                    ...lineDiagnostic,
-                    sourceLine: line + lineDiagnostic.tableLine - 1,
-                  }),
-                ),
-              }
-            : {}),
-        };
-      });
+      diagnostics.tableDiagnostics = tableResult.diagnostics.map(
+        (diagnostic) => {
+          const start = tableBlocks.originalIndex(diagnostic.start);
+          const line = lineNumberAt(source, start);
+          return {
+            ...diagnostic,
+            start,
+            end: tableBlocks.originalIndex(diagnostic.end),
+            line,
+            ...(diagnostic.lineDiagnostics
+              ? {
+                  lineDiagnostics: diagnostic.lineDiagnostics.map(
+                    (lineDiagnostic) => ({
+                      ...lineDiagnostic,
+                      sourceLine: line + lineDiagnostic.tableLine - 1,
+                    }),
+                  ),
+                }
+              : {}),
+          };
+        },
+      );
       tableOutput = tableBlocks.restore(tableOutput);
     }
 
@@ -166,7 +114,7 @@ export function formatWikitextDetailedResult(
     ) {
       const templateParameters = formatTemplateParameters(output);
       output = templateParameters.formatted;
-      templateParameterDiagnostics = templateParameters.diagnostics;
+      diagnostics.templateParameterDiagnostics = templateParameters.diagnostics;
     }
     if (resolved.formatHeadings && isRuleEnabled("headings", resolved.level))
       output = formatHeadings(output);
@@ -180,7 +128,7 @@ export function formatWikitextDetailedResult(
         localizationAliases: resolved.localizationAliases,
       });
       output = redirect.formatted;
-      redirectDiagnostics = redirect.diagnostics;
+      diagnostics.redirectDiagnostics = redirect.diagnostics;
     }
     if (
       resolved.formatFileLinks &&
@@ -192,7 +140,7 @@ export function formatWikitextDetailedResult(
         localizationAliases: resolved.localizationAliases,
       });
       output = fileLinks.formatted;
-      fileLinkDiagnostics = fileLinks.diagnostics;
+      diagnostics.fileLinkDiagnostics = fileLinks.diagnostics;
     }
     if (resolved.formatLists && isRuleEnabled("lists", resolved.level))
       output = formatLists(output);
@@ -202,7 +150,7 @@ export function formatWikitextDetailedResult(
     ) {
       const sectionSpacing = formatSectionSpacing(output);
       output = sectionSpacing.formatted;
-      sectionSpacingDiagnostics = sectionSpacing.diagnostics;
+      diagnostics.sectionSpacingDiagnostics = sectionSpacing.diagnostics;
     }
     if (
       resolved.normalizeBlankLines &&
@@ -238,44 +186,28 @@ export function formatWikitextDetailedResult(
         localizationAliases: resolved.localizationAliases,
       });
       output = footer.formatted;
-      footerDiagnostics = footer.diagnostics;
+      diagnostics.footerDiagnostics = footer.diagnostics;
     }
     output = protectedText.restore(output);
 
     if (!isRoundTripSafe(output, config)) {
-      return {
-        formatted: source,
-        warning:
-          "The formatted output did not parse safely; left the input unchanged.",
-        tableDiagnostics,
-        footerDiagnostics,
-        redirectDiagnostics,
-        fileLinkDiagnostics,
-        sectionSpacingDiagnostics,
-        templateParameterDiagnostics,
-      };
+      return fallbackDetailedResult(
+        source,
+        "The formatted output did not parse safely; left the input unchanged.",
+        diagnostics,
+      );
     }
     return {
       formatted: output,
-      tableDiagnostics,
-      footerDiagnostics,
-      redirectDiagnostics,
-      fileLinkDiagnostics,
-      sectionSpacingDiagnostics,
-      templateParameterDiagnostics,
+      ...diagnostics,
     };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    return {
-      formatted: source,
-      warning: `Formatting failed safely: ${message}`,
-      tableDiagnostics,
-      footerDiagnostics,
-      redirectDiagnostics,
-      fileLinkDiagnostics,
-      sectionSpacingDiagnostics,
-      templateParameterDiagnostics,
-    };
+    return fallbackDetailedResult(
+      source,
+      `Formatting failed safely: ${message}`,
+      diagnostics,
+    );
   }
 }
 
@@ -283,16 +215,7 @@ export function formatWikitextResult(
   source: string,
   options: FormatOptions = {},
 ): FormatResult {
-  const {
-    tableDiagnostics: _tableDiagnostics,
-    footerDiagnostics: _footerDiagnostics,
-    redirectDiagnostics: _redirectDiagnostics,
-    fileLinkDiagnostics: _fileLinkDiagnostics,
-    sectionSpacingDiagnostics: _sectionSpacingDiagnostics,
-    templateParameterDiagnostics: _templateParameterDiagnostics,
-    ...result
-  } = formatWikitextDetailedResult(source, options);
-  return result;
+  return stripDiagnostics(formatWikitextDetailedResult(source, options));
 }
 
 export function formatWikitext(
@@ -306,92 +229,55 @@ export function formatWikitextSafe(
   source: string,
   options: FormatOptions = {},
 ): FormatResult {
-  const {
-    tableDiagnostics: _tableDiagnostics,
-    footerDiagnostics: _footerDiagnostics,
-    redirectDiagnostics: _redirectDiagnostics,
-    fileLinkDiagnostics: _fileLinkDiagnostics,
-    sectionSpacingDiagnostics: _sectionSpacingDiagnostics,
-    templateParameterDiagnostics: _templateParameterDiagnostics,
-    ...result
-  } = formatWikitextSafeDetailed(source, options);
-  return result;
+  return stripDiagnostics(formatWikitextSafeDetailed(source, options));
 }
 
 export function formatWikitextSafeDetailed(
   source: string,
   options: FormatOptions = {},
 ): FormatDetailedResult {
-  let tableDiagnostics: TableDiagnostic[] = [];
-  let footerDiagnostics = emptyFooterDiagnostics();
-  let redirectDiagnostics = emptyRedirectDiagnostics();
-  let fileLinkDiagnostics = emptyFileLinkDiagnostics();
-  let sectionSpacingDiagnostics = emptySectionSpacingDiagnostics();
-  let templateParameterDiagnostics = emptyTemplateParameterDiagnostics();
+  let diagnostics = emptyDetailedDiagnostics();
   try {
     const resolved = resolveOptions(options);
     const config = getParserConfig(resolved.parserConfig);
     parseWikitext(source, config);
 
     const first = formatWikitextDetailedResult(source, options);
-    tableDiagnostics = first.tableDiagnostics;
-    footerDiagnostics = first.footerDiagnostics;
-    redirectDiagnostics = first.redirectDiagnostics;
-    fileLinkDiagnostics = first.fileLinkDiagnostics;
-    sectionSpacingDiagnostics = first.sectionSpacingDiagnostics;
-    templateParameterDiagnostics = first.templateParameterDiagnostics;
+    diagnostics = {
+      tableDiagnostics: first.tableDiagnostics,
+      footerDiagnostics: first.footerDiagnostics,
+      redirectDiagnostics: first.redirectDiagnostics,
+      fileLinkDiagnostics: first.fileLinkDiagnostics,
+      sectionSpacingDiagnostics: first.sectionSpacingDiagnostics,
+      templateParameterDiagnostics: first.templateParameterDiagnostics,
+    };
     if (first.warning)
-      return {
-        formatted: source,
-        warning: first.warning,
-        tableDiagnostics,
-        footerDiagnostics,
-        redirectDiagnostics,
-        fileLinkDiagnostics,
-        sectionSpacingDiagnostics,
-        templateParameterDiagnostics,
-      };
+      return fallbackDetailedResult(source, first.warning, diagnostics);
     parseWikitext(first.formatted, config);
 
     const second = formatWikitextDetailedResult(first.formatted, options);
     if (second.warning) {
-      return {
-        formatted: source,
-        warning: `Safe formatting verification failed: ${second.warning}`,
-        tableDiagnostics,
-        footerDiagnostics,
-        redirectDiagnostics,
-        fileLinkDiagnostics,
-        sectionSpacingDiagnostics,
-        templateParameterDiagnostics,
-      };
+      return fallbackDetailedResult(
+        source,
+        `Safe formatting verification failed: ${second.warning}`,
+        diagnostics,
+      );
     }
     parseWikitext(second.formatted, config);
     if (second.formatted !== first.formatted) {
-      return {
-        formatted: source,
-        warning:
-          "Safe formatting verification failed: output is not idempotent.",
-        tableDiagnostics,
-        footerDiagnostics,
-        redirectDiagnostics,
-        fileLinkDiagnostics,
-        sectionSpacingDiagnostics,
-        templateParameterDiagnostics,
-      };
+      return fallbackDetailedResult(
+        source,
+        "Safe formatting verification failed: output is not idempotent.",
+        diagnostics,
+      );
     }
     return first;
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    return {
-      formatted: source,
-      warning: `Safe formatting failed: ${message}`,
-      tableDiagnostics,
-      footerDiagnostics,
-      redirectDiagnostics,
-      fileLinkDiagnostics,
-      sectionSpacingDiagnostics,
-      templateParameterDiagnostics,
-    };
+    return fallbackDetailedResult(
+      source,
+      `Safe formatting failed: ${message}`,
+      diagnostics,
+    );
   }
 }

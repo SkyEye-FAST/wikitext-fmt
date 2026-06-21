@@ -1,5 +1,6 @@
 import { stdout } from "node:process";
 import type { FormatOptions } from "../options.js";
+import { booleanCliFlags } from "../options/schema.js";
 
 export interface CliOptions extends FormatOptions {
   write: boolean;
@@ -38,6 +39,12 @@ export function parseArgs(args: string[]): CliOptions {
   };
   for (let index = 0; index < args.length; index++) {
     const arg = args[index]!;
+    const booleanFlag = booleanCliFlags.get(arg);
+    if (booleanFlag) {
+      (options as unknown as Record<string, unknown>)[booleanFlag.name] =
+        booleanFlag.value;
+      continue;
+    }
     switch (arg) {
       case "--write":
         options.write = true;
@@ -135,33 +142,6 @@ export function parseArgs(args: string[]): CliOptions {
         options.localizedSyntaxStyle = value;
         break;
       }
-      case "--no-format-headings":
-        options.formatHeadings = false;
-        break;
-      case "--no-format-templates":
-        options.formatTemplates = false;
-        break;
-      case "--format-template-parameters":
-        options.formatTemplateParameters = true;
-        break;
-      case "--no-format-template-parameters":
-        options.formatTemplateParameters = false;
-        break;
-      case "--no-format-categories":
-        options.formatCategories = false;
-        break;
-      case "--no-format-lists":
-        options.formatLists = false;
-        break;
-      case "--no-format-file-links":
-        options.formatFileLinks = false;
-        break;
-      case "--format-interlanguage-links":
-        options.formatInterlanguageLinks = true;
-        break;
-      case "--no-format-interlanguage-links":
-        options.formatInterlanguageLinks = false;
-        break;
       case "--interlanguage-placement": {
         const value = args[++index];
         if (value !== "preserve" && value !== "footer") {
@@ -186,18 +166,6 @@ export function parseArgs(args: string[]): CliOptions {
           );
         break;
       }
-      case "--format-section-spacing":
-        options.formatSectionSpacing = true;
-        break;
-      case "--no-format-section-spacing":
-        options.formatSectionSpacing = false;
-        break;
-      case "--no-format-behavior-switches":
-        options.formatBehaviorSwitches = false;
-        break;
-      case "--no-format-redirects":
-        options.formatRedirects = false;
-        break;
       case "--behavior-switch-placement": {
         const value = args[++index];
         if (value !== "preserve" && value !== "footer") {
@@ -208,12 +176,6 @@ export function parseArgs(args: string[]): CliOptions {
         options.behaviorSwitchPlacement = value;
         break;
       }
-      case "--format-tables":
-        options.formatTables = true;
-        break;
-      case "--no-format-tables":
-        options.formatTables = false;
-        break;
       case "--table-cell-separator-style": {
         const value = args[++index];
         if (value !== "auto" && value !== "split" && value !== "preserve") {
@@ -224,9 +186,6 @@ export function parseArgs(args: string[]): CliOptions {
         options.tableCellSeparatorStyle = value;
         break;
       }
-      case "--no-normalize-blank-lines":
-        options.normalizeBlankLines = false;
-        break;
       case "--help":
         stdout.write(`${usage()}\n`);
         process.exit(0);

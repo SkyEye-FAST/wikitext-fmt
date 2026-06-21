@@ -1,17 +1,12 @@
 import { readFile, stat } from "node:fs/promises";
 import { dirname, isAbsolute, parse, resolve } from "node:path";
-import type {
-  FormatLevel,
-  FormatOptions,
-  BehaviorSwitchPlacement,
-  HtmlVoidTagStyle,
-  InterlanguagePlacement,
-  LocalizationAliases,
-  LocalizationSource,
-  LocalizedSyntaxStyle,
-  TableCellSeparatorStyle,
-} from "../options.js";
+import type { FormatOptions, LocalizationAliases } from "../options.js";
 import { behaviorSwitchIds } from "../localization/aliases.js";
+import {
+  booleanOptionNames,
+  enumOptions,
+  formatOptionNames,
+} from "../options/schema.js";
 
 export const CONFIG_FILENAMES = [
   ".wikitextfmtrc",
@@ -75,31 +70,7 @@ export function validateConfig(value: unknown): FormatOptions {
     throw new Error("Configuration must be a JSON object");
   }
   const record = value as Record<string, unknown>;
-  const allowed = new Set([
-    "parserConfig",
-    "lineWidth",
-    "formatHeadings",
-    "formatTemplates",
-    "formatTemplateParameters",
-    "formatCategories",
-    "formatLists",
-    "formatFileLinks",
-    "formatInterlanguageLinks",
-    "interlanguagePlacement",
-    "interlanguagePrefixes",
-    "formatSectionSpacing",
-    "formatBehaviorSwitches",
-    "formatRedirects",
-    "behaviorSwitchPlacement",
-    "localizationSource",
-    "localizedSyntaxStyle",
-    "localizationAliases",
-    "formatTables",
-    "tableCellSeparatorStyle",
-    "normalizeBlankLines",
-    "level",
-    "htmlVoidTagStyle",
-  ]);
+  const allowed = new Set<string>(formatOptionNames);
   for (const key of Object.keys(record)) {
     if (!allowed.has(key))
       throw new Error(`Unknown configuration option: ${key}`);
@@ -120,73 +91,15 @@ export function validateConfig(value: unknown): FormatOptions {
   ) {
     throw new Error("Configuration option lineWidth must be a positive number");
   }
-  for (const key of [
-    "formatHeadings",
-    "formatTemplates",
-    "formatTemplateParameters",
-    "formatCategories",
-    "formatLists",
-    "formatFileLinks",
-    "formatInterlanguageLinks",
-    "formatSectionSpacing",
-    "formatBehaviorSwitches",
-    "formatRedirects",
-    "formatTables",
-    "normalizeBlankLines",
-  ] as const) {
+  for (const key of booleanOptionNames) {
     if (record[key] !== undefined) assertBoolean(record[key], key);
   }
-  if (record.level !== undefined) {
-    assertEnum<FormatLevel>(record.level, "level", [
-      "safe",
-      "normal",
-      "experimental",
-    ]);
-  }
-  if (record.htmlVoidTagStyle !== undefined) {
-    assertEnum<HtmlVoidTagStyle>(record.htmlVoidTagStyle, "htmlVoidTagStyle", [
-      "html5",
-      "xhtml",
-      "preserve",
-    ]);
-  }
-  if (record.tableCellSeparatorStyle !== undefined) {
-    assertEnum<TableCellSeparatorStyle>(
-      record.tableCellSeparatorStyle,
-      "tableCellSeparatorStyle",
-      ["auto", "split", "preserve"],
-    );
-  }
-  if (record.behaviorSwitchPlacement !== undefined) {
-    assertEnum<BehaviorSwitchPlacement>(
-      record.behaviorSwitchPlacement,
-      "behaviorSwitchPlacement",
-      ["preserve", "footer"],
-    );
-  }
-  if (record.interlanguagePlacement !== undefined) {
-    assertEnum<InterlanguagePlacement>(
-      record.interlanguagePlacement,
-      "interlanguagePlacement",
-      ["preserve", "footer"],
-    );
+  for (const option of enumOptions) {
+    if (record[option.name] !== undefined)
+      assertEnum(record[option.name], option.name, option.enumValues);
   }
   if (record.interlanguagePrefixes !== undefined) {
     validateStringArray(record.interlanguagePrefixes, "interlanguagePrefixes");
-  }
-  if (record.localizationSource !== undefined) {
-    assertEnum<LocalizationSource>(
-      record.localizationSource,
-      "localizationSource",
-      ["builtin", "siteinfo", "custom"],
-    );
-  }
-  if (record.localizedSyntaxStyle !== undefined) {
-    assertEnum<LocalizedSyntaxStyle>(
-      record.localizedSyntaxStyle,
-      "localizedSyntaxStyle",
-      ["preserve", "canonical-english"],
-    );
   }
   if (record.localizationAliases !== undefined) {
     validateLocalizationAliases(record.localizationAliases);

@@ -21,46 +21,17 @@ export function createBatchReport(files: FileDiagnostics[]): BatchReport {
     (summary, file) => addDiagnosticsSummary(summary, file.summary),
     emptyDiagnosticsSummary(),
   );
+  const { formattedLines, skippedUnsafeLines, ...diagnosticSummary } =
+    diagnostics;
   return {
     files,
     summary: {
       files: files.length,
       changedFiles: files.filter((file) => file.changed).length,
       warningFiles: files.filter((file) => file.warning !== null).length,
-      tables: diagnostics.tables,
-      formattedTables: diagnostics.formattedTables,
-      skippedTables: diagnostics.skippedTables,
-      formattedTableLines: diagnostics.formattedLines,
-      skippedUnsafeTableLines: diagnostics.skippedUnsafeLines,
-      behaviorSwitchesMoved: diagnostics.behaviorSwitchesMoved,
-      behaviorSwitchesFormatted: diagnostics.behaviorSwitchesFormatted,
-      defaultsortMoved: diagnostics.defaultsortMoved,
-      categoriesMoved: diagnostics.categoriesMoved,
-      localizedCategoryAliasesCanonicalized:
-        diagnostics.localizedCategoryAliasesCanonicalized,
-      localizedDefaultsortAliasesCanonicalized:
-        diagnostics.localizedDefaultsortAliasesCanonicalized,
-      localizedBehaviorSwitchesCanonicalized:
-        diagnostics.localizedBehaviorSwitchesCanonicalized,
-      interlanguageLinksMoved: diagnostics.interlanguageLinksMoved,
-      interlanguageLinksFormatted: diagnostics.interlanguageLinksFormatted,
-      redirectsFormatted: diagnostics.redirectsFormatted,
-      localizedRedirectAliasesCanonicalized:
-        diagnostics.localizedRedirectAliasesCanonicalized,
-      fileLinksFormatted: diagnostics.fileLinksFormatted,
-      localizedFileNamespaceAliasesCanonicalized:
-        diagnostics.localizedFileNamespaceAliasesCanonicalized,
-      localizedImageOptionsCanonicalized:
-        diagnostics.localizedImageOptionsCanonicalized,
-      sectionSpacingBeforeHeadingsInserted:
-        diagnostics.sectionSpacingBeforeHeadingsInserted,
-      sectionSpacingAfterHeadingsInserted:
-        diagnostics.sectionSpacingAfterHeadingsInserted,
-      templateParametersFormatted: diagnostics.templateParametersFormatted,
-      templateParameterLinesFormatted:
-        diagnostics.templateParameterLinesFormatted,
-      templateParameterLinesSkippedUnsafe:
-        diagnostics.templateParameterLinesSkippedUnsafe,
+      ...diagnosticSummary,
+      formattedTableLines: formattedLines,
+      skippedUnsafeTableLines: skippedUnsafeLines,
     },
   };
 }
