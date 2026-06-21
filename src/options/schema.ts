@@ -74,6 +74,15 @@ export const optionSchema: readonly OptionSchemaEntry[] = [
     ruleLevel: "normal",
   },
   {
+    name: "formatReferences",
+    type: "boolean",
+    defaultValue: false,
+    positiveFlag: "--format-references",
+    negativeFlag: "--no-format-references",
+    ruleName: "references",
+    ruleLevel: "experimental",
+  },
+  {
     name: "formatInterlanguageLinks",
     type: "boolean",
     defaultValue: false,

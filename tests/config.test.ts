@@ -176,6 +176,12 @@ describe("CLI configuration", () => {
     });
   });
 
+  it("accepts experimental reference formatting configuration", () => {
+    expect(validateConfig({ formatReferences: true })).toEqual({
+      formatReferences: true,
+    });
+  });
+
   it("accepts redirect formatting configuration", () => {
     expect(
       validateConfig({

@@ -39,6 +39,13 @@ const matrix: Array<{ name: string; options: FormatOptions }> = [
     },
   },
   {
+    name: "experimental references",
+    options: {
+      level: "experimental",
+      formatReferences: true,
+    },
+  },
+  {
     name: "canonical localization",
     options: {
       localizedSyntaxStyle: "canonical-english",

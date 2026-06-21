@@ -21,6 +21,7 @@ export interface ProtectedText {
 export interface ProtectBlocksOptions {
   protectTables?: boolean;
   protectComments?: boolean;
+  protectReferenceTags?: boolean;
 }
 
 interface Range {
@@ -78,9 +79,12 @@ function structuralRanges(
   source: string,
   protectTables: boolean,
   protectComments: boolean,
+  protectReferenceTags: boolean,
 ): Range[] {
   const ranges: Range[] = [];
-  const tags = PROTECTED_TAGS.join("|");
+  const tags = PROTECTED_TAGS.filter(
+    (tag) => protectReferenceTags || tag !== "ref",
+  ).join("|");
   const tagPattern = new RegExp(
     `<(${tags})\\b[^>]*>[\\s\\S]*?<\\/\\1\\s*>`,
     "giu",
@@ -140,6 +144,7 @@ export function protectBlocks(
       source,
       options.protectTables ?? true,
       options.protectComments ?? true,
+      options.protectReferenceTags ?? true,
     ),
   ]);
   const values: string[] = [];

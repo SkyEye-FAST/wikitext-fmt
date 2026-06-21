@@ -24,6 +24,7 @@ export interface FormatOptions {
   formatCategories?: boolean;
   formatLists?: boolean;
   formatFileLinks?: boolean;
+  formatReferences?: boolean;
   formatInterlanguageLinks?: boolean;
   interlanguagePlacement?: InterlanguagePlacement;
   interlanguagePrefixes?: string[];
@@ -50,6 +51,7 @@ export interface ResolvedFormatOptions {
   formatCategories: boolean;
   formatLists: boolean;
   formatFileLinks: boolean;
+  formatReferences: boolean;
   formatInterlanguageLinks: boolean;
   interlanguagePlacement: InterlanguagePlacement;
   interlanguagePrefixes: string[];
@@ -76,6 +78,7 @@ export const defaultOptions: Readonly<ResolvedFormatOptions> = {
   formatCategories: true,
   formatLists: true,
   formatFileLinks: true,
+  formatReferences: false,
   formatInterlanguageLinks: false,
   interlanguagePlacement: "preserve",
   interlanguagePrefixes: [

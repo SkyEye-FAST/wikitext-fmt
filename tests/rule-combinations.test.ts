@@ -85,6 +85,45 @@ describe("rule interaction hardening", () => {
     ).toBe("Body\n\n[[Category:A]]\n\n[[en:Foo]]\n");
   });
 
+  it("combines reference formatting with section spacing", () => {
+    expect(
+      formatWikitext("Intro\n==Refs==\n<references/>\n", {
+        level: "experimental",
+        formatReferences: true,
+        formatSectionSpacing: true,
+      }),
+    ).toBe("Intro\n\n== Refs ==\n<references />\n");
+  });
+
+  it("combines reference formatting with category footer movement", () => {
+    expect(
+      formatWikitext("[[Category:A]]\n<references/>\nBody\n", {
+        level: "experimental",
+        formatReferences: true,
+      }),
+    ).toBe("<references />\nBody\n\n[[Category:A]]\n");
+  });
+
+  it("combines reference formatting with template parameter formatting", () => {
+    expect(
+      formatWikitext('{{Infobox\n| name=value\n}}\n<ref name="x"/>\n', {
+        level: "experimental",
+        formatTemplateParameters: true,
+        formatReferences: true,
+      }),
+    ).toBe('{{Infobox\n| name = value\n}}\n<ref name="x" />\n');
+  });
+
+  it("combines reference formatting with table formatting without changing table internals by reference rule", () => {
+    expect(
+      formatWikitext('{|\n| <ref name="x"/>\n|}\n<references/>\n', {
+        level: "experimental",
+        formatTables: true,
+        formatReferences: true,
+      }),
+    ).toBe('{|\n| <ref name="x"/>\n|}\n<references />\n');
+  });
+
   it("combines behavior switch footer and interlanguage footer placement", () => {
     expect(
       formatWikitext("__NOTOC__\n[[en:Foo]]\nBody\n[[Category:A]]\n", {

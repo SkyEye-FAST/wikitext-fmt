@@ -15,6 +15,7 @@ import { isRuleEnabled } from "./rules/index.js";
 import { formatHtmlVoidTags } from "./rules/htmlVoidTags.js";
 import { formatLists } from "./rules/lists.js";
 import { formatFileLinks } from "./rules/fileLinks.js";
+import { formatReferences } from "./rules/references.js";
 import { formatRedirects } from "./rules/redirects.js";
 import { formatSectionSpacing } from "./rules/sectionSpacing.js";
 import { formatTemplateParameters } from "./rules/templateParameters.js";
@@ -35,6 +36,7 @@ export interface FormatDetailedResult extends FormatResult {
   footerDiagnostics: DetailedDiagnostics["footerDiagnostics"];
   redirectDiagnostics: DetailedDiagnostics["redirectDiagnostics"];
   fileLinkDiagnostics: DetailedDiagnostics["fileLinkDiagnostics"];
+  referenceDiagnostics: DetailedDiagnostics["referenceDiagnostics"];
   sectionSpacingDiagnostics: DetailedDiagnostics["sectionSpacingDiagnostics"];
   templateParameterDiagnostics: DetailedDiagnostics["templateParameterDiagnostics"];
 }
@@ -92,6 +94,19 @@ export function formatWikitextDetailedResult(
         },
       );
       tableOutput = tableBlocks.restore(tableOutput);
+    }
+
+    if (
+      resolved.formatReferences &&
+      isRuleEnabled("references", resolved.level)
+    ) {
+      const referenceBlocks = protectBlocks(tableOutput, {
+        protectTables: true,
+        protectReferenceTags: false,
+      });
+      const references = formatReferences(referenceBlocks.text);
+      tableOutput = referenceBlocks.restore(references.formatted);
+      diagnostics.referenceDiagnostics = references.diagnostics;
     }
 
     // Re-protect tables before running non-table rules so enabling the
@@ -248,6 +263,7 @@ export function formatWikitextSafeDetailed(
       footerDiagnostics: first.footerDiagnostics,
       redirectDiagnostics: first.redirectDiagnostics,
       fileLinkDiagnostics: first.fileLinkDiagnostics,
+      referenceDiagnostics: first.referenceDiagnostics,
       sectionSpacingDiagnostics: first.sectionSpacingDiagnostics,
       templateParameterDiagnostics: first.templateParameterDiagnostics,
     };

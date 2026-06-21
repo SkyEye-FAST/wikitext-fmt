@@ -59,6 +59,8 @@ Without `--write`, formatted wikitext is written to stdout. `--check` writes not
 --no-format-categories
 --no-format-lists
 --no-format-file-links
+--format-references
+--no-format-references
 --format-interlanguage-links
 --no-format-interlanguage-links
 --interlanguage-placement preserve|footer
@@ -82,7 +84,7 @@ Explicit files and glob patterns can be mixed. Expanded paths are deduplicated a
 
 `--diff` writes unified diffs to stdout without modifying files and exits with status 1 when formatting would change the input. Diffs use three context lines by default and separate distant changes into multiple hunks. It works with file paths, globs, and `--stdin` (labelled `stdin`), and cannot be combined with `--write`.
 
-`--diagnostics-json` writes one JSON object per input to stderr. Each object includes `file`, `changed`, `warning`, table counters, footer counters (`behaviorSwitchesMoved`, `behaviorSwitchesFormatted`, `defaultsortMoved`, `categoriesMoved`, `interlanguageLinksMoved`, and `interlanguageLinksFormatted`), redirect counters (`redirectsFormatted`), file-link counters (`fileLinksFormatted`), section-spacing counters, template-parameter counters, canonicalization counters (`localizedCategoryAliasesCanonicalized`, `localizedDefaultsortAliasesCanonicalized`, `localizedBehaviorSwitchesCanonicalized`, `localizedRedirectAliasesCanonicalized`, `localizedFileNamespaceAliasesCanonicalized`, and `localizedImageOptionsCanonicalized`), and complete table diagnostics. Formatted text or diffs remain on stdout. JSON diagnostics cannot be combined with the text-oriented `--debug` mode.
+`--diagnostics-json` writes one JSON object per input to stderr. Each object includes `file`, `changed`, `warning`, table counters, footer counters (`behaviorSwitchesMoved`, `behaviorSwitchesFormatted`, `defaultsortMoved`, `categoriesMoved`, `interlanguageLinksMoved`, and `interlanguageLinksFormatted`), redirect counters (`redirectsFormatted`), file-link counters (`fileLinksFormatted`), reference counters, section-spacing counters, template-parameter counters, canonicalization counters (`localizedCategoryAliasesCanonicalized`, `localizedDefaultsortAliasesCanonicalized`, `localizedBehaviorSwitchesCanonicalized`, `localizedRedirectAliasesCanonicalized`, `localizedFileNamespaceAliasesCanonicalized`, and `localizedImageOptionsCanonicalized`), and complete table diagnostics. Formatted text or diffs remain on stdout. JSON diagnostics cannot be combined with the text-oriented `--debug` mode.
 
 `--safe` enables parse-before, parse-after, and idempotency verification. If verification fails, the original input is returned and a warning is written to stderr. `--debug` writes the selected mode, rule level, and result status to stderr without contaminating formatted stdout.
 
@@ -134,6 +136,7 @@ Configuration keys match `FormatOptions`:
   "formatCategories": true,
   "formatLists": true,
   "formatFileLinks": true,
+  "formatReferences": false,
   "formatInterlanguageLinks": false,
   "interlanguagePlacement": "preserve",
   "interlanguagePrefixes": ["en", "ja", "zh"],
@@ -182,6 +185,7 @@ const output = formatWikitext(source, {
   formatCategories: true,
   formatLists: true,
   formatFileLinks: true,
+  formatReferences: false,
   formatInterlanguageLinks: false,
   interlanguagePlacement: "preserve",
   interlanguagePrefixes: ["en", "ja", "zh"],
@@ -226,6 +230,7 @@ Every current rule has an exported reliability level in `ruleLevels`:
 - `categories`: `normal`
 - `lists`: `normal`
 - `fileLinks`: `normal`
+- `references`: `experimental`
 - `interlanguageLinks`: `experimental`
 - `sectionSpacing`: `experimental`
 - `redirects`: `normal`
@@ -264,6 +269,32 @@ It recognizes File namespace aliases and image option aliases from the selected 
 In `"canonical-english"` mode, the rule rewrites only certainly matched syntax keywords: localized File namespace aliases become `File`, and recognized image options such as localized `thumb`, `right`, `left`, or `center` become their canonical English option names. File names, captions, alt text values, link targets, page numbers, class/lang values, widths such as `300px`, and normal text are not translated or reordered.
 
 The rule skips lines with multiple wikilinks, nested links, templates, parser-function-like syntax, HTML or extension tags, multiline links, gallery contents, and table lines. Disable it with `--no-format-file-links` or `formatFileLinks: false`.
+
+## Experimental reference formatting
+
+Reference formatting is experimental and disabled by default:
+
+```sh
+wikitext-fmt page.wiki --level experimental --format-references
+```
+
+The rule only normalizes standalone self-closing reference-related lines:
+
+```wikitext
+<references/>
+<references group="note"/>
+<ref name="foo"/>
+```
+
+become:
+
+```wikitext
+<references />
+<references group="note" />
+<ref name="foo" />
+```
+
+Attributes are preserved exactly apart from spacing before `/>`; attribute order, quote style, and values are not normalized. Content-bearing refs, inline refs, multiline refs, lines with multiple tags, templates, wikilinks, comments, table/list syntax, non-reference HTML, protected placeholders, or uncertain `<` / `>` balance are preserved unchanged.
 
 ## Page footer and behavior switches
 
@@ -407,6 +438,7 @@ wikitext-fmt page.wiki --safe --debug --level experimental --format-tables
 - Only standalone category namespace aliases backed by the selected localization data are moved; categories are never sorted.
 - List formatting is limited to safe spacing and trailing-whitespace cleanup on ordinary single-line items.
 - File/image link formatting is limited to one safe standalone file link per line; captions and values are preserved.
+- Reference formatting is experimental, disabled by default, and limited to standalone self-closing `<ref ... />` and `<references ... />` lines.
 - Interlanguage link movement is experimental, disabled by default, and limited to standalone unlabelled links with configured prefixes.
 - Section spacing is experimental, disabled by default, and only applies around headings adjacent to ordinary paragraph text.
 - Only aliases backed by built-in MediaWiki data, siteinfo, or explicit custom configuration participate in footer formatting.

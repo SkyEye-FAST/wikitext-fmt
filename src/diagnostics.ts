@@ -1,6 +1,7 @@
 import type { FormatDetailedResult, FormatResult } from "./formatter.js";
 import type { FooterDiagnostics } from "./rules/categories.js";
 import type { FileLinkDiagnostics } from "./rules/fileLinks.js";
+import type { ReferenceDiagnostics } from "./rules/references.js";
 import type { RedirectDiagnostics } from "./rules/redirects.js";
 import type { SectionSpacingDiagnostics } from "./rules/sectionSpacing.js";
 import type { TableDiagnostic } from "./rules/tables.js";
@@ -11,6 +12,7 @@ export interface DetailedDiagnostics {
   footerDiagnostics: FooterDiagnostics;
   redirectDiagnostics: RedirectDiagnostics;
   fileLinkDiagnostics: FileLinkDiagnostics;
+  referenceDiagnostics: ReferenceDiagnostics;
   sectionSpacingDiagnostics: SectionSpacingDiagnostics;
   templateParameterDiagnostics: TemplateParameterDiagnostics;
 }
@@ -38,6 +40,11 @@ export function emptyDetailedDiagnostics(): DetailedDiagnostics {
       localizedFileNamespaceAliasesCanonicalized: 0,
       localizedImageOptionsCanonicalized: 0,
     },
+    referenceDiagnostics: {
+      referencesFormatted: 0,
+      referenceGroupsFormatted: 0,
+      referenceLinesSkippedUnsafe: 0,
+    },
     sectionSpacingDiagnostics: {
       sectionSpacingBeforeHeadingsInserted: 0,
       sectionSpacingAfterHeadingsInserted: 0,
@@ -56,6 +63,7 @@ export function stripDiagnostics(result: FormatDetailedResult): FormatResult {
     footerDiagnostics: _footerDiagnostics,
     redirectDiagnostics: _redirectDiagnostics,
     fileLinkDiagnostics: _fileLinkDiagnostics,
+    referenceDiagnostics: _referenceDiagnostics,
     sectionSpacingDiagnostics: _sectionSpacingDiagnostics,
     templateParameterDiagnostics: _templateParameterDiagnostics,
     ...stripped
