@@ -1,0 +1,4 @@
+{| class="wikitable"
+|+ Caption   
+! A !! B
+|}

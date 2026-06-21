@@ -143,6 +143,18 @@ Every current rule has an exported reliability level in `ruleLevels`:
 
 The levels describe formatter confidence, not a proof of semantic equivalence for arbitrary site-specific wikitext. Use an appropriate parser configuration and `formatWikitextSafe()` for automation over unfamiliar pages.
 
+## Experimental table formatting
+
+Enable the table pass explicitly:
+
+```sh
+wikitext-fmt page.wiki --safe --level experimental --format-tables
+```
+
+It currently trims trailing whitespace on recognized structural lines and splits only simple same-line `!!` and `||` cells. Dedicated fixtures cover supported tables and preserved unsafe cases. The formatter intentionally skips many real-world tables, including nested tables and tables containing templates, HTML or extension tags, protected placeholders, unsafe separators, or unclear line forms.
+
+Internal table analysis records meaningful skip reasons for regression tests. These diagnostics are not printed by default; exposing them through optional debug output is future work. Use `--safe` when enabling experimental table formatting on real pages so parsing and idempotency are verified before accepting output.
+
 ## Current limitations
 
 - Only simple, one-line templates are expanded.
@@ -182,10 +194,11 @@ Regression fixtures use this layout:
 ```text
 tests/fixtures/<case>/input.wiki
 tests/fixtures/<case>/expected.wiki
+tests/fixtures/<case>/options.json # optional
 tests/real-pages/*.wiki
 ```
 
-Each fixture checks expected output and idempotency. Files under `real-pages` currently check parsing and idempotency, making it straightforward to add anonymized or redistributable real-world regressions later.
+Each fixture checks expected output and idempotency; table fixtures opt into experimental formatting through `options.json`. Files under `real-pages` are tested in both default and experimental-table modes for parsing and idempotency, making it straightforward to add anonymized or redistributable real-world regressions later.
 
 Planned work includes a VS Code extension, a Prettier plugin, broader conservative table coverage, and improved site-specific parser configuration.
 

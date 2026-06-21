@@ -8,8 +8,9 @@ interface Replacement {
   value: string;
 }
 
-const PLACEHOLDER = /\uE000wikitext-fmt:/u;
-const RISKY_CONTENT = /(?:\{\{|\}\}|<|\uE000wikitext-fmt:)/u;
+export type TableFormatResult =
+  | { changed: true; value: string }
+  | { changed: false; reason: string };
 
 function splitSimpleCells(content: string, separator: "!!" | "||"): string[] | undefined {
   let bracketDepth = 0;
@@ -46,13 +47,20 @@ function splitSimpleCells(content: string, separator: "!!" | "||"): string[] | u
   return parts.some((part) => part.trim() === "") ? undefined : parts;
 }
 
-function formatSimpleTable(raw: string): string | undefined {
-  if (PLACEHOLDER.test(raw) || RISKY_CONTENT.test(raw)) return undefined;
+export function analyzeSimpleTableForTesting(raw: string): TableFormatResult {
+  if (/\uE000wikitext-fmt:/u.test(raw)) return { changed: false, reason: "contains protected placeholder" };
+  if (/<[a-z!/]/iu.test(raw)) return { changed: false, reason: "contains HTML or extension tag" };
+  if (/\{\{|\}\}/u.test(raw)) return { changed: false, reason: "contains template or template-like syntax" };
   const lines = raw.split("\n");
-  if (lines.length < 2) return undefined;
-  if (!/^\s*\{\|/u.test(lines[0]!) || !/^\s*\|\}\s*$/u.test(lines.at(-1)!)) return undefined;
-  if (lines.slice(1).some((line) => /^\s*\{\|/u.test(line))) return undefined;
-  if (lines.slice(1, -1).some((line) => /[{}]/u.test(line))) return undefined;
+  if (lines.length < 2 || !/^\s*\{\|/u.test(lines[0]!) || !/^\s*\|\}\s*$/u.test(lines.at(-1)!)) {
+    return { changed: false, reason: "unbalanced table start or end" };
+  }
+  if (lines.slice(1).some((line) => /^\s*\{\|/u.test(line))) {
+    return { changed: false, reason: "contains nested table" };
+  }
+  if (lines.slice(1, -1).some((line) => /[{}]/u.test(line))) {
+    return { changed: false, reason: "contains ambiguous brace syntax" };
+  }
 
   const output: string[] = [];
   for (let index = 0; index < lines.length; index++) {
@@ -76,20 +84,23 @@ function formatSimpleTable(raw: string): string | undefined {
     const header = /^\s*!(.*)$/u.exec(line);
     if (header) {
       const cells = splitSimpleCells(header[1]!, "!!");
-      if (!cells) return undefined;
+      if (!cells) return { changed: false, reason: "unsafe header cell separator" };
       output.push(...cells.map((cell) => `!${cell}`));
       continue;
     }
     const data = /^\s*\|(?![-+}])(.*)$/u.exec(line);
     if (data) {
       const cells = splitSimpleCells(data[1]!, "||");
-      if (!cells) return undefined;
+      if (!cells) return { changed: false, reason: "unsafe data cell separator" };
       output.push(...cells.map((cell) => `|${cell}`));
       continue;
     }
-    return undefined;
+    return { changed: false, reason: `unclear table line type at line ${index + 1}` };
   }
-  return output.join("\n");
+  const value = output.join("\n");
+  return value === raw
+    ? { changed: false, reason: "already formatted" }
+    : { changed: true, value };
 }
 
 export function formatTables(source: string, config: Config, _options: ResolvedFormatOptions): string {
@@ -100,9 +111,9 @@ export function formatTables(source: string, config: Config, _options: ResolvedF
     const start = node.getAbsoluteIndex();
     if (source.lastIndexOf("\n", start - 1) + 1 !== start) continue;
     const raw = node.toString();
-    const formatted = formatSimpleTable(raw);
-    if (formatted === undefined || formatted === raw) continue;
-    replacements.push({ start, end: start + raw.length, value: formatted });
+    const result = analyzeSimpleTableForTesting(raw);
+    if (!result.changed) continue;
+    replacements.push({ start, end: start + raw.length, value: result.value });
   }
 
   let output = source;
