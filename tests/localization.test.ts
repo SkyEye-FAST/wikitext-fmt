@@ -219,6 +219,13 @@ describe("MediaWiki localization data", () => {
         behaviorSwitchPlacement: "footer",
       }),
     ).toBe("Body.\n\n__NOTOC__\n\n{{DEFAULTSORT:Key}}\n[[Category:Foo]]\n");
+    expect(
+      formatWikitext("[[FileX:Example.png|miniX|rechtsX]]\n", {
+        localizationSource: "siteinfo",
+        localizationAliases: aliases,
+        localizedSyntaxStyle: "canonical-english",
+      }),
+    ).toBe("[[File:Example.png|thumb|right]]\n");
   });
 
   it("fails closed when siteinfo aliases were not loaded", () => {

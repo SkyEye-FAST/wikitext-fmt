@@ -238,7 +238,7 @@ The normal-level file-link rule handles only one simple file/image link occupyin
 [[File:Example.png|thumb|right|300px|alt=Example]]
 ```
 
-It recognizes File namespace aliases and image option aliases from the selected localization data. In `localizedSyntaxStyle: "preserve"` mode, it keeps the original namespace and option spelling and only trims trailing horizontal whitespace when the line is otherwise safe.
+It recognizes File namespace aliases and image option aliases from the selected localization data. File namespace matching normalizes underscores to spaces and compares aliases case-insensitively, while preserving the original namespace spelling in `localizedSyntaxStyle: "preserve"` mode. Preserve mode keeps option spelling and only trims trailing horizontal whitespace when the line is otherwise safe.
 
 In `"canonical-english"` mode, the rule rewrites only certainly matched syntax keywords: localized File namespace aliases become `File`, and recognized image options such as localized `thumb`, `right`, `left`, or `center` become their canonical English option names. File names, captions, alt text values, link targets, page numbers, class/lang values, widths such as `300px`, and normal text are not translated or reordered.
 

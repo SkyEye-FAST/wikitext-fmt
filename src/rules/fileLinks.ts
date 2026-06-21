@@ -68,6 +68,10 @@ function fileNamespaceAliases(options: FileLinkOptions): string[] {
   return [...new Set(aliases)].sort((a, b) => b.length - a.length);
 }
 
+function normalizeNamespaceAlias(value: string): string {
+  return value.replaceAll("_", " ").toLocaleLowerCase();
+}
+
 function imageOptionAliasMap(options: FileLinkOptions): Map<string, string> {
   const aliases = resolveLocalizationAliases(
     options.localizationSource,
@@ -94,7 +98,11 @@ function parseFileTarget(
   const namespace = target.slice(0, separator);
   const title = target.slice(separator + 1);
   if (!title || /[{}<>[\]\n]/u.test(title)) return undefined;
-  if (!namespaceAliases.includes(namespace)) return undefined;
+  const normalizedAliases = new Set(
+    namespaceAliases.map((alias) => normalizeNamespaceAlias(alias)),
+  );
+  if (!normalizedAliases.has(normalizeNamespaceAlias(namespace)))
+    return undefined;
   return { namespace, title };
 }
 
@@ -105,14 +113,19 @@ function canonicalizeOption(
   const exact = aliasMap.get(value);
   if (exact && !exact.endsWith("=")) return exact;
 
-  for (const [alias, canonical] of aliasMap) {
-    if (!alias.includes("$1") || !canonical.endsWith("=")) continue;
+  const parameterizedAliases = [...aliasMap].sort(([a], [b]) => {
+    const [aPrefix = ""] = a.split("$1");
+    const [bPrefix = ""] = b.split("$1");
+    return bPrefix.length - aPrefix.length;
+  });
+  for (const [alias, canonical] of parameterizedAliases) {
+    if (!alias.includes("$1")) continue;
     const [prefix, suffix = ""] = alias.split("$1");
     if (!prefix || !value.startsWith(prefix) || !value.endsWith(suffix))
       continue;
     const parameter = value.slice(prefix.length, value.length - suffix.length);
     if (!parameter || /[{}<>[\]\n|]/u.test(parameter)) continue;
-    return `${canonical}${parameter}`;
+    return `${canonical.endsWith("=") ? canonical : `${canonical}=`}${parameter}`;
   }
 
   if (exact?.endsWith("=")) return value;

@@ -9,6 +9,52 @@ describe("file/image link formatting", () => {
     ).toBe("[[File:Example.png|thumb|right|300px|alt=Example]]\n");
   });
 
+  it("matches English File namespace case-insensitively", () => {
+    expect(
+      formatWikitext("[[file:A.png|thumb]]\n", {
+        localizedSyntaxStyle: "canonical-english",
+      }),
+    ).toBe("[[File:A.png|thumb]]\n");
+    expect(
+      formatWikitext("[[File:A.png|thumb]]\n", {
+        localizedSyntaxStyle: "canonical-english",
+      }),
+    ).toBe("[[File:A.png|thumb]]\n");
+  });
+
+  it("matches namespace aliases with underscores as spaces", () => {
+    expect(
+      formatWikitext("[[Project_File:A.png|miniX]]\n", {
+        localizationSource: "custom",
+        localizedSyntaxStyle: "canonical-english",
+        localizationAliases: {
+          fileNamespaces: ["Project File"],
+          imageOptionAliases: { img_thumbnail: ["miniX"] },
+        },
+      }),
+    ).toBe("[[File:A.png|thumb]]\n");
+  });
+
+  it("matches custom namespace aliases case-insensitively", () => {
+    expect(
+      formatWikitext("[[mediax:A.png|miniX]]\n", {
+        localizationSource: "custom",
+        localizedSyntaxStyle: "canonical-english",
+        localizationAliases: {
+          fileNamespaces: ["MediaX"],
+          imageOptionAliases: { img_thumbnail: ["miniX"] },
+        },
+      }),
+    ).toBe("[[File:A.png|thumb]]\n");
+  });
+
+  it("does not treat file talk namespaces as file links", () => {
+    const input = "[[File talk:A.png|thumb]]   \n";
+    expect(
+      formatWikitext(input, { localizedSyntaxStyle: "canonical-english" }),
+    ).toBe(input);
+  });
+
   it("preserves localized file namespace and image options by default", () => {
     expect(formatWikitext("[[ファイル:A.png|サムネイル|右|300px]]   \n")).toBe(
       "[[ファイル:A.png|サムネイル|右|300px]]\n",
@@ -45,11 +91,32 @@ describe("file/image link formatting", () => {
     ).toBe("[[File:A.png|thumb|説明文|alt=説明|link=Target]]\n");
   });
 
+  it("canonicalizes parameterized image option keywords while preserving values", () => {
+    expect(
+      formatWikitext(
+        "[[ファイル:A.png|代替文=説明|リンク=Target|ページ=2|類別=foo|語言=ja|右上|右上=1.2|300px]]\n",
+        { localizedSyntaxStyle: "canonical-english" },
+      ),
+    ).toBe(
+      "[[File:A.png|alt=説明|link=Target|page=2|class=foo|lang=ja|upright|upright=1.2|300px]]\n",
+    );
+  });
+
+  it("does not canonicalize parameterized image options with extra whitespace", () => {
+    expect(
+      formatWikitext("[[ファイル:A.png|代替文 =説明|リンク =Target]]\n", {
+        localizedSyntaxStyle: "canonical-english",
+      }),
+    ).toBe("[[File:A.png|代替文 =説明|リンク =Target]]\n");
+  });
+
   it.each([
     "[[File:{{Example}}.png|thumb]]\n",
     "[[File:A.png|thumb]] and [[File:B.png|thumb]]\n",
     "[[File:A.png|thumb|[[Nested]]]]\n",
     "[[File:A.png|thumb|<span>caption</span>]]\n",
+    "[[File:A.png|thumb|alt={{Example}}]]\n",
+    "[[File:A.png|thumb|link=[[Target]]]]\n",
     "| [[File:A.png|thumb]]\n",
   ])("preserves unsafe file link line %s", (input) => {
     expect(
