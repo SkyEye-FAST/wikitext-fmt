@@ -1,8 +1,0 @@
-{| class="wikitable"
-| Outer
-|-
-|
-{| class="wikitable"
-| Inner || Value
-|}
-|}

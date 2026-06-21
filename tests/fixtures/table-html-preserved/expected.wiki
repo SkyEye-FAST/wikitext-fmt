@@ -1,6 +1,0 @@
-{| class="wikitable"
-! A
-! B
-|-
-| <span>One</span> || Two
-|}

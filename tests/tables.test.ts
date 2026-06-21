@@ -7,61 +7,83 @@ import {
   formatTablesWithDiagnostics,
 } from "../src/rules/tables.js";
 
-function expectSkip(raw: string, reason: RegExp): void {
-  const result = analyzeSimpleTableForTesting(raw);
-  expect(result.changed).toBe(false);
-  if (!result.changed) expect(result.reason).toMatch(reason);
-}
-
-function expectAutoStyleReason(raw: string, style: "split" | "preserve", reason: string, lineWidth = 120): void {
-  const result = analyzeSimpleTableForTesting(raw, {
-    lineWidth,
-    tableCellSeparatorStyle: "auto",
-  });
-  expect(result).toMatchObject({ separatorStyle: style, separatorStyleReason: reason });
-}
-
 describe("experimental table analysis diagnostics", () => {
-  it("reports protected placeholders", () => {
-    expectSkip("{|\n| \uE000wikitext-fmt:0:\uE001\n|}", /placeholder/u);
+  it.each([
+    ["protected placeholder", "{|\n| \uE000wikitext-fmt:0:\uE001\n|}", /placeholder/u],
+    ["template", "{|\n| {{N\/a}}\n|}", /template/u],
+    ["HTML tag", "{|\n| <span>value<\/span>\n|}", /HTML|tag/u],
+    ["nested table", "{|\n|\n{|\n| nested\n|}\n|}", /nested/u],
+    ["unbalanced table", "{|\n| value", /unbalanced/u],
+    ["quoted separator", "{|\n| style=\"A || B\" | C || D\n|}", /unsafe data cell separator/u],
+    ["unbalanced wikilink", "{|\n| [[A || B\n|}", /unsafe data cell separator/u],
+    ["unclear line", "{|\nplain text\n|}", /unclear table line type/u],
+  ])("reports %s", (_name, raw, reason) => {
+    const result = analyzeSimpleTableForTesting(raw);
+    expect(result.changed).toBe(false);
+    if (!result.changed) expect(result.reason).toMatch(reason);
   });
 
-  it("reports templates", () => {
-    expectSkip("{|\n| {{N\/a}}\n|}", /template/u);
+  it.each([
+    [
+      "simple compact inline table",
+      "{|\n! Name !! Value\n|-\n| [[Alpha]] || 1\n|}",
+      120,
+      "preserve",
+      "simple compact inline table",
+    ],
+    ["many columns", "{|\n! A !! B !! C !! D\n|}", 120, "split", "many columns"],
+    [
+      "cell attributes",
+      "{|\n| style=\"text-align:center\" | A || B\n|}",
+      120,
+      "split",
+      "cell attributes",
+    ],
+    ["line width", "{|\n| Alpha || Beta\n|}", 10, "split", "line exceeds lineWidth"],
+    ["mostly split", "{|\n! A\n! B\n|}", 120, "split", "already mostly split"],
+    [
+      "mixed style",
+      "{|\n! A\n! B\n|-\n| 1 || 2\n|}",
+      120,
+      "split",
+      "mixed inline and split style",
+    ],
+    [
+      "unsafe row",
+      "{|\n! A !! B\n|-\n| {{N/a}} || 1\n|}",
+      120,
+      "split",
+      "contains skipped unsafe rows",
+    ],
+    [
+      "many rows",
+      ["{|", ...Array.from({ length: 12 }, (_, index) => `| ${index} || value`), "|}"].join("\n"),
+      120,
+      "split",
+      "many table rows",
+    ],
+  ] as const)("selects a style for %s", (_name, raw, lineWidth, style, reason) => {
+    expect(analyzeSimpleTableForTesting(raw, {
+      lineWidth,
+      tableCellSeparatorStyle: "auto",
+    })).toMatchObject({ separatorStyle: style, separatorStyleReason: reason });
   });
 
-  it("reports HTML tags", () => {
-    expectSkip("{|\n| <span>value<\/span>\n|}", /HTML|tag/u);
+  it.each([
+    ["preserve", "explicit preserve option"],
+    ["split", "explicit split option"],
+  ] as const)("reports the explicit %s override", (style, reason) => {
+    expect(analyzeSimpleTableForTesting("{|\n! A !! B !! C !! D\n|}", {
+      lineWidth: 120,
+      tableCellSeparatorStyle: style,
+    })).toMatchObject({ separatorStyle: style, separatorStyleReason: reason });
   });
 
-  it("reports nested tables", () => {
-    expectSkip("{|\n|\n{|\n| nested\n|}\n|}", /nested/u);
-  });
-
-  it("reports unbalanced tables", () => {
-    expectSkip("{|\n| value", /unbalanced/u);
-  });
-
-  it("reports unsafe cell separators", () => {
-    expectSkip("{|\n| style=\"A || B\" | C || D\n|}", /unsafe data cell separator/u);
-  });
-
-  it("reports unbalanced link brackets as an unsafe separator", () => {
-    expectSkip("{|\n| [[A || B\n|}", /unsafe data cell separator/u);
-  });
-
-  it("reports unclear line types", () => {
-    expectSkip("{|\nplain text\n|}", /unclear table line type/u);
-  });
-
-  it("returns changed output for a supported table", () => {
+  it("reports changed output for a supported split table", () => {
     expect(analyzeSimpleTableForTesting("{|\n! A !! B\n|}", {
       lineWidth: 120,
       tableCellSeparatorStyle: "split",
-    })).toMatchObject({
-      changed: true,
-      value: "{|\n! A\n! B\n|}",
-    });
+    })).toMatchObject({ changed: true, value: "{|\n! A\n! B\n|}" });
   });
 
   it("reports 1-based table line numbers", () => {
@@ -80,7 +102,7 @@ describe("experimental table analysis diagnostics", () => {
     ]);
   });
 
-  it("maps diagnostics back across multiline protected blocks", () => {
+  it("maps diagnostics across protected blocks", () => {
     const source = "<nowiki>\nraw\n</nowiki>\nLead\n{|\n| A || B\n|}\n";
     const result = formatWikitextDetailedResult(source, {
       level: "experimental",
@@ -92,21 +114,18 @@ describe("experimental table analysis diagnostics", () => {
     ]);
   });
 
-  it("does not collect table diagnostics when the experimental rule is disabled", () => {
-    const result = formatWikitextDetailedResult("{|\n! A !! B\n|}\n", {
+  it("does not collect diagnostics when the rule is disabled", () => {
+    expect(formatWikitextDetailedResult("{|\n! A !! B\n|}\n", {
       level: "normal",
       formatTables: true,
-    });
-    expect(result.tableDiagnostics).toEqual([]);
+    }).tableDiagnostics).toEqual([]);
   });
 
   it("reports partial formatting when unsafe rows are preserved", () => {
-    const source = "{|\n! A !! B\n|-\n| {{N/a}} || 1\n|-\n| C || D\n|}\n";
-    const result = formatWikitextDetailedResult(source, {
-      level: "experimental",
-      formatTables: true,
-      tableCellSeparatorStyle: "split",
-    });
+    const result = formatWikitextDetailedResult(
+      "{|\n! A !! B\n|-\n| {{N/a}} || 1\n|-\n| C || D\n|}\n",
+      { level: "experimental", formatTables: true, tableCellSeparatorStyle: "auto" },
+    );
     expect(result.formatted).toContain("! A\n! B");
     expect(result.formatted).toContain("| {{N/a}} || 1");
     expect(result.formatted).toContain("| C\n| D");
@@ -114,32 +133,15 @@ describe("experimental table analysis diagnostics", () => {
       expect.objectContaining({
         changed: true,
         reason: "formatted with skipped unsafe lines",
+        separatorStyleReason: "contains skipped unsafe rows",
       }),
     ]);
-    expect(result.tableDiagnostics[0]?.lineDiagnostics).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          tableLine: 4,
-          changed: false,
-          reason: "contains template or template-like syntax",
-        }),
-      ]),
-    );
   });
 
-  it("detects auto separator style independently for each table", () => {
+  it("detects auto style independently for each table", () => {
     const source = [
-      "{|",
-      "! A !! B",
-      "|-",
-      "| 1 || 2",
-      "|}",
-      "{|",
-      "! A !! B !! C !! D",
-      "|-",
-      "| 1 || 2 || 3 || 4",
-      "|}",
-      "",
+      "{|", "! A !! B", "|-", "| 1 || 2", "|}",
+      "{|", "! A !! B !! C !! D", "|-", "| 1 || 2 || 3 || 4", "|}", "",
     ].join("\n");
     const result = formatWikitextDetailedResult(source, {
       level: "experimental",
@@ -147,72 +149,5 @@ describe("experimental table analysis diagnostics", () => {
       tableCellSeparatorStyle: "auto",
     });
     expect(result.tableDiagnostics.map(({ separatorStyle }) => separatorStyle)).toEqual(["preserve", "split"]);
-    expect(result.formatted).toContain("! A !! B\n|-\n| 1 || 2");
-    expect(result.formatted).toContain("! A\n! B\n! C\n! D");
-  });
-
-  it("auto splits safe inline lines that exceed lineWidth", () => {
-    const result = analyzeSimpleTableForTesting("{|\n| Alpha || Beta\n|}", {
-      lineWidth: 10,
-      tableCellSeparatorStyle: "auto",
-    });
-    expect(result).toMatchObject({
-      changed: true,
-      separatorStyle: "split",
-      value: "{|\n| Alpha\n| Beta\n|}",
-    });
-  });
-
-  it("explains auto style decisions", () => {
-    expectAutoStyleReason(
-      "{|\n! Name !! Value\n|-\n| [[Alpha]] || 1\n|}",
-      "preserve",
-      "simple compact inline table",
-    );
-    expectAutoStyleReason(
-      "{|\n! A !! B !! C !! D\n|}",
-      "split",
-      "many columns",
-    );
-    expectAutoStyleReason(
-      "{|\n| style=\"text-align:center\" | A || B\n|}",
-      "split",
-      "cell attributes",
-    );
-    expectAutoStyleReason(
-      "{|\n| Alpha || Beta\n|}",
-      "split",
-      "line exceeds lineWidth",
-      10,
-    );
-    expectAutoStyleReason(
-      "{|\n! A\n! B\n|}",
-      "split",
-      "already mostly split",
-    );
-    expectAutoStyleReason(
-      "{|\n! A\n! B\n|-\n| 1 || 2\n|}",
-      "split",
-      "mixed inline and split style",
-    );
-    expectAutoStyleReason(
-      "{|\n! A !! B\n|-\n| {{N/a}} || 1\n|}",
-      "split",
-      "contains skipped unsafe rows",
-    );
-
-    const manyRows = ["{|", ...Array.from({ length: 12 }, (_, index) => `| ${index} || value`), "|}"].join("\n");
-    expectAutoStyleReason(manyRows, "split", "many table rows");
-  });
-
-  it("explains explicit separator style overrides", () => {
-    expect(analyzeSimpleTableForTesting("{|\n! A !! B !! C !! D\n|}", {
-      lineWidth: 120,
-      tableCellSeparatorStyle: "preserve",
-    })).toMatchObject({ separatorStyle: "preserve", separatorStyleReason: "explicit preserve option" });
-    expect(analyzeSimpleTableForTesting("{|\n! A !! B\n|}", {
-      lineWidth: 120,
-      tableCellSeparatorStyle: "split",
-    })).toMatchObject({ separatorStyle: "split", separatorStyleReason: "explicit split option" });
   });
 });

@@ -1,0 +1,7 @@
+{| class="wikitable"
+! Name
+! Value
+|- class="sortbottom"
+| [[Alpha|A]]
+| [https://example.com Source]
+|}

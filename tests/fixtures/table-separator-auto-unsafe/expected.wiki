@@ -1,9 +1,0 @@
-{| class="wikitable"
-! A
-! B
-|-
-| style="--value:A || B" | C || D
-|-
-| 1
-| 2
-|}

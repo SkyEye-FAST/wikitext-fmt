@@ -1,0 +1,8 @@
+{| class="wikitable sortable"   
+|+ Quarterly summary   
+! Region !! Requests !! Success rate   
+|-
+| [[North region|North]] || 1,204 || 98.4%   
+|-
+| [[South region|South]] || 986 || 97.9%
+|}

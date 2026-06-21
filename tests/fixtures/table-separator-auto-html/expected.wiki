@@ -1,9 +1,0 @@
-{| class="wikitable"
-! A
-! B
-|-
-| <span>unsafe</span> || 1
-|-
-| 1
-| 2
-|}

@@ -1,3 +1,0 @@
-{| class="wikitable"
-! scope="col" | A !! B
-|}

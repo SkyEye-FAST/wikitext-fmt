@@ -1,0 +1,32 @@
+{| class="wikitable"
+| Outer
+|-
+|
+{| class="wikitable"
+| Nested || Value
+|}
+|}
+
+{{Box
+| content =
+{| class="wikitable"
+! Inside !! Template
+|}
+}}
+
+  {| class="wikitable"
+| Indented || Table
+|}
+
+{| class="wikitable"
+| First line
+continuation line
+|-
+| Next || Cell
+|}
+
+<!-- wikitext-fmt-ignore-start -->
+{| class="wikitable"
+! Ignored !! Table
+|}
+<!-- wikitext-fmt-ignore-end -->

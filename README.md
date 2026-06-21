@@ -218,9 +218,18 @@ tests/fixtures/<case>/input.wiki
 tests/fixtures/<case>/expected.wiki
 tests/fixtures/<case>/options.json # optional
 tests/real-pages/*.wiki
+tests/table-samples/<case>/input.wiki
+tests/table-samples/<case>/expected.wiki
 ```
 
-Each fixture checks expected output and idempotency; table fixtures opt into experimental formatting through `options.json`. Files under `real-pages` are tested in both default and experimental-table modes for parsing and idempotency, making it straightforward to add anonymized or redistributable real-world regressions later.
+Table testing is intentionally layered:
+
+- `tests/tables.test.ts` uses table-driven unit cases for heuristic decisions, diagnostics, and structural safety.
+- Representative fixtures cover user-visible output without duplicating every internal decision reason.
+- Anonymized `table-samples` calibrate expected diffs against realistic usage and verify parsing and idempotency.
+- Files under `real-pages` run in both default and experimental-table modes as broad regression guards.
+
+Fixtures with table formatting opt in through `options.json`. Calibration and real-page tests do not require every table to change; preserving a complex table can be the correct conservative result.
 
 Planned work includes a VS Code extension, a Prettier plugin, broader conservative table coverage, and improved site-specific parser configuration.
 

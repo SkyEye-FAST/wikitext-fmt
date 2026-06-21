@@ -1,0 +1,13 @@
+{| class="wikitable"
+! Name
+! Value
+|-
+| {{N/a}} || 1
+|-
+| <span>Beta</span> || 2
+|-
+| data-x="A || B" | Gamma || 3
+|-
+| Delta
+| 4
+|}

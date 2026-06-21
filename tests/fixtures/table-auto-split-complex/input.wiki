@@ -1,0 +1,5 @@
+{| class="wikitable"
+! scope="col" | Name !! Q1 !! Q2 !! Q3
+|-
+| style="text-align:center" | Alpha || 1 || 2 || 3
+|}

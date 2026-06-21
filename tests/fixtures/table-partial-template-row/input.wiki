@@ -1,7 +1,0 @@
-{| class="wikitable"   
-! Name !! Value
-|-
-| [[Alpha]] || 1
-|-
-| {{N/a}} || 2
-|}

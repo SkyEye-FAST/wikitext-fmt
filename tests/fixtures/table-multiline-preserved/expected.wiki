@@ -1,8 +1,0 @@
-{| class="wikitable"   
-! Name !! Value
-|-
-| First line
-second line
-|-
-| Next || Cell
-|}

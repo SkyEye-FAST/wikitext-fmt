@@ -1,0 +1,7 @@
+{| class="wikitable"
+! Item !! Recorded value
+|-
+| Sample A || 42<ref name="source">An anonymized source</ref>
+|-
+| Sample B || 37
+|}

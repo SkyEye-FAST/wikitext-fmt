@@ -1,5 +1,0 @@
-{| class="wikitable"
-! scope="col" | A !! B
-|-
-| style="text-align:center" | 1 || 2
-|}

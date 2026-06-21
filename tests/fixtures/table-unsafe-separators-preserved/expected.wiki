@@ -1,5 +1,0 @@
-{| class="wikitable"
-| style="--value:A || B" | C || D
-|-
-| [[Example||display]] || Other
-|}

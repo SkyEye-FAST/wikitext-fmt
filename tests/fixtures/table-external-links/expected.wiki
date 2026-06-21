@@ -1,4 +1,0 @@
-{| class="wikitable"
-| [https://example.com Example]
-| Text
-|}

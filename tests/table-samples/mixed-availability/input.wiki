@@ -1,0 +1,9 @@
+{| class="wikitable"
+! Service !! Region !! Status
+|-
+| Alpha || East || Available
+|-
+| Beta || West || {{N/a}}
+|-
+| Gamma || North || Available
+|}
