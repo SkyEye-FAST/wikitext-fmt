@@ -12,6 +12,27 @@ export type TableFormatResult =
   | { changed: true; value: string }
   | { changed: false; reason: string };
 
+export interface TableDiagnostic {
+  start: number;
+  end: number;
+  line: number;
+  changed: boolean;
+  reason?: string;
+}
+
+export interface TableFormatWithDiagnosticsResult {
+  formatted: string;
+  diagnostics: TableDiagnostic[];
+}
+
+export function lineNumberAt(source: string, index: number): number {
+  let line = 1;
+  for (let position = 0; position < index; position++) {
+    if (source.charCodeAt(position) === 10) line++;
+  }
+  return line;
+}
+
 function splitSimpleCells(content: string, separator: "!!" | "||"): string[] | undefined {
   let bracketDepth = 0;
   let quote: "\"" | "'" | undefined;
@@ -103,22 +124,44 @@ export function analyzeSimpleTableForTesting(raw: string): TableFormatResult {
     : { changed: true, value };
 }
 
-export function formatTables(source: string, config: Config, _options: ResolvedFormatOptions): string {
+export function formatTablesWithDiagnostics(
+  source: string,
+  config: Config,
+  _options: ResolvedFormatOptions,
+): TableFormatWithDiagnosticsResult {
   const root = parseWikitext(source, config);
   const replacements: Replacement[] = [];
+  const diagnostics: TableDiagnostic[] = [];
   for (const node of root.querySelectorAll("table")) {
-    if (node.parentNode?.closest("table") || node.parentNode?.closest("template")) continue;
+    if (node.parentNode?.closest("table")) continue;
     const start = node.getAbsoluteIndex();
-    if (source.lastIndexOf("\n", start - 1) + 1 !== start) continue;
     const raw = node.toString();
-    const result = analyzeSimpleTableForTesting(raw);
-    if (!result.changed) continue;
-    replacements.push({ start, end: start + raw.length, value: result.value });
+    const end = start + raw.length;
+    let result: TableFormatResult;
+    if (node.parentNode?.closest("template")) {
+      result = { changed: false, reason: "table is inside a template" };
+    } else if (source.lastIndexOf("\n", start - 1) + 1 !== start) {
+      result = { changed: false, reason: "table is not standalone" };
+    } else {
+      result = analyzeSimpleTableForTesting(raw);
+    }
+    diagnostics.push({
+      start,
+      end,
+      line: lineNumberAt(source, start),
+      changed: result.changed,
+      ...(result.changed ? {} : { reason: result.reason }),
+    });
+    if (result.changed) replacements.push({ start, end, value: result.value });
   }
 
   let output = source;
   for (const replacement of replacements.sort((a, b) => b.start - a.start)) {
     output = output.slice(0, replacement.start) + replacement.value + output.slice(replacement.end);
   }
-  return output;
+  return { formatted: output, diagnostics };
+}
+
+export function formatTables(source: string, config: Config, options: ResolvedFormatOptions): string {
+  return formatTablesWithDiagnostics(source, config, options).formatted;
 }

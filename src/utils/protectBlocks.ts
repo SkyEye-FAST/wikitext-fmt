@@ -15,6 +15,7 @@ const PROTECTED_TAGS = [
 export interface ProtectedText {
   text: string;
   restore(value: string): string;
+  originalIndex(index: number): number;
 }
 
 export interface ProtectBlocksOptions {
@@ -120,13 +121,27 @@ export function protectBlocks(source: string, options: ProtectBlocksOptions = {}
     ...structuralRanges(source, options.protectTables ?? true),
   ]);
   const values: string[] = [];
+  const mappings: Array<{
+    protectedStart: number;
+    protectedEnd: number;
+    originalStart: number;
+    originalEnd: number;
+  }> = [];
   let cursor = 0;
   let text = "";
 
   for (const range of ranges) {
     text += source.slice(cursor, range.start);
     const index = values.push(source.slice(range.start, range.end)) - 1;
-    text += `${PLACEHOLDER_PREFIX}${index}${PLACEHOLDER_SUFFIX}`;
+    const placeholder = `${PLACEHOLDER_PREFIX}${index}${PLACEHOLDER_SUFFIX}`;
+    const protectedStart = text.length;
+    text += placeholder;
+    mappings.push({
+      protectedStart,
+      protectedEnd: protectedStart + placeholder.length,
+      originalStart: range.start,
+      originalEnd: range.end,
+    });
     cursor = range.end;
   }
   text += source.slice(cursor);
@@ -136,6 +151,16 @@ export function protectBlocks(source: string, options: ProtectBlocksOptions = {}
     restore(value: string): string {
       const pattern = new RegExp(`${PLACEHOLDER_PREFIX}(\\d+)${PLACEHOLDER_SUFFIX}`, "gu");
       return value.replace(pattern, (_, index: string) => values[Number(index)] ?? _);
+    },
+    originalIndex(index: number): number {
+      let delta = 0;
+      for (const mapping of mappings) {
+        if (index < mapping.protectedStart) break;
+        if (index < mapping.protectedEnd) return mapping.originalStart;
+        delta += (mapping.originalEnd - mapping.originalStart)
+          - (mapping.protectedEnd - mapping.protectedStart);
+      }
+      return index + delta;
     },
   };
 }

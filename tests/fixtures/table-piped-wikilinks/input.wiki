@@ -1,0 +1,3 @@
+{| class="wikitable"
+| [[A|Display A]] || [[B|Display B]]
+|}

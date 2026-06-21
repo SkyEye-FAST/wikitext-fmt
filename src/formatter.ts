@@ -7,7 +7,11 @@ import { formatHeadings } from "./rules/headings.js";
 import { formatTemplates } from "./rules/templates.js";
 import { isRuleEnabled } from "./rules/index.js";
 import { formatHtmlVoidTags } from "./rules/htmlVoidTags.js";
-import { formatTables } from "./rules/tables.js";
+import {
+  formatTablesWithDiagnostics,
+  lineNumberAt,
+  type TableDiagnostic,
+} from "./rules/tables.js";
 import { protectBlocks } from "./utils/protectBlocks.js";
 
 export interface FormatResult {
@@ -15,12 +19,24 @@ export interface FormatResult {
   warning?: string;
 }
 
-export function formatWikitextResult(source: string, options: FormatOptions = {}): FormatResult {
+export interface FormatDetailedResult extends FormatResult {
+  tableDiagnostics: TableDiagnostic[];
+}
+
+export function formatWikitextDetailedResult(
+  source: string,
+  options: FormatOptions = {},
+): FormatDetailedResult {
   const resolved = resolveOptions(options);
+  let tableDiagnostics: TableDiagnostic[] = [];
   try {
     const config = getParserConfig(resolved.parserConfig);
     if (!isRoundTripSafe(source, config)) {
-      return { formatted: source, warning: "The parser could not round-trip the input exactly; left it unchanged." };
+      return {
+        formatted: source,
+        warning: "The parser could not round-trip the input exactly; left it unchanged.",
+        tableDiagnostics,
+      };
     }
 
     // Parse once before transformations so malformed input fails closed.
@@ -28,7 +44,17 @@ export function formatWikitextResult(source: string, options: FormatOptions = {}
     let tableOutput = source;
     if (resolved.formatTables && isRuleEnabled("tables", resolved.level)) {
       const tableBlocks = protectBlocks(tableOutput, { protectTables: false });
-      tableOutput = formatTables(tableBlocks.text, config, resolved);
+      const tableResult = formatTablesWithDiagnostics(tableBlocks.text, config, resolved);
+      tableOutput = tableResult.formatted;
+      tableDiagnostics = tableResult.diagnostics.map((diagnostic) => {
+        const start = tableBlocks.originalIndex(diagnostic.start);
+        return {
+          ...diagnostic,
+          start,
+          end: tableBlocks.originalIndex(diagnostic.end),
+          line: lineNumberAt(source, start),
+        };
+      });
       tableOutput = tableBlocks.restore(tableOutput);
     }
 
@@ -52,13 +78,22 @@ export function formatWikitextResult(source: string, options: FormatOptions = {}
     output = protectedText.restore(output);
 
     if (!isRoundTripSafe(output, config)) {
-      return { formatted: source, warning: "The formatted output did not parse safely; left the input unchanged." };
+      return {
+        formatted: source,
+        warning: "The formatted output did not parse safely; left the input unchanged.",
+        tableDiagnostics,
+      };
     }
-    return { formatted: output };
+    return { formatted: output, tableDiagnostics };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    return { formatted: source, warning: `Formatting failed safely: ${message}` };
+    return { formatted: source, warning: `Formatting failed safely: ${message}`, tableDiagnostics };
   }
+}
+
+export function formatWikitextResult(source: string, options: FormatOptions = {}): FormatResult {
+  const { tableDiagnostics: _tableDiagnostics, ...result } = formatWikitextDetailedResult(source, options);
+  return result;
 }
 
 export function formatWikitext(source: string, options: FormatOptions = {}): string {
@@ -66,26 +101,44 @@ export function formatWikitext(source: string, options: FormatOptions = {}): str
 }
 
 export function formatWikitextSafe(source: string, options: FormatOptions = {}): FormatResult {
+  const { tableDiagnostics: _tableDiagnostics, ...result } = formatWikitextSafeDetailed(source, options);
+  return result;
+}
+
+export function formatWikitextSafeDetailed(
+  source: string,
+  options: FormatOptions = {},
+): FormatDetailedResult {
+  let tableDiagnostics: TableDiagnostic[] = [];
   try {
     const resolved = resolveOptions(options);
     const config = getParserConfig(resolved.parserConfig);
     parseWikitext(source, config);
 
-    const first = formatWikitextResult(source, options);
-    if (first.warning) return { formatted: source, warning: first.warning };
+    const first = formatWikitextDetailedResult(source, options);
+    tableDiagnostics = first.tableDiagnostics;
+    if (first.warning) return { formatted: source, warning: first.warning, tableDiagnostics };
     parseWikitext(first.formatted, config);
 
-    const second = formatWikitextResult(first.formatted, options);
+    const second = formatWikitextDetailedResult(first.formatted, options);
     if (second.warning) {
-      return { formatted: source, warning: `Safe formatting verification failed: ${second.warning}` };
+      return {
+        formatted: source,
+        warning: `Safe formatting verification failed: ${second.warning}`,
+        tableDiagnostics,
+      };
     }
     parseWikitext(second.formatted, config);
     if (second.formatted !== first.formatted) {
-      return { formatted: source, warning: "Safe formatting verification failed: output is not idempotent." };
+      return {
+        formatted: source,
+        warning: "Safe formatting verification failed: output is not idempotent.",
+        tableDiagnostics,
+      };
     }
     return first;
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    return { formatted: source, warning: `Safe formatting failed: ${message}` };
+    return { formatted: source, warning: `Safe formatting failed: ${message}`, tableDiagnostics };
   }
 }

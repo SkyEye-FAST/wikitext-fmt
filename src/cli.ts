@@ -1,7 +1,11 @@
 #!/usr/bin/env node
 import { readFile, writeFile } from "node:fs/promises";
 import { stdin, stderr, stdout } from "node:process";
-import { formatWikitextResult, formatWikitextSafe, type FormatResult } from "./formatter.js";
+import {
+  formatWikitextDetailedResult,
+  formatWikitextSafeDetailed,
+  type FormatDetailedResult,
+} from "./formatter.js";
 import type { FormatOptions } from "./options.js";
 import { resolveCliConfig } from "./cli/config.js";
 import { expandInputPaths } from "./cli/paths.js";
@@ -109,16 +113,16 @@ function formatterOptions(options: CliOptions): FormatOptions {
   return formatOptions;
 }
 
-function runFormatter(source: string, options: CliOptions, formatOptions: FormatOptions): FormatResult {
+function runFormatter(source: string, options: CliOptions, formatOptions: FormatOptions): FormatDetailedResult {
   return options.safe
-    ? formatWikitextSafe(source, formatOptions)
-    : formatWikitextResult(source, formatOptions);
+    ? formatWikitextSafeDetailed(source, formatOptions)
+    : formatWikitextDetailedResult(source, formatOptions);
 }
 
 function debugResult(
   label: string,
   source: string,
-  result: FormatResult,
+  result: FormatDetailedResult,
   options: CliOptions,
   formatOptions: FormatOptions,
   configPath?: string,
@@ -129,6 +133,10 @@ function debugResult(
   const status = result.warning ? "fallback" : result.formatted === source ? "unchanged" : "changed";
   const config = configPath ? ` config=${configPath}` : " config=defaults";
   stderr.write(`${label}: debug: mode=${mode} level=${level} status=${status}${config}\n`);
+  for (const diagnostic of result.tableDiagnostics) {
+    const outcome = diagnostic.changed ? "formatted" : `skipped: ${diagnostic.reason ?? "unknown reason"}`;
+    stderr.write(`${label}: table at line ${diagnostic.line} ${outcome}\n`);
+  }
 }
 
 async function main(): Promise<void> {

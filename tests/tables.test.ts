@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { analyzeSimpleTableForTesting } from "../src/rules/tables.js";
+import { formatWikitextDetailedResult } from "../src/formatter.js";
+import { getParserConfig } from "../src/parser.js";
+import { resolveOptions } from "../src/options.js";
+import {
+  analyzeSimpleTableForTesting,
+  formatTablesWithDiagnostics,
+} from "../src/rules/tables.js";
 
 function expectSkip(raw: string, reason: RegExp): void {
   const result = analyzeSimpleTableForTesting(raw);
@@ -32,6 +38,10 @@ describe("experimental table analysis diagnostics", () => {
     expectSkip("{|\n| style=\"A || B\" | C || D\n|}", /unsafe data cell separator/u);
   });
 
+  it("reports unbalanced link brackets as an unsafe separator", () => {
+    expectSkip("{|\n| [[A || B\n|}", /unsafe data cell separator/u);
+  });
+
   it("reports unclear line types", () => {
     expectSkip("{|\nplain text\n|}", /unclear table line type/u);
   });
@@ -41,5 +51,36 @@ describe("experimental table analysis diagnostics", () => {
       changed: true,
       value: "{|\n! A\n! B\n|}",
     });
+  });
+
+  it("reports 1-based table line numbers", () => {
+    const source = "Lead\n\n{| class=\"wikitable\"\n! A !! B\n|}\n";
+    const result = formatTablesWithDiagnostics(
+      source,
+      getParserConfig("mediawiki"),
+      resolveOptions({ level: "experimental", formatTables: true }),
+    );
+    expect(result.diagnostics).toEqual([
+      expect.objectContaining({ start: 6, line: 3, changed: true }),
+    ]);
+  });
+
+  it("maps diagnostics back across multiline protected blocks", () => {
+    const source = "<nowiki>\nraw\n</nowiki>\nLead\n{|\n| A || B\n|}\n";
+    const result = formatWikitextDetailedResult(source, {
+      level: "experimental",
+      formatTables: true,
+    });
+    expect(result.tableDiagnostics).toEqual([
+      expect.objectContaining({ start: source.indexOf("{|"), line: 5, changed: true }),
+    ]);
+  });
+
+  it("does not collect table diagnostics when the experimental rule is disabled", () => {
+    const result = formatWikitextDetailedResult("{|\n! A !! B\n|}\n", {
+      level: "normal",
+      formatTables: true,
+    });
+    expect(result.tableDiagnostics).toEqual([]);
   });
 });

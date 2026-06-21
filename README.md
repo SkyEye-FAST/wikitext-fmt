@@ -151,9 +151,15 @@ Enable the table pass explicitly:
 wikitext-fmt page.wiki --safe --level experimental --format-tables
 ```
 
-It currently trims trailing whitespace on recognized structural lines and splits only simple same-line `!!` and `||` cells. Dedicated fixtures cover supported tables and preserved unsafe cases. The formatter intentionally skips many real-world tables, including nested tables and tables containing templates, HTML or extension tags, protected placeholders, unsafe separators, or unclear line forms.
+It currently trims trailing whitespace on recognized structural lines and splits only simple same-line `!!` and `||` cells. Simple wikilinks, piped wikilinks, external links, and straightforward cell/header attributes are supported when their separators can be identified safely. Dedicated fixtures cover supported tables and preserved unsafe cases.
 
-Internal table analysis records meaningful skip reasons for regression tests. These diagnostics are not printed by default; exposing them through optional debug output is future work. Use `--safe` when enabling experimental table formatting on real pages so parsing and idempotency are verified before accepting output.
+The formatter intentionally skips many real-world tables, including nested tables and tables containing templates, HTML or extension tags, protected placeholders, unsafe separators, or unclear line forms. A template or HTML tag anywhere in a table causes the entire table to be preserved.
+
+Internal table analysis records meaningful skip reasons. They are never printed during normal operation; add `--debug` to an experimental table run to report which table start lines were formatted or skipped and why. Use `--safe` when enabling experimental table formatting on real pages so parsing and idempotency are verified before accepting output:
+
+```sh
+wikitext-fmt page.wiki --safe --debug --level experimental --format-tables
+```
 
 ## Current limitations
 
