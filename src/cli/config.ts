@@ -66,6 +66,7 @@ export function validateConfig(value: unknown): FormatOptions {
     "formatHeadings",
     "formatTemplates",
     "formatCategories",
+    "formatLists",
     "formatTables",
     "tableCellSeparatorStyle",
     "normalizeBlankLines",
@@ -88,6 +89,7 @@ export function validateConfig(value: unknown): FormatOptions {
     "formatHeadings",
     "formatTemplates",
     "formatCategories",
+    "formatLists",
     "formatTables",
     "normalizeBlankLines",
   ] as const) {

@@ -34,6 +34,7 @@ describe("formatter API", () => {
       blankLines: "safe",
       templates: "normal",
       categories: "normal",
+      lists: "normal",
       htmlVoidTags: "safe",
       tables: "experimental",
     });

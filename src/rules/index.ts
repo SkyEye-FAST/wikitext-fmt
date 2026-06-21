@@ -1,12 +1,20 @@
 import type { FormatLevel } from "../options.js";
 
-export type RuleName = "headings" | "blankLines" | "templates" | "categories" | "htmlVoidTags" | "tables";
+export type RuleName =
+  | "headings"
+  | "blankLines"
+  | "templates"
+  | "categories"
+  | "lists"
+  | "htmlVoidTags"
+  | "tables";
 
 export const ruleLevels = {
   headings: "safe",
   blankLines: "safe",
   templates: "normal",
   categories: "normal",
+  lists: "normal",
   htmlVoidTags: "safe",
   tables: "experimental",
 } as const satisfies Record<RuleName, FormatLevel>;

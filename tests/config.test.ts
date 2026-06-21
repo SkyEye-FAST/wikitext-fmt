@@ -94,6 +94,10 @@ describe("CLI configuration", () => {
     });
   });
 
+  it("accepts list formatting configuration", () => {
+    expect(validateConfig({ formatLists: false })).toEqual({ formatLists: false });
+  });
+
   it("rejects invalid table separator styles", () => {
     expect(() => validateConfig({ tableCellSeparatorStyle: "inline" })).toThrow(/auto, split, preserve/u);
   });

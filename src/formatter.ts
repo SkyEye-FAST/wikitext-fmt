@@ -7,6 +7,7 @@ import { formatHeadings } from "./rules/headings.js";
 import { formatTemplates } from "./rules/templates.js";
 import { isRuleEnabled } from "./rules/index.js";
 import { formatHtmlVoidTags } from "./rules/htmlVoidTags.js";
+import { formatLists } from "./rules/lists.js";
 import {
   formatTablesWithDiagnostics,
   lineNumberAt,
@@ -78,6 +79,7 @@ export function formatWikitextDetailedResult(
       output = formatTemplates(output, config, resolved.lineWidth);
     }
     if (resolved.formatHeadings && isRuleEnabled("headings", resolved.level)) output = formatHeadings(output);
+    if (resolved.formatLists && isRuleEnabled("lists", resolved.level)) output = formatLists(output);
     if (resolved.normalizeBlankLines && isRuleEnabled("blankLines", resolved.level)) {
       output = normalizeBlankLines(output);
     }

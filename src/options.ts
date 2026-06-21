@@ -8,6 +8,7 @@ export interface FormatOptions {
   formatHeadings?: boolean;
   formatTemplates?: boolean;
   formatCategories?: boolean;
+  formatLists?: boolean;
   formatTables?: boolean;
   tableCellSeparatorStyle?: TableCellSeparatorStyle;
   normalizeBlankLines?: boolean;
@@ -21,6 +22,7 @@ export interface ResolvedFormatOptions {
   formatHeadings: boolean;
   formatTemplates: boolean;
   formatCategories: boolean;
+  formatLists: boolean;
   formatTables: boolean;
   tableCellSeparatorStyle: TableCellSeparatorStyle;
   normalizeBlankLines: boolean;
@@ -34,6 +36,7 @@ export const defaultOptions: Readonly<ResolvedFormatOptions> = {
   formatHeadings: true,
   formatTemplates: true,
   formatCategories: true,
+  formatLists: true,
   formatTables: false,
   tableCellSeparatorStyle: "auto",
   normalizeBlankLines: true,

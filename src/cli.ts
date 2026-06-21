@@ -10,7 +10,12 @@ import type { FormatOptions } from "./options.js";
 import { resolveCliConfig } from "./cli/config.js";
 import { expandInputPaths } from "./cli/paths.js";
 import { createUnifiedDiff } from "./cli/diff.js";
-import { serializeDiagnostics } from "./cli/diagnostics.js";
+import {
+  createDiagnosticsRecord,
+  serializeDiagnostics,
+  type FileDiagnostics,
+} from "./cli/diagnostics.js";
+import { createBatchReport } from "./cli/report.js";
 
 interface CliOptions extends FormatOptions {
   write: boolean;
@@ -21,13 +26,14 @@ interface CliOptions extends FormatOptions {
   diff: boolean;
   diagnosticsJson: boolean;
   failOnWarning: boolean;
+  reportPath?: string;
   configPath?: string;
   noConfig: boolean;
   files: string[];
 }
 
 function usage(): string {
-  return "Usage: wikitext-fmt [--write | --check | --diff] [--stdin] [--safe] [--fail-on-warning] [--debug | --diagnostics-json] [--config <path> | --no-config] [--level safe|normal|experimental] [options] <file-or-glob...>";
+  return "Usage: wikitext-fmt [--write | --check | --diff] [--stdin] [--safe] [--fail-on-warning] [--report <path>] [--debug | --diagnostics-json] [--config <path> | --no-config] [--level safe|normal|experimental] [options] <file-or-glob...>";
 }
 
 function parseArgs(args: string[]): CliOptions {
@@ -54,6 +60,12 @@ function parseArgs(args: string[]): CliOptions {
       case "--diff": options.diff = true; break;
       case "--diagnostics-json": options.diagnosticsJson = true; break;
       case "--fail-on-warning": options.failOnWarning = true; break;
+      case "--report": {
+        const value = args[++index];
+        if (!value) throw new Error("--report requires a path");
+        options.reportPath = value;
+        break;
+      }
       case "--config": {
         const value = args[++index];
         if (!value) throw new Error("--config requires a path");
@@ -86,6 +98,7 @@ function parseArgs(args: string[]): CliOptions {
       case "--no-format-headings": options.formatHeadings = false; break;
       case "--no-format-templates": options.formatTemplates = false; break;
       case "--no-format-categories": options.formatCategories = false; break;
+      case "--no-format-lists": options.formatLists = false; break;
       case "--format-tables": options.formatTables = true; break;
       case "--no-format-tables": options.formatTables = false; break;
       case "--table-cell-separator-style": {
@@ -129,12 +142,25 @@ function formatterOptions(options: CliOptions): FormatOptions {
     diff: _diff,
     diagnosticsJson: _diagnosticsJson,
     failOnWarning: _failOnWarning,
+    reportPath: _reportPath,
     configPath: _configPath,
     noConfig: _noConfig,
     files: _files,
     ...formatOptions
   } = options;
   return formatOptions;
+}
+
+async function writeReport(path: string | undefined, files: FileDiagnostics[]): Promise<boolean> {
+  if (!path) return true;
+  try {
+    await writeFile(path, `${JSON.stringify(createBatchReport(files), null, 2)}\n`, "utf8");
+    return true;
+  } catch (error) {
+    stderr.write(`Could not write report ${path}: ${error instanceof Error ? error.message : String(error)}\n`);
+    process.exitCode = 2;
+    return false;
+  }
 }
 
 function runFormatter(source: string, options: CliOptions, formatOptions: FormatOptions): FormatDetailedResult {
@@ -210,6 +236,7 @@ async function main(): Promise<void> {
   if (options.stdin) {
     const source = await readStdin();
     const result = runFormatter(source, options, formatOptions);
+    const diagnostics = createDiagnosticsRecord("stdin", source, result);
     reportDiagnostics("stdin", source, result, options, formatOptions, configPath);
     if (result.warning && !options.diagnosticsJson) stderr.write(`warning: ${result.warning}\n`);
     if (options.diff) stdout.write(createUnifiedDiff("stdin", source, result.formatted));
@@ -217,6 +244,7 @@ async function main(): Promise<void> {
     else stdout.write(result.formatted);
     if (options.diff && result.formatted !== source) process.exitCode = 1;
     if (options.failOnWarning && result.warning) process.exitCode = 1;
+    await writeReport(options.reportPath, [diagnostics]);
     return;
   }
 
@@ -231,9 +259,11 @@ async function main(): Promise<void> {
 
   let changed = false;
   let warned = false;
+  const diagnostics: FileDiagnostics[] = [];
   for (const file of files) {
     const source = await readFile(file, "utf8");
     const result = runFormatter(source, options, formatOptions);
+    diagnostics.push(createDiagnosticsRecord(file, source, result));
     reportDiagnostics(file, source, result, options, formatOptions, configPath);
     if (result.warning && !options.diagnosticsJson) stderr.write(`${file}: warning: ${result.warning}\n`);
     if (result.warning) warned = true;
@@ -244,6 +274,7 @@ async function main(): Promise<void> {
   }
   if ((options.check || options.diff) && changed) process.exitCode = 1;
   if (options.failOnWarning && warned) process.exitCode = 1;
+  await writeReport(options.reportPath, diagnostics);
 }
 
 await main();

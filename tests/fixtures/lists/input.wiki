@@ -1,0 +1,19 @@
+*item
+**nested
+#numbered
+:definition
+;term
+*#mixed
+* already spaced
+* trailing   
+* {{Template}}   
+* <ref>source</ref>   
+<nowiki>
+*inside nowiki   
+</nowiki>
+<pre>
+#inside pre   
+</pre>
+<syntaxhighlight lang="text">
+;inside syntaxhighlight   
+</syntaxhighlight>

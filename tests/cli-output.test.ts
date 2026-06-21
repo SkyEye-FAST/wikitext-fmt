@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createUnifiedDiff } from "../src/cli/diff.js";
-import { serializeDiagnostics } from "../src/cli/diagnostics.js";
+import { createDiagnosticsRecord, serializeDiagnostics } from "../src/cli/diagnostics.js";
+import { createBatchReport } from "../src/cli/report.js";
 import { formatWikitextDetailedResult } from "../src/formatter.js";
 
 describe("CLI output helpers", () => {
@@ -17,6 +18,18 @@ describe("CLI output helpers", () => {
 
   it("returns no diff for unchanged text", () => {
     expect(createUnifiedDiff("stdin", "same\n", "same\n")).toBe("");
+  });
+
+  it("creates separate hunks for distant changes", () => {
+    const before = Array.from({ length: 20 }, (_, index) => `line ${index + 1}`);
+    const after = [...before];
+    after[1] = "changed near start";
+    after[17] = "changed near end";
+    const diff = createUnifiedDiff("stdin", `${before.join("\n")}\n`, `${after.join("\n")}\n`);
+    expect(diff.match(/^@@/gmu)).toHaveLength(2);
+    expect(diff).toContain("--- stdin\n+++ stdin\n");
+    expect(diff).toContain("-line 2\n+changed near start");
+    expect(diff).toContain("-line 18\n+changed near end");
   });
 
   it("serializes structured table diagnostics", () => {
@@ -62,5 +75,30 @@ describe("CLI output helpers", () => {
       separatorStyleReason: "many columns",
     });
     expect(diagnostics.tableDiagnostics[0]?.lineDiagnostics.length).toBeGreaterThan(0);
+  });
+
+  it("aggregates per-file diagnostics into a batch report", () => {
+    const source = "{|\n! A !! B !! C !! D\n|}\n";
+    const changed = formatWikitextDetailedResult(source, {
+      level: "experimental",
+      formatTables: true,
+    });
+    const unchanged = formatWikitextDetailedResult("plain text\n");
+    const report = createBatchReport([
+      createDiagnosticsRecord("changed.wiki", source, changed),
+      createDiagnosticsRecord("unchanged.wiki", "plain text\n", unchanged),
+    ]);
+
+    expect(report.summary).toEqual({
+      files: 2,
+      changedFiles: 1,
+      warningFiles: 0,
+      tables: 1,
+      formattedTables: 1,
+      skippedTables: 0,
+      formattedTableLines: 1,
+      skippedUnsafeTableLines: 0,
+    });
+    expect(report.files.map((file) => file.file)).toEqual(["changed.wiki", "unchanged.wiki"]);
   });
 });

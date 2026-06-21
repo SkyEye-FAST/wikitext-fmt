@@ -30,6 +30,7 @@ wikitext-fmt page.wiki --level experimental --format-tables
 wikitext-fmt page.wiki --diff
 wikitext-fmt page.wiki --diagnostics-json --check
 wikitext-fmt page.wiki --safe --check --fail-on-warning
+wikitext-fmt "pages/**/*.wiki" --check --report report.json
 ```
 
 Without `--write`, formatted wikitext is written to stdout. `--check` writes nothing and exits with status 1 when a file would change. Available switches are:
@@ -43,6 +44,7 @@ Without `--write`, formatted wikitext is written to stdout. `--check` writes not
 --diff
 --diagnostics-json
 --fail-on-warning
+--report <path>
 --config <path>
 --no-config
 --level safe|normal|experimental
@@ -51,6 +53,7 @@ Without `--write`, formatted wikitext is written to stdout. `--check` writes not
 --no-format-headings
 --no-format-templates
 --no-format-categories
+--no-format-lists
 --format-tables
 --no-format-tables
 --table-cell-separator-style auto|split|preserve
@@ -59,7 +62,7 @@ Without `--write`, formatted wikitext is written to stdout. `--check` writes not
 
 Explicit files and glob patterns can be mixed. Expanded paths are deduplicated and processed in stable sorted order. Directories are not formatted, and an unmatched glob exits with status 2 and a clear error.
 
-`--diff` writes a unified diff to stdout without modifying files and exits with status 1 when formatting would change the input. It works with file paths, globs, and `--stdin`, and cannot be combined with `--write`.
+`--diff` writes unified diffs to stdout without modifying files and exits with status 1 when formatting would change the input. Diffs use three context lines by default and separate distant changes into multiple hunks. It works with file paths, globs, and `--stdin` (labelled `stdin`), and cannot be combined with `--write`.
 
 `--diagnostics-json` writes one JSON object per input to stderr. Each object includes `file`, `changed`, `warning`, a summary (`tables`, `formattedTables`, `skippedTables`, `formattedLines`, and `skippedUnsafeLines`), and complete table diagnostics including line numbers, separator style/reason, and line diagnostics. Formatted text or diffs remain on stdout. JSON diagnostics cannot be combined with the text-oriented `--debug` mode.
 
@@ -67,12 +70,14 @@ Explicit files and glob patterns can be mixed. Expanded paths are deduplicated a
 
 `--fail-on-warning` changes warning handling only: if any input falls back with a formatter warning, the CLI exits non-zero. This is useful with `--safe --check`; warnings do not affect the exit code by default.
 
+`--report <path>` writes one JSON batch report after all inputs are processed. It contains each file's `changed`, `warning`, summary, and table diagnostics plus aggregate file/table counts. Reports never share stdout with formatted text or diffs and are compatible with normal output, `--check`, `--diff`, `--write`, and `--stdin`.
+
 Formatting levels are cumulative:
 
 | Level | Enabled rules |
 | --- | --- |
 | `safe` | Heading spacing, blank-line normalization, and ordinary HTML void-tag normalization |
-| `normal` | Safe rules, simple templates, and simple category movement |
+| `normal` | Safe rules, simple templates, simple category movement, and conservative list spacing |
 | `experimental` | Safe and normal rules plus explicitly enabled experimental rules |
 
 The default is `normal`. Table formatting is experimental and disabled by default; it runs only when both `--level experimental` and `--format-tables` are provided.
@@ -106,6 +111,7 @@ Configuration keys match `FormatOptions`:
   "formatHeadings": true,
   "formatTemplates": true,
   "formatCategories": true,
+  "formatLists": true,
   "formatTables": false,
   "tableCellSeparatorStyle": "auto",
   "normalizeBlankLines": true
@@ -125,6 +131,7 @@ const output = formatWikitext(source, {
   formatHeadings: true,
   formatTemplates: true,
   formatCategories: true,
+  formatLists: true,
   formatTables: false,
   tableCellSeparatorStyle: "auto",
   normalizeBlankLines: true,
@@ -151,12 +158,19 @@ Every current rule has an exported reliability level in `ruleLevels`:
 - `blankLines`: `safe`
 - `templates`: `normal`
 - `categories`: `normal`
+- `lists`: `normal`
 - `htmlVoidTags`: `safe`
 - `tables`: `experimental`
 
 `htmlVoidTagStyle` controls only simple, attribute-free `br`, `hr`, and `wbr` tags. Its default, `html5`, changes `<br />` to `<br>`. Use `xhtml` for `<br />` output or `preserve` to leave existing syntax unchanged. MediaWiki extension tags such as `<ref />` and `<references />` are never handled by this rule.
 
 The levels describe formatter confidence, not a proof of semantic equivalence for arbitrary site-specific wikitext. Use an appropriate parser configuration and `formatWikitextSafe()` for automation over unfamiliar pages.
+
+## List formatting
+
+The normal-level list rule handles ordinary single-line items beginning with combinations of `*`, `#`, `:`, and `;`. It adds one missing space after the marker sequence and removes trailing horizontal whitespace. Existing spacing, blank lines, nesting markers, and definition-list structure remain intact.
+
+List lines containing templates, table syntax, HTML, or extension tags are preserved unchanged. Protected blocks such as `nowiki`, `pre`, and `syntaxhighlight` are never inspected by this rule. Disable it with `--no-format-lists` or `formatLists: false`.
 
 ## Experimental table formatting
 
@@ -195,6 +209,7 @@ wikitext-fmt page.wiki --safe --debug --level experimental --format-tables
 - Only simple, one-line templates are expanded.
 - Template parameters are not reordered.
 - Only standalone `[[Category:...]]`, `[[分类:...]]`, and `[[分類:...]]` lines are moved, without sorting or namespace rewriting.
+- List formatting is limited to safe spacing and trailing-whitespace cleanup on ordinary single-line items.
 - Experimental table formatting is disabled by default and only handles simple standalone wikitables.
 - Unsafe template- or HTML-containing table lines are preserved even when other safe rows are formatted.
 - Nested, unbalanced, template-contained, placeholder-containing, and structurally unclear tables are preserved entirely.
