@@ -1,81 +1,47 @@
-import type { FileDiagnostics } from "./diagnostics.js";
+import {
+  addDiagnosticsSummary,
+  emptyDiagnosticsSummary,
+  type DiagnosticsSummary,
+  type FileDiagnostics,
+} from "./diagnostics.js";
 
 export interface BatchReport {
   files: FileDiagnostics[];
-  summary: {
+  summary: Omit<DiagnosticsSummary, "formattedLines" | "skippedUnsafeLines"> & {
     files: number;
     changedFiles: number;
     warningFiles: number;
-    tables: number;
-    formattedTables: number;
-    skippedTables: number;
     formattedTableLines: number;
     skippedUnsafeTableLines: number;
-    behaviorSwitchesMoved: number;
-    behaviorSwitchesFormatted: number;
-    defaultsortMoved: number;
-    categoriesMoved: number;
-    localizedCategoryAliasesCanonicalized: number;
-    localizedDefaultsortAliasesCanonicalized: number;
-    localizedBehaviorSwitchesCanonicalized: number;
   };
 }
 
 export function createBatchReport(files: FileDiagnostics[]): BatchReport {
+  const diagnostics = files.reduce(
+    (summary, file) => addDiagnosticsSummary(summary, file.summary),
+    emptyDiagnosticsSummary(),
+  );
   return {
     files,
     summary: {
       files: files.length,
       changedFiles: files.filter((file) => file.changed).length,
       warningFiles: files.filter((file) => file.warning !== null).length,
-      tables: files.reduce((total, file) => total + file.summary.tables, 0),
-      formattedTables: files.reduce(
-        (total, file) => total + file.summary.formattedTables,
-        0,
-      ),
-      skippedTables: files.reduce(
-        (total, file) => total + file.summary.skippedTables,
-        0,
-      ),
-      formattedTableLines: files.reduce(
-        (total, file) => total + file.summary.formattedLines,
-        0,
-      ),
-      skippedUnsafeTableLines: files.reduce(
-        (total, file) => total + file.summary.skippedUnsafeLines,
-        0,
-      ),
-      behaviorSwitchesMoved: files.reduce(
-        (total, file) => total + file.summary.behaviorSwitchesMoved,
-        0,
-      ),
-      behaviorSwitchesFormatted: files.reduce(
-        (total, file) => total + file.summary.behaviorSwitchesFormatted,
-        0,
-      ),
-      defaultsortMoved: files.reduce(
-        (total, file) => total + file.summary.defaultsortMoved,
-        0,
-      ),
-      categoriesMoved: files.reduce(
-        (total, file) => total + file.summary.categoriesMoved,
-        0,
-      ),
-      localizedCategoryAliasesCanonicalized: files.reduce(
-        (total, file) =>
-          total + file.summary.localizedCategoryAliasesCanonicalized,
-        0,
-      ),
-      localizedDefaultsortAliasesCanonicalized: files.reduce(
-        (total, file) =>
-          total + file.summary.localizedDefaultsortAliasesCanonicalized,
-        0,
-      ),
-      localizedBehaviorSwitchesCanonicalized: files.reduce(
-        (total, file) =>
-          total + file.summary.localizedBehaviorSwitchesCanonicalized,
-        0,
-      ),
+      tables: diagnostics.tables,
+      formattedTables: diagnostics.formattedTables,
+      skippedTables: diagnostics.skippedTables,
+      formattedTableLines: diagnostics.formattedLines,
+      skippedUnsafeTableLines: diagnostics.skippedUnsafeLines,
+      behaviorSwitchesMoved: diagnostics.behaviorSwitchesMoved,
+      behaviorSwitchesFormatted: diagnostics.behaviorSwitchesFormatted,
+      defaultsortMoved: diagnostics.defaultsortMoved,
+      categoriesMoved: diagnostics.categoriesMoved,
+      localizedCategoryAliasesCanonicalized:
+        diagnostics.localizedCategoryAliasesCanonicalized,
+      localizedDefaultsortAliasesCanonicalized:
+        diagnostics.localizedDefaultsortAliasesCanonicalized,
+      localizedBehaviorSwitchesCanonicalized:
+        diagnostics.localizedBehaviorSwitchesCanonicalized,
     },
   };
 }

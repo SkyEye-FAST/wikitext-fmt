@@ -10,6 +10,7 @@ import type {
   LocalizedSyntaxStyle,
   TableCellSeparatorStyle,
 } from "../options.js";
+import { behaviorSwitchIds } from "../localization/aliases.js";
 
 export const CONFIG_FILENAMES = [
   ".wikitextfmtrc",
@@ -224,21 +225,7 @@ function validateLocalizationAliases(
         "Configuration option localizationAliases.behaviorSwitches must be an object",
       );
     }
-    const validIds = new Set([
-      "notoc",
-      "forcetoc",
-      "toc",
-      "noeditsection",
-      "newsectionlink",
-      "nonewsectionlink",
-      "index",
-      "noindex",
-      "nogallery",
-      "hiddencat",
-      "nocontentconvert",
-      "notitleconvert",
-      "staticredirect",
-    ]);
+    const validIds = new Set<string>(behaviorSwitchIds);
     for (const [id, entries] of Object.entries(aliases.behaviorSwitches)) {
       if (!validIds.has(id))
         throw new Error(`Unknown behavior switch ID: ${id}`);
@@ -272,9 +259,9 @@ export async function resolveCliConfig(
 ): Promise<ResolvedCliConfig> {
   const cwd = resolve(resolution.cwd ?? process.cwd());
   if (resolution.noConfig) return { options: { ...cliOptions } };
-  const path =
-    resolution.configPath ?
-      isAbsolute(resolution.configPath) ? resolution.configPath
+  const path = resolution.configPath
+    ? isAbsolute(resolution.configPath)
+      ? resolution.configPath
       : resolve(cwd, resolution.configPath)
     : await discoverConfig(cwd);
   if (!path) return { options: { ...cliOptions } };

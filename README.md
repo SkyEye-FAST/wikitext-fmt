@@ -235,6 +235,8 @@ In canonical English mode, duplicate behavior switches are de-duplicated by emit
 
 Canonicalization diagnostics count keyword rewrites only. Moving `[[Category:A]]` to the footer does not increment `localizedCategoryAliasesCanonicalized`; changing `[[分類:A]]` to `[[Category:A]]` does.
 
+Generated `defaultsort` aliases that do not include a trailing colon are recognized only when the wikitext supplies an explicit `:` separator, such as `{{SORTUJ:Key}}`. This avoids treating unrelated templates like `{{SORTUJKey}}` as magic words.
+
 Site-specific namespace and magic-word aliases require siteinfo or explicit custom aliases. Core API consumers selecting `siteinfo` must preload and pass `localizationAliases`; network access exists only in the CLI loader.
 
 Inspect aliases before formatting with:

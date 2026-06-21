@@ -25,6 +25,8 @@ export interface ResolvedLocalizationAliases {
   behaviorSwitches: Record<BehaviorSwitchId, string[]>;
 }
 
+type LocalizationBase = "builtin" | "canonical";
+
 const behaviorIdSet = new Set<string>(behaviorSwitchIds);
 
 function unique(values: readonly string[]): string[] {
@@ -127,14 +129,16 @@ export function resolveLocalizationAliases(
       "Siteinfo localization aliases were not loaded; use the CLI with --site-api",
     );
   }
+  const localizationBase: LocalizationBase =
+    source === "builtin" ? "builtin" : "canonical";
   const base = canonicalAliases();
   const selected =
-    source === "builtin" ?
-      overrideLocalizationAliases(
-        mergeLocalizationAliases(base, builtinData),
-        customAliases,
-      )
-    : overrideLocalizationAliases(base, customAliases);
+    localizationBase === "builtin"
+      ? overrideLocalizationAliases(
+          mergeLocalizationAliases(base, builtinData),
+          customAliases,
+        )
+      : overrideLocalizationAliases(base, customAliases);
   const merged = mergeLocalizationAliases(selected);
   const behaviorSwitches = Object.fromEntries(
     behaviorSwitchIds.map((id) => [

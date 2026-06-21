@@ -23,12 +23,39 @@ export interface FileDiagnostics {
   tableDiagnostics: FormatDetailedResult["tableDiagnostics"];
 }
 
-export function createDiagnosticsRecord(
-  file: string,
-  source: string,
+export function emptyDiagnosticsSummary(): DiagnosticsSummary {
+  return {
+    tables: 0,
+    formattedTables: 0,
+    skippedTables: 0,
+    formattedLines: 0,
+    skippedUnsafeLines: 0,
+    behaviorSwitchesMoved: 0,
+    behaviorSwitchesFormatted: 0,
+    defaultsortMoved: 0,
+    categoriesMoved: 0,
+    localizedCategoryAliasesCanonicalized: 0,
+    localizedDefaultsortAliasesCanonicalized: 0,
+    localizedBehaviorSwitchesCanonicalized: 0,
+  };
+}
+
+export function addDiagnosticsSummary(
+  a: DiagnosticsSummary,
+  b: DiagnosticsSummary,
+): DiagnosticsSummary {
+  const result = emptyDiagnosticsSummary();
+  for (const key of Object.keys(result) as Array<keyof DiagnosticsSummary>) {
+    result[key] = a[key] + b[key];
+  }
+  return result;
+}
+
+export function createDiagnosticsSummary(
   result: FormatDetailedResult,
-): FileDiagnostics {
-  const summary: DiagnosticsSummary = {
+): DiagnosticsSummary {
+  return {
+    ...emptyDiagnosticsSummary(),
     tables: result.tableDiagnostics.length,
     formattedTables: result.tableDiagnostics.filter(
       (diagnostic) => diagnostic.changed,
@@ -51,6 +78,14 @@ export function createDiagnosticsRecord(
     ),
     ...result.footerDiagnostics,
   };
+}
+
+export function createDiagnosticsRecord(
+  file: string,
+  source: string,
+  result: FormatDetailedResult,
+): FileDiagnostics {
+  const summary = createDiagnosticsSummary(result);
   return {
     file,
     changed: result.formatted !== source,

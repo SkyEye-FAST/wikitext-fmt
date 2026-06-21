@@ -45,9 +45,11 @@ function behaviorLookup(
       const previous = candidates.get(token);
       candidates.set(
         token,
-        previous === undefined && !candidates.has(token) ? id
-        : previous === id ? id
-        : undefined,
+        previous === undefined && !candidates.has(token)
+          ? id
+          : previous === id
+            ? id
+            : undefined,
       );
     }
   }
@@ -122,14 +124,15 @@ function matchDefaultsort(
 ): { value: string; canonicalized: boolean } | undefined {
   const trimmed = line.trimEnd();
   for (const alias of aliases) {
-    const prefix = `{{${alias}`;
+    const syntaxKeyword = /[:：]$/u.test(alias) ? alias : `${alias}:`;
+    const prefix = `{{${syntaxKeyword}`;
     if (!trimmed.startsWith(prefix) || !trimmed.endsWith("}}")) continue;
     const value = trimmed.slice(prefix.length, -2);
     if (!value || /[{}\n]/u.test(value)) return undefined;
-    const keyword = canonicalEnglish ? "DEFAULTSORT:" : alias;
+    const keyword = canonicalEnglish ? "DEFAULTSORT:" : syntaxKeyword;
     return {
       value: `{{${keyword}${value}}}`,
-      canonicalized: canonicalEnglish && keyword !== alias,
+      canonicalized: canonicalEnglish && keyword !== syntaxKeyword,
     };
   }
   return undefined;
@@ -252,8 +255,9 @@ export function formatPageFooter(
       const start = lineStarts[index] ?? 0;
       if (!id || isInsideTemplate(start, start + originalValue.length, ranges))
         continue;
-      const value =
-        canonicalEnglish ? `__${id.toUpperCase()}__` : originalValue;
+      const value = canonicalEnglish
+        ? `__${id.toUpperCase()}__`
+        : originalValue;
       if (value !== line) diagnostics.behaviorSwitchesFormatted++;
       if (canonicalEnglish && value !== originalValue)
         diagnostics.localizedBehaviorSwitchesCanonicalized++;
@@ -275,16 +279,16 @@ export function formatPageFooter(
   }
 
   const movedBehaviorSwitches =
-    options.behaviorSwitchPlacement === "footer" ?
-      behaviorSwitches.filter(
-        (entry, index, entries) =>
-          entries.findIndex(
-            ({ originalValue, value }) =>
-              (canonicalEnglish ? value : originalValue) ===
-              (canonicalEnglish ? entry.value : entry.originalValue),
-          ) === index,
-      )
-    : [];
+    options.behaviorSwitchPlacement === "footer"
+      ? behaviorSwitches.filter(
+          (entry, index, entries) =>
+            entries.findIndex(
+              ({ originalValue, value }) =>
+                (canonicalEnglish ? value : originalValue) ===
+                (canonicalEnglish ? entry.value : entry.originalValue),
+            ) === index,
+        )
+      : [];
   const removedIndexes = new Set([...categoryIndexes, ...defaultsortIndexes]);
   if (options.behaviorSwitchPlacement === "footer") {
     for (const index of behaviorSwitchIndexes) removedIndexes.add(index);
