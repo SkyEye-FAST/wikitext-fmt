@@ -13,6 +13,14 @@ function expectSkip(raw: string, reason: RegExp): void {
   if (!result.changed) expect(result.reason).toMatch(reason);
 }
 
+function expectAutoStyleReason(raw: string, style: "split" | "preserve", reason: string, lineWidth = 120): void {
+  const result = analyzeSimpleTableForTesting(raw, {
+    lineWidth,
+    tableCellSeparatorStyle: "auto",
+  });
+  expect(result).toMatchObject({ separatorStyle: style, separatorStyleReason: reason });
+}
+
 describe("experimental table analysis diagnostics", () => {
   it("reports protected placeholders", () => {
     expectSkip("{|\n| \uE000wikitext-fmt:0:\uE001\n|}", /placeholder/u);
@@ -153,5 +161,58 @@ describe("experimental table analysis diagnostics", () => {
       separatorStyle: "split",
       value: "{|\n| Alpha\n| Beta\n|}",
     });
+  });
+
+  it("explains auto style decisions", () => {
+    expectAutoStyleReason(
+      "{|\n! Name !! Value\n|-\n| [[Alpha]] || 1\n|}",
+      "preserve",
+      "simple compact inline table",
+    );
+    expectAutoStyleReason(
+      "{|\n! A !! B !! C !! D\n|}",
+      "split",
+      "many columns",
+    );
+    expectAutoStyleReason(
+      "{|\n| style=\"text-align:center\" | A || B\n|}",
+      "split",
+      "cell attributes",
+    );
+    expectAutoStyleReason(
+      "{|\n| Alpha || Beta\n|}",
+      "split",
+      "line exceeds lineWidth",
+      10,
+    );
+    expectAutoStyleReason(
+      "{|\n! A\n! B\n|}",
+      "split",
+      "already mostly split",
+    );
+    expectAutoStyleReason(
+      "{|\n! A\n! B\n|-\n| 1 || 2\n|}",
+      "split",
+      "mixed inline and split style",
+    );
+    expectAutoStyleReason(
+      "{|\n! A !! B\n|-\n| {{N/a}} || 1\n|}",
+      "split",
+      "contains skipped unsafe rows",
+    );
+
+    const manyRows = ["{|", ...Array.from({ length: 12 }, (_, index) => `| ${index} || value`), "|}"].join("\n");
+    expectAutoStyleReason(manyRows, "split", "many table rows");
+  });
+
+  it("explains explicit separator style overrides", () => {
+    expect(analyzeSimpleTableForTesting("{|\n! A !! B !! C !! D\n|}", {
+      lineWidth: 120,
+      tableCellSeparatorStyle: "preserve",
+    })).toMatchObject({ separatorStyle: "preserve", separatorStyleReason: "explicit preserve option" });
+    expect(analyzeSimpleTableForTesting("{|\n! A !! B\n|}", {
+      lineWidth: 120,
+      tableCellSeparatorStyle: "split",
+    })).toMatchObject({ separatorStyle: "split", separatorStyleReason: "explicit split option" });
   });
 });

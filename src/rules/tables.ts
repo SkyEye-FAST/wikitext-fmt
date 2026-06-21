@@ -24,12 +24,14 @@ export type TableAnalysisResult =
       changed: true;
       value: string;
       separatorStyle: Exclude<TableCellSeparatorStyle, "auto">;
+      separatorStyleReason: string;
       lineDiagnostics: TableLineDiagnostic[];
     }
   | {
       changed: false;
       reason: string;
       separatorStyle?: Exclude<TableCellSeparatorStyle, "auto">;
+      separatorStyleReason?: string;
       lineDiagnostics?: TableLineDiagnostic[];
     };
 
@@ -40,6 +42,7 @@ export interface TableDiagnostic {
   changed: boolean;
   reason?: string;
   separatorStyle?: Exclude<TableCellSeparatorStyle, "auto">;
+  separatorStyleReason?: string;
   lineDiagnostics?: TableLineDiagnostic[];
 }
 
@@ -134,8 +137,13 @@ function hasCellAttributes(content: string): boolean {
 function detectTableCellSeparatorStyle(
   lines: readonly string[],
   options: Pick<ResolvedFormatOptions, "lineWidth" | "tableCellSeparatorStyle">,
-): Exclude<TableCellSeparatorStyle, "auto"> {
-  if (options.tableCellSeparatorStyle !== "auto") return options.tableCellSeparatorStyle;
+): { style: Exclude<TableCellSeparatorStyle, "auto">; reason: string } {
+  if (options.tableCellSeparatorStyle === "split") {
+    return { style: "split", reason: "explicit split option" };
+  }
+  if (options.tableCellSeparatorStyle === "preserve") {
+    return { style: "preserve", reason: "explicit preserve option" };
+  }
 
   const cellLines = lines.slice(1, -1).map((line, index) => {
     const header = /^\s*!(.*)$/u.exec(line);
@@ -154,6 +162,8 @@ function detectTableCellSeparatorStyle(
   const maximumCellCount = Math.max(1, ...safeLines.map((line) => line.cells.length));
   const hasAttributes = cellLines.some((line) => hasCellAttributes(line.content));
   const hasLongInlineLine = safeLines.some((line) => line.cells.length > 1 && lines[line.index + 1]!.length > options.lineWidth);
+  const inlineLineCount = safeLines.filter((line) => line.cells.length > 1).length;
+  const hasUnsafeRows = cellLines.some((line) => !line.safe);
   const hasSplitLines = safeLines.some((line, index) => {
     if (line.cells.length !== 1) return false;
     const previous = safeLines[index - 1];
@@ -162,8 +172,16 @@ function detectTableCellSeparatorStyle(
       || next?.index === line.index + 1 && next.marker === line.marker && next.cells.length === 1;
   });
 
-  if (hasAttributes || maximumCellCount >= 4 || hasLongInlineLine || hasSplitLines) return "split";
-  return "preserve";
+  if (hasAttributes) return { style: "split", reason: "cell attributes" };
+  if (maximumCellCount >= 4) return { style: "split", reason: "many columns" };
+  if (hasLongInlineLine) return { style: "split", reason: "line exceeds lineWidth" };
+  if (hasSplitLines && inlineLineCount > 0) {
+    return { style: "split", reason: "mixed inline and split style" };
+  }
+  if (hasSplitLines) return { style: "split", reason: "already mostly split" };
+  if (hasUnsafeRows) return { style: "split", reason: "contains skipped unsafe rows" };
+  if (cellLines.length >= 12) return { style: "split", reason: "many table rows" };
+  return { style: "preserve", reason: "simple compact inline table" };
 }
 
 function isRecognizedBodyLine(line: string): boolean {
@@ -193,7 +211,8 @@ export function analyzeSimpleTableForTesting(
     return { changed: false, reason: `unclear table line type at line ${unclearIndex + 2}` };
   }
 
-  const separatorStyle = detectTableCellSeparatorStyle(lines, options);
+  const separatorDecision = detectTableCellSeparatorStyle(lines, options);
+  const separatorStyle = separatorDecision.style;
 
   const output: string[] = [];
   const lineDiagnostics: TableLineDiagnostic[] = [];
@@ -222,12 +241,21 @@ export function analyzeSimpleTableForTesting(
     });
   }
   const value = output.join("\n");
-  if (value !== raw) return { changed: true, value, separatorStyle, lineDiagnostics };
+  if (value !== raw) {
+    return {
+      changed: true,
+      value,
+      separatorStyle,
+      separatorStyleReason: separatorDecision.reason,
+      lineDiagnostics,
+    };
+  }
   const skipped = lineDiagnostics.find((diagnostic) => diagnostic.reason);
   return {
     changed: false,
     reason: skipped?.reason ?? "already formatted",
     separatorStyle,
+    separatorStyleReason: separatorDecision.reason,
     lineDiagnostics,
   };
 }
@@ -268,6 +296,7 @@ export function formatTablesWithDiagnostics(
         ? hasSkippedUnsafeLines ? { reason: "formatted with skipped unsafe lines" } : {}
         : { reason: result.reason }),
       ...(result.separatorStyle ? { separatorStyle: result.separatorStyle } : {}),
+      ...(result.separatorStyleReason ? { separatorStyleReason: result.separatorStyleReason } : {}),
       ...(lineDiagnostics ? { lineDiagnostics } : {}),
     });
     if (result.changed) replacements.push({ start, end, value: result.value });

@@ -158,11 +158,13 @@ It currently trims trailing whitespace on recognized structural lines and handle
 
 `tableCellSeparatorStyle` controls safe inline cell separators per table:
 
-- `auto` (default) preserves compact simple tables, but chooses split lines for mixed/split-style tables, four or more columns, cell attributes, or safe inline lines exceeding `lineWidth`.
+- `auto` (default) preserves simple compact inline tables. It chooses split lines for cell attributes, four or more columns, safe inline lines exceeding `lineWidth`, already split or mixed layouts, skipped unsafe rows, and tables with 12 or more recognized cell lines.
 - `split` always splits safely recognized `!!` and `||` separators onto separate structural lines.
 - `preserve` keeps safe inline separators and only performs conservative trailing-whitespace and structural cleanup.
 
-Auto detection is table-local rather than file-wide. Debug diagnostics include the selected `split` or `preserve` style when a table is formatted.
+Auto detection is table-local rather than file-wide. Unsafe rows make auto prefer split style for the remaining safe rows, but those unsafe rows are still preserved unchanged. Explicit `split` and `preserve` settings override every auto heuristic.
+
+Debug diagnostics include both the selected style and reason, for example `formatted using split style: many columns`. These diagnostics are only written when `--debug` is enabled.
 
 Within a structurally safe table, safe rows may be formatted while cell lines containing templates, HTML or extension tags, unsafe separators, or unbalanced brackets/quotes remain byte-for-byte unchanged. Debug diagnostics report these as skipped unsafe lines.
 

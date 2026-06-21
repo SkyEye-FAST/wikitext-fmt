@@ -1,7 +1,7 @@
 {| class="wikitable"
 ! A !! B
 |-
-| 1 || 2
+| <span>unsafe</span> || 1
 |-
-| [[Beta]] || 2
+| 1 || 2
 |}

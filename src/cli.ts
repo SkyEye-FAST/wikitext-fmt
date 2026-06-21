@@ -143,8 +143,9 @@ function debugResult(
   stderr.write(`${label}: debug: mode=${mode} level=${level} status=${status}${config}\n`);
   for (const diagnostic of result.tableDiagnostics) {
     const style = diagnostic.separatorStyle ? ` using ${diagnostic.separatorStyle} style` : "";
+    const styleReason = diagnostic.separatorStyleReason ? `: ${diagnostic.separatorStyleReason}` : "";
     const outcome = diagnostic.changed
-      ? `formatted${style}${diagnostic.reason ? " with skipped unsafe lines" : ""}`
+      ? `formatted${style}${styleReason}`
       : `skipped: ${diagnostic.reason ?? "unknown reason"}`;
     stderr.write(`${label}: table at line ${diagnostic.line} ${outcome}\n`);
   }
