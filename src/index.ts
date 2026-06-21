@@ -1,7 +1,10 @@
 export {
   formatWikitext,
+  formatWikitextDetailedResult,
   formatWikitextResult,
   formatWikitextSafe,
+  formatWikitextSafeDetailed,
+  type FormatDetailedResult,
   type FormatResult,
 } from "./formatter.js";
 export {
@@ -16,4 +19,8 @@ export {
   type TableCellSeparatorStyle,
 } from "./options.js";
 export { ruleLevels, type RuleName } from "./rules/index.js";
+export type { FooterDiagnostics } from "./rules/categories.js";
+export type { TableDiagnostic } from "./rules/tables.js";
+export type { ResolvedLocalizationAliases } from "./localization/aliases.js";
+export type { DiagnosticsSummary } from "./cli/diagnostics.js";
 export { loadSiteInfoAliases } from "./localization/siteinfo.js";

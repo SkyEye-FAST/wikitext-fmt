@@ -78,7 +78,7 @@ Explicit files and glob patterns can be mixed. Expanded paths are deduplicated a
 
 `--fail-on-warning` changes warning handling only: if any input falls back with a formatter warning, the CLI exits non-zero. This is useful with `--safe --check`; warnings do not affect the exit code by default.
 
-`--report <path>` writes one JSON batch report after all inputs are processed. It contains each file's `changed`, `warning`, summary, and table diagnostics plus aggregate file/table counts. Reports never share stdout with formatted text or diffs and are compatible with normal output, `--check`, `--diff`, `--write`, and `--stdin`.
+`--report <path>` writes one JSON batch report after all inputs are processed. It contains each file's `changed`, `warning`, summary, and table diagnostics plus aggregate file/table counts. Reports never share stdout with formatted text or diffs and are compatible with normal output, `--check`, `--diff`, `--write`, and `--stdin`. The report schema is experimental before 1.0; changes should be additive where practical, but consumers should not treat it as stable yet.
 
 `--print-localization-aliases` resolves the configured alias source and prints the final alias JSON to stdout without formatting input files. With `--localization-source siteinfo`, it requires `--site-api`.
 
@@ -176,6 +176,8 @@ const siteOutput = formatWikitext(source, {
   localizationAliases: siteAliases,
 });
 ```
+
+For API use, `localizationSource: "siteinfo"` means “use aliases that were loaded from siteinfo.” The formatter core does not fetch network data; call `loadSiteInfoAliases()` first and pass the result as `localizationAliases`. If `siteinfo` is selected without aliases, formatting fails closed with a warning. The CLI performs this loading when `--localization-source siteinfo --site-api <url>` is used.
 
 `formatWikitext()` remains the compact string-returning API. `formatWikitextResult()` exposes warnings without running the additional idempotency pass.
 
