@@ -1,0 +1,7 @@
+{
+  "level": "experimental",
+  "formatInterlanguageLinks": true,
+  "interlanguagePlacement": "footer",
+  "behaviorSwitchPlacement": "footer",
+  "formatSectionSpacing": true
+}

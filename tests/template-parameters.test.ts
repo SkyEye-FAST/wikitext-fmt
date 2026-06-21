@@ -53,6 +53,27 @@ describe("experimental multiline template parameter formatting", () => {
     );
   });
 
+  it("formats later safe parameters after multiline values", () => {
+    const input =
+      "{{Template\n| first = line one\nline two\n| 中文 =值\n| 日本語= 値\n}}\n";
+    expect(formatWikitext(input, options)).toBe(
+      "{{Template\n| first = line one\nline two\n| 中文 = 值\n| 日本語 = 値\n}}\n",
+    );
+  });
+
+  it("preserves protected blocks and comments containing template braces", () => {
+    const input =
+      '<nowiki>{{Template\n| a=b\n}}</nowiki>\n<pre>{{Template\n| c=d\n}}</pre>\n<syntaxhighlight lang="wikitext">{{Template\n| e=f\n}}</syntaxhighlight>\n<!-- {{Template\n| g=h\n}} -->\n';
+    expect(formatWikitext(input, options)).toBe(input);
+  });
+
+  it.each([
+    "{{Template\n| safe=value\n| nested = {{Nested|x=1}}\n| later = value\n}}\n",
+    "{{Template\n| safe=value\n| parser = {{#if:x|y|z}}\n| later = value\n}}\n",
+  ])("skips blocks containing nested template syntax %s", (input) => {
+    expect(formatWikitext(input, options)).toBe(input);
+  });
+
   it("is idempotent", () => {
     const once = formatWikitext("{{Template\n| a=b\n| c = d\n}}\n", options);
     expect(formatWikitext(once, options)).toBe(once);

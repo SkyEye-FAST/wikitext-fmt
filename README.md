@@ -336,7 +336,9 @@ becomes:
 
 The rule does not split single-line templates, join multiline templates, reorder parameters, rename parameters, remove blank parameters, or change the template name. When this experimental rule is enabled, the normal simple one-line template splitter is skipped so `{{Template|a=b}}` remains single-line.
 
-Only simple named parameter lines are normalized. Indentation before `|` is preserved, empty values are preserved, and trailing horizontal whitespace on safe template structural lines is removed. Lines with comments, unnamed or numeric positional parameters, multiline values, nested templates, parser functions, tables, lists, HTML or extension tags, or unsafe piped wikilinks are preserved. Blocks containing nested templates are skipped entirely.
+Only simple named parameter lines are normalized. Parameter names may contain Unicode letters/numbers plus spaces, underscores, and hyphens; empty names and numeric-only positional names are skipped. Indentation before `|` is preserved, empty values are preserved, and trailing horizontal whitespace on safe template structural lines is removed.
+
+The current multiline-value policy is conservative but not whole-block fatal: continuation lines are preserved unchanged, and later safe parameter lines in the same simple template may still be formatted. Lines with comments, unnamed or numeric positional parameters, multiline values, nested templates, parser functions, tables, lists, HTML or extension tags, or unsafe piped wikilinks are preserved. Blocks containing nested templates are skipped entirely.
 
 ### Localization data
 

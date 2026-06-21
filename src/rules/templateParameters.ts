@@ -16,7 +16,7 @@ interface TemplateBlock {
   end: number;
 }
 
-const PARAM_LINE = /^([ \t]*)\|([A-Za-z0-9_ -]+)[ \t]*=[ \t]*(.*)$/u;
+const PARAM_LINE = /^([ \t]*)\|([\p{L}\p{N}_ -]+)[ \t]*=[ \t]*(.*)$/u;
 const RISKY_VALUE =
   /(?:\{\{|\}\}|\{\||\|\}|^[-*#:;]|<!--|<[A-Za-z!/]|#(?:if|switch|expr|invoke|tag):|\[\[[^\]\n]*\|[^\]\n]*\]\])/iu;
 
@@ -81,7 +81,7 @@ function formatTemplateParameterLine(line: string): {
     return { value: line, skippedUnsafe: false };
   }
   const [, indent, name, value] = match;
-  if (!name.trim() || /^\d+$/u.test(name.trim()))
+  if (!name.trim() || /^\p{N}+$/u.test(name.trim()))
     return { value: line, skippedUnsafe: true };
   if (RISKY_VALUE.test(value)) return { value: line, skippedUnsafe: true };
   const trimmedValue = value.replace(/[ \t]+$/u, "");

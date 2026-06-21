@@ -1,0 +1,11 @@
+__NOTOC__   
+Intro paragraph.
+==Overview==
+Text after heading.
+[[File:Example.png|thumb|right|300px|alt=Example]]   
+
+[[en:Example]]
+[[zh-hans:示例]]
+{{DEFAULTSORT:Example}}
+[[Category:B]]
+[[Category:A]]

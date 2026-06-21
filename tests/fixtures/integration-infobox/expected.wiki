@@ -1,0 +1,9 @@
+{{Infobox
+| name = Example
+| image = [[File:Example.png|thumb]]
+| caption = Example caption
+}}
+Intro text.
+[[File:Example.png|thumb|left|200px]]
+
+[[Category:Examples]]
