@@ -48,6 +48,19 @@ describe("rule interaction hardening", () => {
     );
   });
 
+  it("combines template parameter formatting with protected block preservation", () => {
+    const input =
+      "<nowiki>{{Infobox\n| name=value\n}}</nowiki>\n{{Infobox\n| name=value\n}}\n";
+    expect(
+      formatWikitext(input, {
+        level: "experimental",
+        formatTemplateParameters: true,
+      }),
+    ).toBe(
+      "<nowiki>{{Infobox\n| name=value\n}}</nowiki>\n{{Infobox\n| name = value\n}}\n",
+    );
+  });
+
   it("combines template parameters with canonical localization", () => {
     const input =
       "{{Infobox\n| 名称=テスト\n}}\n[[ファイル:A.png|サムネイル|右]]\n[[分類:例]]\n";

@@ -51,6 +51,18 @@ const matrix: Array<{ name: string; options: FormatOptions }> = [
       behaviorSwitchPlacement: "footer",
     },
   },
+  {
+    name: "combined experimental safe run",
+    options: {
+      level: "experimental",
+      formatTemplateParameters: true,
+      formatSectionSpacing: true,
+      formatInterlanguageLinks: true,
+      interlanguagePlacement: "footer",
+      localizedSyntaxStyle: "canonical-english",
+      behaviorSwitchPlacement: "footer",
+    },
+  },
 ];
 
 describe("real page regressions", () => {
@@ -119,5 +131,18 @@ describe("real page regressions", () => {
       formatWikitextSafeDetailed(redirect),
     );
     expect(redirectSummary.redirectsFormatted).toBeGreaterThan(0);
+
+    const canonicalSummary = createDiagnosticsSummary(
+      formatWikitextSafeDetailed(feature, {
+        localizedSyntaxStyle: "canonical-english",
+        behaviorSwitchPlacement: "footer",
+      }),
+    );
+    expect(
+      canonicalSummary.localizedCategoryAliasesCanonicalized,
+    ).toBeGreaterThan(0);
+    expect(
+      canonicalSummary.localizedFileNamespaceAliasesCanonicalized,
+    ).toBeGreaterThan(0);
   });
 });

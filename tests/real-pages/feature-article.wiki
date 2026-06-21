@@ -1,5 +1,6 @@
 __NOTOC__
 [[Category:Features]]
+[[分類:機能]]
 Lead paragraph.
 ==Overview==
 Body paragraph.
@@ -12,6 +13,7 @@ Body paragraph.
 }}
 
 [[File:Feature.png|thumb|right|300px|alt=Feature]]   
+[[ファイル:Localized.png|サムネイル|右]]
 
 [[en:Feature page]]
 [[zh-hant:功能頁面]]

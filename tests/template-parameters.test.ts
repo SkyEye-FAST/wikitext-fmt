@@ -46,7 +46,7 @@ describe("experimental multiline template parameter formatting", () => {
     expect(formatWikitext(input, options)).toBe(input);
   });
 
-  it("preserves multiline values conservatively", () => {
+  it("preserves multiline value content while formatting later safe parameters", () => {
     const input = "{{Template\n| a = first line\nsecond line\n| b=c\n}}\n";
     expect(formatWikitext(input, options)).toBe(
       "{{Template\n| a = first line\nsecond line\n| b = c\n}}\n",
