@@ -217,18 +217,19 @@ Regression fixtures use this layout:
 tests/fixtures/<case>/input.wiki
 tests/fixtures/<case>/expected.wiki
 tests/fixtures/<case>/options.json # optional
+tests/table-samples/<case>/input.wiki
+tests/table-samples/<case>/expected.wiki
 tests/real-pages/*.wiki
-tests/real-tables/*.wiki
 ```
 
 Table testing is intentionally layered:
 
 - `tests/tables.test.ts` uses table-driven unit cases for heuristic decisions, diagnostics, and structural safety.
-- Six representative table fixtures cover exact user-visible output without duplicating every internal decision reason.
-- Anonymized `real-tables` samples cover realistic compact, sortable, linked, mixed-style, template-containing, and unsafe-row tables through parseability and idempotency checks.
+- Six compact fixtures cover exact user-visible formatter output without duplicating every internal decision reason.
+- `tests/table-samples` contains four realistic expected-diff calibrations for compact, sortable, mixed-style, and template-containing tables.
 - Files under `real-pages` run in both default and experimental-table modes as broad regression guards.
 
-Fixtures with table formatting opt in through `options.json`. Real-table and real-page tests do not require every table to change; preserving a complex table can be the correct conservative result.
+Fixtures with table formatting opt in through `options.json`. Table samples verify exact calibrated output, while real-page tests do not require every table to change; preserving a complex table can be the correct conservative result.
 
 Planned work includes a VS Code extension, a Prettier plugin, broader conservative table coverage, and improved site-specific parser configuration.
 

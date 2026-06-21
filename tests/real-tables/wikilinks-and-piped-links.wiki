@@ -1,7 +1,0 @@
-{| class="wikitable"
-! Page !! Related page !! Reference
-|-
-| [[Alpha page|Alpha]] || [[Beta page]] || [https://example.com/archive Archived record]
-|-
-| [[Gamma page|Gamma]] || [[Delta page|Delta]] || [https://example.org/report Public report]
-|}

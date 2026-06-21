@@ -1,0 +1,13 @@
+{| class="wikitable"
+! Name
+! Category
+! Value
+|-
+| Sample A
+| Primary
+| 42
+|-
+| Sample B
+| Secondary
+| 37
+|}
