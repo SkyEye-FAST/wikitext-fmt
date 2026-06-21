@@ -12,6 +12,10 @@ import { isRuleEnabled } from "./rules/index.js";
 import { formatHtmlVoidTags } from "./rules/htmlVoidTags.js";
 import { formatLists } from "./rules/lists.js";
 import {
+  formatFileLinks,
+  type FileLinkDiagnostics,
+} from "./rules/fileLinks.js";
+import {
   formatRedirects,
   type RedirectDiagnostics,
 } from "./rules/redirects.js";
@@ -31,6 +35,7 @@ export interface FormatDetailedResult extends FormatResult {
   tableDiagnostics: TableDiagnostic[];
   footerDiagnostics: FooterDiagnostics;
   redirectDiagnostics: RedirectDiagnostics;
+  fileLinkDiagnostics: FileLinkDiagnostics;
 }
 
 const emptyFooterDiagnostics = (): FooterDiagnostics => ({
@@ -48,6 +53,12 @@ const emptyRedirectDiagnostics = (): RedirectDiagnostics => ({
   localizedRedirectAliasesCanonicalized: 0,
 });
 
+const emptyFileLinkDiagnostics = (): FileLinkDiagnostics => ({
+  fileLinksFormatted: 0,
+  localizedFileNamespaceAliasesCanonicalized: 0,
+  localizedImageOptionsCanonicalized: 0,
+});
+
 export function formatWikitextDetailedResult(
   source: string,
   options: FormatOptions = {},
@@ -56,6 +67,7 @@ export function formatWikitextDetailedResult(
   let tableDiagnostics: TableDiagnostic[] = [];
   let footerDiagnostics = emptyFooterDiagnostics();
   let redirectDiagnostics = emptyRedirectDiagnostics();
+  let fileLinkDiagnostics = emptyFileLinkDiagnostics();
   try {
     const config = getParserConfig(resolved.parserConfig);
     if (!isRoundTripSafe(source, config)) {
@@ -66,6 +78,7 @@ export function formatWikitextDetailedResult(
         tableDiagnostics,
         footerDiagnostics,
         redirectDiagnostics,
+        fileLinkDiagnostics,
       };
     }
 
@@ -130,6 +143,18 @@ export function formatWikitextDetailedResult(
       output = redirect.formatted;
       redirectDiagnostics = redirect.diagnostics;
     }
+    if (
+      resolved.formatFileLinks &&
+      isRuleEnabled("fileLinks", resolved.level)
+    ) {
+      const fileLinks = formatFileLinks(output, {
+        localizationSource: resolved.localizationSource,
+        localizedSyntaxStyle: resolved.localizedSyntaxStyle,
+        localizationAliases: resolved.localizationAliases,
+      });
+      output = fileLinks.formatted;
+      fileLinkDiagnostics = fileLinks.diagnostics;
+    }
     if (resolved.formatLists && isRuleEnabled("lists", resolved.level))
       output = formatLists(output);
     if (
@@ -168,6 +193,7 @@ export function formatWikitextDetailedResult(
         tableDiagnostics,
         footerDiagnostics,
         redirectDiagnostics,
+        fileLinkDiagnostics,
       };
     }
     return {
@@ -175,6 +201,7 @@ export function formatWikitextDetailedResult(
       tableDiagnostics,
       footerDiagnostics,
       redirectDiagnostics,
+      fileLinkDiagnostics,
     };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
@@ -184,6 +211,7 @@ export function formatWikitextDetailedResult(
       tableDiagnostics,
       footerDiagnostics,
       redirectDiagnostics,
+      fileLinkDiagnostics,
     };
   }
 }
@@ -196,6 +224,7 @@ export function formatWikitextResult(
     tableDiagnostics: _tableDiagnostics,
     footerDiagnostics: _footerDiagnostics,
     redirectDiagnostics: _redirectDiagnostics,
+    fileLinkDiagnostics: _fileLinkDiagnostics,
     ...result
   } = formatWikitextDetailedResult(source, options);
   return result;
@@ -216,6 +245,7 @@ export function formatWikitextSafe(
     tableDiagnostics: _tableDiagnostics,
     footerDiagnostics: _footerDiagnostics,
     redirectDiagnostics: _redirectDiagnostics,
+    fileLinkDiagnostics: _fileLinkDiagnostics,
     ...result
   } = formatWikitextSafeDetailed(source, options);
   return result;
@@ -228,6 +258,7 @@ export function formatWikitextSafeDetailed(
   let tableDiagnostics: TableDiagnostic[] = [];
   let footerDiagnostics = emptyFooterDiagnostics();
   let redirectDiagnostics = emptyRedirectDiagnostics();
+  let fileLinkDiagnostics = emptyFileLinkDiagnostics();
   try {
     const resolved = resolveOptions(options);
     const config = getParserConfig(resolved.parserConfig);
@@ -237,6 +268,7 @@ export function formatWikitextSafeDetailed(
     tableDiagnostics = first.tableDiagnostics;
     footerDiagnostics = first.footerDiagnostics;
     redirectDiagnostics = first.redirectDiagnostics;
+    fileLinkDiagnostics = first.fileLinkDiagnostics;
     if (first.warning)
       return {
         formatted: source,
@@ -244,6 +276,7 @@ export function formatWikitextSafeDetailed(
         tableDiagnostics,
         footerDiagnostics,
         redirectDiagnostics,
+        fileLinkDiagnostics,
       };
     parseWikitext(first.formatted, config);
 
@@ -255,6 +288,7 @@ export function formatWikitextSafeDetailed(
         tableDiagnostics,
         footerDiagnostics,
         redirectDiagnostics,
+        fileLinkDiagnostics,
       };
     }
     parseWikitext(second.formatted, config);
@@ -266,6 +300,7 @@ export function formatWikitextSafeDetailed(
         tableDiagnostics,
         footerDiagnostics,
         redirectDiagnostics,
+        fileLinkDiagnostics,
       };
     }
     return first;
@@ -277,6 +312,7 @@ export function formatWikitextSafeDetailed(
       tableDiagnostics,
       footerDiagnostics,
       redirectDiagnostics,
+      fileLinkDiagnostics,
     };
   }
 }

@@ -147,6 +147,9 @@ export function parseArgs(args: string[]): CliOptions {
       case "--no-format-lists":
         options.formatLists = false;
         break;
+      case "--no-format-file-links":
+        options.formatFileLinks = false;
+        break;
       case "--no-format-behavior-switches":
         options.formatBehaviorSwitches = false;
         break;

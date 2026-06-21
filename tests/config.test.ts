@@ -136,6 +136,24 @@ describe("CLI configuration", () => {
     });
   });
 
+  it("accepts file link formatting configuration", () => {
+    expect(
+      validateConfig({
+        formatFileLinks: false,
+        localizationAliases: {
+          fileNamespaces: ["MediaX"],
+          imageOptionAliases: { img_thumbnail: ["miniX"] },
+        },
+      }),
+    ).toEqual({
+      formatFileLinks: false,
+      localizationAliases: {
+        fileNamespaces: ["MediaX"],
+        imageOptionAliases: { img_thumbnail: ["miniX"] },
+      },
+    });
+  });
+
   it("accepts redirect formatting configuration", () => {
     expect(
       validateConfig({
@@ -173,7 +191,9 @@ describe("CLI configuration", () => {
         localizedSyntaxStyle: "canonical-english",
         localizationAliases: {
           categoryNamespaces: ["CatX"],
+          fileNamespaces: ["FileX"],
           defaultsortMagicWords: ["SORTX:"],
+          imageOptionAliases: { img_right: ["rechtsX"] },
           behaviorSwitches: { notoc: ["NOTOCX"] },
         },
       }),

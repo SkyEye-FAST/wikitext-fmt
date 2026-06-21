@@ -22,5 +22,11 @@ if (!aliases.default.categoryNamespaces.includes("Kategorie")) {
 if (!aliases.default.redirectMagicWords.includes("#REDIRECT")) {
   throw new Error("generated redirect aliases were not emitted to dist");
 }
+if (!aliases.default.fileNamespaces.includes("ファイル")) {
+  throw new Error("generated file namespace aliases were not emitted to dist");
+}
+if (!aliases.default.imageOptionAliases.img_thumbnail.includes("サムネイル")) {
+  throw new Error("generated image option aliases were not emitted to dist");
+}
 
 console.log("release smoke ok");

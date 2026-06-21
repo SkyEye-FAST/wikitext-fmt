@@ -1,6 +1,25 @@
 import { behaviorSwitchIds } from "./aliases.js";
 import type { LocalizationAliases } from "../options.js";
 
+const imageOptionIds = new Set([
+  "img_thumbnail",
+  "img_manualthumb",
+  "img_framed",
+  "img_frameless",
+  "img_border",
+  "img_left",
+  "img_right",
+  "img_center",
+  "img_none",
+  "img_width",
+  "img_alt",
+  "img_link",
+  "img_page",
+  "img_upright",
+  "img_class",
+  "img_lang",
+]);
+
 interface SiteInfoNamespace {
   id?: number;
   canonical?: string;
@@ -69,11 +88,23 @@ export async function loadSiteInfoAliases(
       namespace.canonical,
     ])
     .filter((value): value is string => Boolean(value));
+  const fileNamespaces = namespaceValues
+    .filter((namespace) => namespace.id === 6)
+    .flatMap((namespace) => [
+      namespace["*"],
+      namespace.name,
+      namespace.canonical,
+    ])
+    .filter((value): value is string => Boolean(value));
   const namespaceAliases =
     (query.namespacealiases as SiteInfoNamespace[] | undefined) ?? [];
   for (const alias of namespaceAliases) {
     if (alias.id === 14)
       categoryNamespaces.push(
+        ...[alias["*"], alias.name].filter((v): v is string => Boolean(v)),
+      );
+    if (alias.id === 6)
+      fileNamespaces.push(
         ...[alias["*"], alias.name].filter((v): v is string => Boolean(v)),
       );
   }
@@ -89,6 +120,7 @@ export async function loadSiteInfoAliases(
   );
   const behaviorIdSet = new Set<string>(behaviorSwitchIds);
   const behaviorSwitches: Record<string, string[]> = {};
+  const imageOptionAliases: Record<string, string[]> = {};
   let defaultsortMagicWords: string[] = [];
   let redirectMagicWords: string[] = [];
   for (const magicWord of (query.magicwords as
@@ -98,6 +130,7 @@ export async function loadSiteInfoAliases(
     if (!name || !Array.isArray(magicWord.aliases)) continue;
     if (name === "defaultsort") defaultsortMagicWords = magicWord.aliases;
     if (name === "redirect") redirectMagicWords = magicWord.aliases;
+    if (imageOptionIds.has(name)) imageOptionAliases[name] = magicWord.aliases;
     if (
       behaviorIdSet.has(name) &&
       (doubleUnderscoreIds.size === 0 || doubleUnderscoreIds.has(name))
@@ -113,8 +146,10 @@ export async function loadSiteInfoAliases(
   }
   return {
     categoryNamespaces,
+    fileNamespaces,
     defaultsortMagicWords,
     redirectMagicWords,
+    imageOptionAliases,
     behaviorSwitches,
   };
 }

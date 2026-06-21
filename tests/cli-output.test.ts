@@ -121,6 +121,9 @@ describe("CLI output helpers", () => {
       localizedBehaviorSwitchesCanonicalized: 0,
       redirectsFormatted: 0,
       localizedRedirectAliasesCanonicalized: 0,
+      fileLinksFormatted: 0,
+      localizedFileNamespaceAliasesCanonicalized: 0,
+      localizedImageOptionsCanonicalized: 0,
     });
     expect(report.files.map((file) => file.file)).toEqual([
       "changed.wiki",

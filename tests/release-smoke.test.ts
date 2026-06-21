@@ -30,9 +30,15 @@ describe("release smoke", () => {
       default: {
         generatedFromLanguages: string[];
         categoryNamespaces: string[];
+        fileNamespaces: string[];
+        imageOptionAliases: Record<string, string[]>;
       };
     };
     expect(aliases.default.generatedFromLanguages).toContain("De");
     expect(aliases.default.categoryNamespaces).toContain("Kategorie");
+    expect(aliases.default.fileNamespaces).toContain("ファイル");
+    expect(aliases.default.imageOptionAliases.img_thumbnail).toContain(
+      "サムネイル",
+    );
   });
 });

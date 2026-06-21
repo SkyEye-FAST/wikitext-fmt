@@ -15,6 +15,9 @@ export interface DiagnosticsSummary {
   localizedBehaviorSwitchesCanonicalized: number;
   redirectsFormatted: number;
   localizedRedirectAliasesCanonicalized: number;
+  fileLinksFormatted: number;
+  localizedFileNamespaceAliasesCanonicalized: number;
+  localizedImageOptionsCanonicalized: number;
 }
 
 export interface FileDiagnostics {
@@ -41,6 +44,9 @@ export function emptyDiagnosticsSummary(): DiagnosticsSummary {
     localizedBehaviorSwitchesCanonicalized: 0,
     redirectsFormatted: 0,
     localizedRedirectAliasesCanonicalized: 0,
+    fileLinksFormatted: 0,
+    localizedFileNamespaceAliasesCanonicalized: 0,
+    localizedImageOptionsCanonicalized: 0,
   };
 }
 
@@ -82,6 +88,7 @@ export function createDiagnosticsSummary(
     ),
     ...result.footerDiagnostics,
     ...result.redirectDiagnostics,
+    ...result.fileLinkDiagnostics,
   };
 }
 

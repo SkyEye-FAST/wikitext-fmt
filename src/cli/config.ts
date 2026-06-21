@@ -81,6 +81,7 @@ export function validateConfig(value: unknown): FormatOptions {
     "formatTemplates",
     "formatCategories",
     "formatLists",
+    "formatFileLinks",
     "formatBehaviorSwitches",
     "formatRedirects",
     "behaviorSwitchPlacement",
@@ -118,6 +119,7 @@ export function validateConfig(value: unknown): FormatOptions {
     "formatTemplates",
     "formatCategories",
     "formatLists",
+    "formatFileLinks",
     "formatBehaviorSwitches",
     "formatRedirects",
     "formatTables",
@@ -198,8 +200,10 @@ function validateLocalizationAliases(
   const aliases = value as Record<string, unknown>;
   const allowed = new Set([
     "categoryNamespaces",
+    "fileNamespaces",
     "defaultsortMagicWords",
     "redirectMagicWords",
+    "imageOptionAliases",
     "behaviorSwitches",
   ]);
   for (const key of Object.keys(aliases)) {
@@ -210,6 +214,12 @@ function validateLocalizationAliases(
     validateStringArray(
       aliases.categoryNamespaces,
       "localizationAliases.categoryNamespaces",
+    );
+  }
+  if (aliases.fileNamespaces !== undefined) {
+    validateStringArray(
+      aliases.fileNamespaces,
+      "localizationAliases.fileNamespaces",
     );
   }
   if (aliases.defaultsortMagicWords !== undefined) {
@@ -223,6 +233,23 @@ function validateLocalizationAliases(
       aliases.redirectMagicWords,
       "localizationAliases.redirectMagicWords",
     );
+  }
+  if (aliases.imageOptionAliases !== undefined) {
+    if (
+      typeof aliases.imageOptionAliases !== "object" ||
+      aliases.imageOptionAliases === null ||
+      Array.isArray(aliases.imageOptionAliases)
+    ) {
+      throw new Error(
+        "Configuration option localizationAliases.imageOptionAliases must be an object",
+      );
+    }
+    for (const [id, entries] of Object.entries(aliases.imageOptionAliases)) {
+      validateStringArray(
+        entries,
+        `localizationAliases.imageOptionAliases.${id}`,
+      );
+    }
   }
   if (aliases.behaviorSwitches !== undefined) {
     if (

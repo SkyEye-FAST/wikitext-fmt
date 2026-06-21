@@ -21,8 +21,10 @@ export type BehaviorSwitchId = (typeof behaviorSwitchIds)[number];
 
 export interface ResolvedLocalizationAliases {
   categoryNamespaces: string[];
+  fileNamespaces: string[];
   defaultsortMagicWords: string[];
   redirectMagicWords: string[];
+  imageOptionAliases: Record<string, string[]>;
   behaviorSwitches: Record<BehaviorSwitchId, string[]>;
 }
 
@@ -37,8 +39,27 @@ function unique(values: readonly string[]): string[] {
 function canonicalAliases(): ResolvedLocalizationAliases {
   return {
     categoryNamespaces: ["Category"],
+    fileNamespaces: ["File", "Image"],
     defaultsortMagicWords: ["DEFAULTSORT:", "DEFAULTSORTKEY:"],
     redirectMagicWords: ["#REDIRECT"],
+    imageOptionAliases: {
+      img_thumbnail: ["thumb", "thumbnail"],
+      img_manualthumb: ["thumbnail"],
+      img_framed: ["frame", "framed", "enframed"],
+      img_frameless: ["frameless"],
+      img_border: ["border"],
+      img_left: ["left"],
+      img_right: ["right"],
+      img_center: ["center", "centre"],
+      img_none: ["none"],
+      img_width: ["$1px"],
+      img_alt: ["alt=$1"],
+      img_link: ["link=$1"],
+      img_page: ["page=$1", "page $1"],
+      img_upright: ["upright", "upright=$1", "upright $1"],
+      img_class: ["class=$1"],
+      img_lang: ["lang=$1"],
+    },
     behaviorSwitches: Object.fromEntries(
       behaviorSwitchIds.map((id) => [id, [`__${id.toUpperCase()}__`]]),
     ) as Record<BehaviorSwitchId, string[]>,
@@ -57,6 +78,12 @@ export function mergeLocalizationAliases(
         ...source.categoryNamespaces,
       ]);
     }
+    if (source.fileNamespaces) {
+      result.fileNamespaces = unique([
+        ...(result.fileNamespaces ?? []),
+        ...source.fileNamespaces,
+      ]);
+    }
     if (source.defaultsortMagicWords) {
       result.defaultsortMagicWords = unique([
         ...(result.defaultsortMagicWords ?? []),
@@ -68,6 +95,15 @@ export function mergeLocalizationAliases(
         ...(result.redirectMagicWords ?? []),
         ...source.redirectMagicWords,
       ]);
+    }
+    if (source.imageOptionAliases) {
+      result.imageOptionAliases ??= {};
+      for (const [id, aliases] of Object.entries(source.imageOptionAliases)) {
+        result.imageOptionAliases[id] = unique([
+          ...(result.imageOptionAliases[id] ?? []),
+          ...aliases,
+        ]);
+      }
     }
     if (source.behaviorSwitches) {
       result.behaviorSwitches ??= {};
@@ -93,8 +129,10 @@ export function overrideLocalizationAliases(
 ): LocalizationAliases {
   const result = mergeLocalizationAliases(base, {
     categoryNamespaces: override?.categoryNamespaces,
+    fileNamespaces: override?.fileNamespaces,
     defaultsortMagicWords: override?.defaultsortMagicWords,
     redirectMagicWords: override?.redirectMagicWords,
+    imageOptionAliases: override?.imageOptionAliases,
   });
   result.behaviorSwitches = Object.fromEntries(
     Object.entries(base.behaviorSwitches ?? {}).map(([id, aliases]) => [
@@ -129,8 +167,12 @@ export function resolveLocalizationAliases(
 ): ResolvedLocalizationAliases {
   const hasAliasData =
     (customAliases.categoryNamespaces?.length ?? 0) > 0 ||
+    (customAliases.fileNamespaces?.length ?? 0) > 0 ||
     (customAliases.defaultsortMagicWords?.length ?? 0) > 0 ||
     (customAliases.redirectMagicWords?.length ?? 0) > 0 ||
+    Object.values(customAliases.imageOptionAliases ?? {}).some(
+      (aliases) => aliases.length > 0,
+    ) ||
     Object.values(customAliases.behaviorSwitches ?? {}).some(
       (aliases) => aliases.length > 0,
     );
@@ -156,16 +198,24 @@ export function resolveLocalizationAliases(
       unique(merged.behaviorSwitches?.[id] ?? []),
     ]),
   ) as Record<BehaviorSwitchId, string[]>;
+  const imageOptionAliases = Object.fromEntries(
+    Object.entries(merged.imageOptionAliases ?? {}).map(([id, aliases]) => [
+      id,
+      unique(aliases),
+    ]),
+  );
   return {
     categoryNamespaces: unique(
       merged.categoryNamespaces ?? base.categoryNamespaces,
     ),
+    fileNamespaces: unique(merged.fileNamespaces ?? base.fileNamespaces),
     defaultsortMagicWords: unique(
       merged.defaultsortMagicWords ?? base.defaultsortMagicWords,
     ),
     redirectMagicWords: unique(
       merged.redirectMagicWords ?? base.redirectMagicWords,
     ),
+    imageOptionAliases,
     behaviorSwitches,
   };
 }

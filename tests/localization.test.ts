@@ -169,6 +169,7 @@ describe("MediaWiki localization data", () => {
           JSON.stringify({
             query: {
               namespaces: {
+                6: { id: 6, canonical: "File", "*": "DateiX" },
                 14: { id: 14, canonical: "Category", "*": "KategorieX" },
                 15: {
                   id: 15,
@@ -177,12 +178,15 @@ describe("MediaWiki localization data", () => {
                 },
               },
               namespacealiases: [
+                { id: 6, "*": "FileX" },
                 { id: 14, "*": "CatX" },
                 { id: 15, "*": "CatX talk" },
               ],
               magicwords: [
                 { name: "defaultsort", aliases: ["SORTX:", "DEFAULTSORT:"] },
                 { name: "redirect", aliases: ["#REDIRECTX", "#REDIRECT"] },
+                { name: "img_thumbnail", aliases: ["miniX", "thumb"] },
+                { name: "img_right", aliases: ["rechtsX", "right"] },
                 { name: "notoc", aliases: ["__NOTOCX__", "__NOTOC__"] },
               ],
               doubleunderscores: ["notoc"],
@@ -198,8 +202,13 @@ describe("MediaWiki localization data", () => {
     );
     expect(aliases).toEqual({
       categoryNamespaces: ["KategorieX", "Category", "CatX"],
+      fileNamespaces: ["DateiX", "File", "FileX"],
       defaultsortMagicWords: ["SORTX:", "DEFAULTSORT:"],
       redirectMagicWords: ["#REDIRECTX", "#REDIRECT"],
+      imageOptionAliases: {
+        img_thumbnail: ["miniX", "thumb"],
+        img_right: ["rechtsX", "right"],
+      },
       behaviorSwitches: { notoc: ["__NOTOCX__", "__NOTOC__"] },
     });
     expect(

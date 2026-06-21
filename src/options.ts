@@ -7,8 +7,10 @@ export type LocalizedSyntaxStyle = "preserve" | "canonical-english";
 
 export interface LocalizationAliases {
   categoryNamespaces?: string[];
+  fileNamespaces?: string[];
   defaultsortMagicWords?: string[];
   redirectMagicWords?: string[];
+  imageOptionAliases?: Record<string, string[]>;
   behaviorSwitches?: Record<string, string[]>;
 }
 
@@ -19,6 +21,7 @@ export interface FormatOptions {
   formatTemplates?: boolean;
   formatCategories?: boolean;
   formatLists?: boolean;
+  formatFileLinks?: boolean;
   formatBehaviorSwitches?: boolean;
   formatRedirects?: boolean;
   behaviorSwitchPlacement?: BehaviorSwitchPlacement;
@@ -39,6 +42,7 @@ export interface ResolvedFormatOptions {
   formatTemplates: boolean;
   formatCategories: boolean;
   formatLists: boolean;
+  formatFileLinks: boolean;
   formatBehaviorSwitches: boolean;
   formatRedirects: boolean;
   behaviorSwitchPlacement: BehaviorSwitchPlacement;
@@ -59,6 +63,7 @@ export const defaultOptions: Readonly<ResolvedFormatOptions> = {
   formatTemplates: true,
   formatCategories: true,
   formatLists: true,
+  formatFileLinks: true,
   formatBehaviorSwitches: true,
   formatRedirects: true,
   behaviorSwitchPlacement: "preserve",

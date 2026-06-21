@@ -56,6 +56,7 @@ Without `--write`, formatted wikitext is written to stdout. `--check` writes not
 --no-format-templates
 --no-format-categories
 --no-format-lists
+--no-format-file-links
 --no-format-redirects
 --no-format-behavior-switches
 --behavior-switch-placement preserve|footer
@@ -73,7 +74,7 @@ Explicit files and glob patterns can be mixed. Expanded paths are deduplicated a
 
 `--diff` writes unified diffs to stdout without modifying files and exits with status 1 when formatting would change the input. Diffs use three context lines by default and separate distant changes into multiple hunks. It works with file paths, globs, and `--stdin` (labelled `stdin`), and cannot be combined with `--write`.
 
-`--diagnostics-json` writes one JSON object per input to stderr. Each object includes `file`, `changed`, `warning`, table counters, footer counters (`behaviorSwitchesMoved`, `behaviorSwitchesFormatted`, `defaultsortMoved`, and `categoriesMoved`), redirect counters (`redirectsFormatted`), canonicalization counters (`localizedCategoryAliasesCanonicalized`, `localizedDefaultsortAliasesCanonicalized`, `localizedBehaviorSwitchesCanonicalized`, and `localizedRedirectAliasesCanonicalized`), and complete table diagnostics. Formatted text or diffs remain on stdout. JSON diagnostics cannot be combined with the text-oriented `--debug` mode.
+`--diagnostics-json` writes one JSON object per input to stderr. Each object includes `file`, `changed`, `warning`, table counters, footer counters (`behaviorSwitchesMoved`, `behaviorSwitchesFormatted`, `defaultsortMoved`, and `categoriesMoved`), redirect counters (`redirectsFormatted`), file-link counters (`fileLinksFormatted`), canonicalization counters (`localizedCategoryAliasesCanonicalized`, `localizedDefaultsortAliasesCanonicalized`, `localizedBehaviorSwitchesCanonicalized`, `localizedRedirectAliasesCanonicalized`, `localizedFileNamespaceAliasesCanonicalized`, and `localizedImageOptionsCanonicalized`), and complete table diagnostics. Formatted text or diffs remain on stdout. JSON diagnostics cannot be combined with the text-oriented `--debug` mode.
 
 `--safe` enables parse-before, parse-after, and idempotency verification. If verification fails, the original input is returned and a warning is written to stderr. `--debug` writes the selected mode, rule level, and result status to stderr without contaminating formatted stdout.
 
@@ -85,11 +86,11 @@ Explicit files and glob patterns can be mixed. Expanded paths are deduplicated a
 
 Formatting levels are cumulative:
 
-| Level          | Enabled rules                                                                                                   |
-| -------------- | --------------------------------------------------------------------------------------------------------------- |
-| `safe`         | Heading spacing, blank-line normalization, and ordinary HTML void-tag normalization                             |
-| `normal`       | Safe rules, simple templates, redirects, page-footer metadata, behavior switches, and conservative list spacing |
-| `experimental` | Safe and normal rules plus explicitly enabled experimental rules                                                |
+| Level          | Enabled rules                                                                                                               |
+| -------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| `safe`         | Heading spacing, blank-line normalization, and ordinary HTML void-tag normalization                                         |
+| `normal`       | Safe rules, simple templates, redirects, file links, page-footer metadata, behavior switches, and conservative list spacing |
+| `experimental` | Safe and normal rules plus explicitly enabled experimental rules                                                            |
 
 The default is `normal`. Table formatting is experimental and disabled by default; it runs only when both `--level experimental` and `--format-tables` are provided.
 
@@ -123,6 +124,7 @@ Configuration keys match `FormatOptions`:
   "formatTemplates": true,
   "formatCategories": true,
   "formatLists": true,
+  "formatFileLinks": true,
   "formatRedirects": true,
   "formatBehaviorSwitches": true,
   "behaviorSwitchPlacement": "preserve",
@@ -130,8 +132,13 @@ Configuration keys match `FormatOptions`:
   "localizedSyntaxStyle": "preserve",
   "localizationAliases": {
     "categoryNamespaces": ["Project category"],
+    "fileNamespaces": ["Project file"],
     "defaultsortMagicWords": ["PROJECTSORT:"],
     "redirectMagicWords": ["#PROJECTREDIRECT"],
+    "imageOptionAliases": {
+      "img_thumbnail": ["projectthumb"],
+      "img_right": ["projectright"]
+    },
     "behaviorSwitches": {
       "notoc": ["__PROJECTNOTOC__"]
     }
@@ -160,6 +167,7 @@ const output = formatWikitext(source, {
   formatTemplates: true,
   formatCategories: true,
   formatLists: true,
+  formatFileLinks: true,
   formatRedirects: true,
   formatBehaviorSwitches: true,
   behaviorSwitchPlacement: "preserve",
@@ -198,6 +206,7 @@ Every current rule has an exported reliability level in `ruleLevels`:
 - `templates`: `normal`
 - `categories`: `normal`
 - `lists`: `normal`
+- `fileLinks`: `normal`
 - `redirects`: `normal`
 - `behaviorSwitches`: `normal`
 - `htmlVoidTags`: `safe`
@@ -220,6 +229,20 @@ The normal-level redirect rule handles only a redirect on the first non-empty pa
 With `localizedSyntaxStyle: "preserve"`, the original alias spelling is kept, such as `#転送 [[Target]]`. With `"canonical-english"`, recognized localized aliases are emitted as `#REDIRECT [[Target]]`, and `localizedRedirectAliasesCanonicalized` is incremented when the keyword changes.
 
 The rule is intentionally narrow. It skips redirect-like lines that are not first non-empty content, have unbalanced links, include templates in the target, contain multiple links, have trailing text or comments, or include HTML on the same line. Disable it with `--no-format-redirects` or `formatRedirects: false`.
+
+## File and image link formatting
+
+The normal-level file-link rule handles only one simple file/image link occupying a whole line, such as:
+
+```wikitext
+[[File:Example.png|thumb|right|300px|alt=Example]]
+```
+
+It recognizes File namespace aliases and image option aliases from the selected localization data. In `localizedSyntaxStyle: "preserve"` mode, it keeps the original namespace and option spelling and only trims trailing horizontal whitespace when the line is otherwise safe.
+
+In `"canonical-english"` mode, the rule rewrites only certainly matched syntax keywords: localized File namespace aliases become `File`, and recognized image options such as localized `thumb`, `right`, `left`, or `center` become their canonical English option names. File names, captions, alt text values, link targets, page numbers, class/lang values, widths such as `300px`, and normal text are not translated or reordered.
+
+The rule skips lines with multiple wikilinks, nested links, templates, parser-function-like syntax, HTML or extension tags, multiline links, gallery contents, and table lines. Disable it with `--no-format-file-links` or `formatFileLinks: false`.
 
 ## Page footer and behavior switches
 
@@ -245,10 +268,10 @@ Standalone aliases for the MediaWiki `defaultsort` magic-word ID move before rec
 Localized syntax aliases are data-driven; the formatter does not infer them from translated words.
 
 - `localizationSource: "builtin"` (default) uses the generated MediaWiki core alias table. The initial table is extracted by `scripts/update-mediawiki-aliases.ts` from MediaWiki core message files for `ar`, `de`, `es`, `fr`, `it`, `ja`, `ko`, `pl`, `pt`, `ru`, `uk`, `zh-hans`, and `zh-hant`.
-- `localizationSource: "siteinfo"` requires `--site-api <url>`. The CLI requests namespace ID 14, namespace aliases, magic words including `defaultsort` and `redirect`, and double-underscore behavior switches from the site's `action=query&meta=siteinfo` API. Fetch or validation failure stops the CLI; it never silently falls back to built-in data.
+- `localizationSource: "siteinfo"` requires `--site-api <url>`. The CLI requests namespace IDs 6 and 14, namespace aliases, magic words including `defaultsort`, `redirect`, and image options, and double-underscore behavior switches from the site's `action=query&meta=siteinfo` API. Fetch or validation failure stops the CLI; it never silently falls back to built-in data.
 - `localizationSource: "custom"` uses canonical English syntax plus `localizationAliases`. Custom aliases also override conflicting built-in or siteinfo behavior-switch aliases.
 
-`localizedSyntaxStyle: "preserve"` (default) recognizes aliases but retains their exact spelling. `"canonical-english"` rewrites only a certainly matched namespace or magic-word keyword: category namespaces become `Category`, `defaultsort` becomes `DEFAULTSORT`, redirects become `#REDIRECT`, and behavior switches use their canonical English ID. Page titles, redirect targets, category names, sort keys, arguments, and normal text are never translated.
+`localizedSyntaxStyle: "preserve"` (default) recognizes aliases but retains their exact spelling. `"canonical-english"` rewrites only a certainly matched namespace, magic-word keyword, or file option keyword: category namespaces become `Category`, file namespaces become `File`, `defaultsort` becomes `DEFAULTSORT`, redirects become `#REDIRECT`, recognized image options become canonical English option names, and behavior switches use their canonical English ID. Page titles, redirect targets, file names, captions, category names, sort keys, arguments, and normal text are never translated.
 
 In canonical English mode, duplicate behavior switches are de-duplicated by emitted canonical value. For example, localized `notoc` plus `__NOTOC__` at the footer produce one `__NOTOC__`.
 
@@ -303,6 +326,7 @@ wikitext-fmt page.wiki --safe --debug --level experimental --format-tables
 - Template parameters are not reordered.
 - Only standalone category namespace aliases backed by the selected localization data are moved; categories are never sorted.
 - List formatting is limited to safe spacing and trailing-whitespace cleanup on ordinary single-line items.
+- File/image link formatting is limited to one safe standalone file link per line; captions and values are preserved.
 - Only aliases backed by built-in MediaWiki data, siteinfo, or explicit custom configuration participate in footer formatting.
 - Experimental table formatting is disabled by default and only handles simple standalone wikitables.
 - Unsafe template- or HTML-containing table lines are preserved even when other safe rows are formatted.

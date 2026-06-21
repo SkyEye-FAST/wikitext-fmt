@@ -45,6 +45,11 @@ export function createBatchReport(files: FileDiagnostics[]): BatchReport {
       redirectsFormatted: diagnostics.redirectsFormatted,
       localizedRedirectAliasesCanonicalized:
         diagnostics.localizedRedirectAliasesCanonicalized,
+      fileLinksFormatted: diagnostics.fileLinksFormatted,
+      localizedFileNamespaceAliasesCanonicalized:
+        diagnostics.localizedFileNamespaceAliasesCanonicalized,
+      localizedImageOptionsCanonicalized:
+        diagnostics.localizedImageOptionsCanonicalized,
     },
   };
 }
