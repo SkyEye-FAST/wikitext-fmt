@@ -1,5 +1,5 @@
 import type { Config } from "wikiparser-node";
-import type { ResolvedFormatOptions } from "../options.js";
+import type { ResolvedFormatOptions, TableCellSeparatorStyle } from "../options.js";
 import { parseWikitext } from "../parser.js";
 
 interface Replacement {
@@ -20,8 +20,18 @@ export interface TableLineDiagnostic {
 }
 
 export type TableAnalysisResult =
-  | { changed: true; value: string; lineDiagnostics: TableLineDiagnostic[] }
-  | { changed: false; reason: string; lineDiagnostics?: TableLineDiagnostic[] };
+  | {
+      changed: true;
+      value: string;
+      separatorStyle: Exclude<TableCellSeparatorStyle, "auto">;
+      lineDiagnostics: TableLineDiagnostic[];
+    }
+  | {
+      changed: false;
+      reason: string;
+      separatorStyle?: Exclude<TableCellSeparatorStyle, "auto">;
+      lineDiagnostics?: TableLineDiagnostic[];
+    };
 
 export interface TableDiagnostic {
   start: number;
@@ -29,6 +39,7 @@ export interface TableDiagnostic {
   line: number;
   changed: boolean;
   reason?: string;
+  separatorStyle?: Exclude<TableCellSeparatorStyle, "auto">;
   lineDiagnostics?: TableLineDiagnostic[];
 }
 
@@ -93,7 +104,12 @@ function formatStructuralLine(line: string, value: string, riskContent = line): 
   return value === line ? { changed: false, value: line } : { changed: true, value };
 }
 
-function formatCellLine(line: string, content: string, marker: "!" | "|"): TableLineFormatResult {
+function formatCellLine(
+  line: string,
+  content: string,
+  marker: "!" | "|",
+  separatorStyle: Exclude<TableCellSeparatorStyle, "auto">,
+): TableLineFormatResult {
   const reason = lineRiskReason(line);
   if (reason) return { changed: false, value: line, reason };
   const separator = marker === "!" ? "!!" : "||";
@@ -105,8 +121,49 @@ function formatCellLine(line: string, content: string, marker: "!" | "|"): Table
       reason: marker === "!" ? "unsafe header cell separator" : "unsafe data cell separator",
     };
   }
-  const value = cells.map((cell) => `${marker}${cell}`).join("\n");
+  const value = separatorStyle === "split"
+    ? cells.map((cell) => `${marker}${cell}`).join("\n")
+    : `${marker}${content.trimEnd()}`;
   return value === line ? { changed: false, value: line } : { changed: true, value };
+}
+
+function hasCellAttributes(content: string): boolean {
+  return /^\s*(?:[\w:-]+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s|]+)\s*)+\|\s*/u.test(content);
+}
+
+function detectTableCellSeparatorStyle(
+  lines: readonly string[],
+  options: Pick<ResolvedFormatOptions, "lineWidth" | "tableCellSeparatorStyle">,
+): Exclude<TableCellSeparatorStyle, "auto"> {
+  if (options.tableCellSeparatorStyle !== "auto") return options.tableCellSeparatorStyle;
+
+  const cellLines = lines.slice(1, -1).map((line, index) => {
+    const header = /^\s*!(.*)$/u.exec(line);
+    const data = /^\s*\|(?![-+\}])(.*)$/u.exec(line);
+    if (!header && !data) return undefined;
+    const marker = header ? "!" : "|";
+    const content = (header ?? data)![1]!;
+    if (lineRiskReason(line)) return { index, marker, content, safe: false as const };
+    const cells = splitSimpleCells(content, marker === "!" ? "!!" : "||");
+    return cells
+      ? { index, marker, content, cells, safe: true as const }
+      : { index, marker, content, safe: false as const };
+  }).filter((line) => line !== undefined);
+
+  const safeLines = cellLines.filter((line) => line.safe);
+  const maximumCellCount = Math.max(1, ...safeLines.map((line) => line.cells.length));
+  const hasAttributes = cellLines.some((line) => hasCellAttributes(line.content));
+  const hasLongInlineLine = safeLines.some((line) => line.cells.length > 1 && lines[line.index + 1]!.length > options.lineWidth);
+  const hasSplitLines = safeLines.some((line, index) => {
+    if (line.cells.length !== 1) return false;
+    const previous = safeLines[index - 1];
+    const next = safeLines[index + 1];
+    return previous?.index === line.index - 1 && previous.marker === line.marker && previous.cells.length === 1
+      || next?.index === line.index + 1 && next.marker === line.marker && next.cells.length === 1;
+  });
+
+  if (hasAttributes || maximumCellCount >= 4 || hasLongInlineLine || hasSplitLines) return "split";
+  return "preserve";
 }
 
 function isRecognizedBodyLine(line: string): boolean {
@@ -116,7 +173,13 @@ function isRecognizedBodyLine(line: string): boolean {
     || /^\s*\|(?!\})/u.test(line);
 }
 
-export function analyzeSimpleTableForTesting(raw: string): TableAnalysisResult {
+export function analyzeSimpleTableForTesting(
+  raw: string,
+  options: Pick<ResolvedFormatOptions, "lineWidth" | "tableCellSeparatorStyle"> = {
+    lineWidth: 120,
+    tableCellSeparatorStyle: "auto",
+  },
+): TableAnalysisResult {
   if (/\uE000wikitext-fmt:/u.test(raw)) return { changed: false, reason: "contains protected placeholder" };
   const lines = raw.split("\n");
   if (lines.length < 2 || !/^\s*\{\|/u.test(lines[0]!) || !/^\s*\|\}\s*$/u.test(lines.at(-1)!)) {
@@ -129,6 +192,8 @@ export function analyzeSimpleTableForTesting(raw: string): TableAnalysisResult {
   if (unclearIndex >= 0) {
     return { changed: false, reason: `unclear table line type at line ${unclearIndex + 2}` };
   }
+
+  const separatorStyle = detectTableCellSeparatorStyle(lines, options);
 
   const output: string[] = [];
   const lineDiagnostics: TableLineDiagnostic[] = [];
@@ -146,8 +211,8 @@ export function analyzeSimpleTableForTesting(raw: string): TableAnalysisResult {
       const header = /^\s*!(.*)$/u.exec(line);
       const data = /^\s*\|(?![-+}])(.*)$/u.exec(line);
       result = header
-        ? formatCellLine(line, header[1]!, "!")
-        : formatCellLine(line, data![1]!, "|");
+        ? formatCellLine(line, header[1]!, "!", separatorStyle)
+        : formatCellLine(line, data![1]!, "|", separatorStyle);
     }
     output.push(result.value);
     lineDiagnostics.push({
@@ -157,11 +222,12 @@ export function analyzeSimpleTableForTesting(raw: string): TableAnalysisResult {
     });
   }
   const value = output.join("\n");
-  if (value !== raw) return { changed: true, value, lineDiagnostics };
+  if (value !== raw) return { changed: true, value, separatorStyle, lineDiagnostics };
   const skipped = lineDiagnostics.find((diagnostic) => diagnostic.reason);
   return {
     changed: false,
     reason: skipped?.reason ?? "already formatted",
+    separatorStyle,
     lineDiagnostics,
   };
 }
@@ -185,7 +251,7 @@ export function formatTablesWithDiagnostics(
     } else if (source.lastIndexOf("\n", start - 1) + 1 !== start) {
       result = { changed: false, reason: "table is not standalone" };
     } else {
-      result = analyzeSimpleTableForTesting(raw);
+      result = analyzeSimpleTableForTesting(raw, _options);
     }
     const startLine = lineNumberAt(source, start);
     const lineDiagnostics = result.lineDiagnostics?.map((diagnostic) => ({
@@ -201,6 +267,7 @@ export function formatTablesWithDiagnostics(
       ...(result.changed
         ? hasSkippedUnsafeLines ? { reason: "formatted with skipped unsafe lines" } : {}
         : { reason: result.reason }),
+      ...(result.separatorStyle ? { separatorStyle: result.separatorStyle } : {}),
       ...(lineDiagnostics ? { lineDiagnostics } : {}),
     });
     if (result.changed) replacements.push({ start, end, value: result.value });

@@ -1,4 +1,5 @@
 {
   "formatTables": true,
-  "level": "experimental"
+  "level": "experimental",
+  "tableCellSeparatorStyle": "split"
 }

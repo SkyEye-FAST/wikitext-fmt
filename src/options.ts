@@ -1,5 +1,6 @@
 export type FormatLevel = "safe" | "normal" | "experimental";
 export type HtmlVoidTagStyle = "html5" | "xhtml" | "preserve";
+export type TableCellSeparatorStyle = "auto" | "split" | "preserve";
 
 export interface FormatOptions {
   parserConfig?: string;
@@ -8,6 +9,7 @@ export interface FormatOptions {
   formatTemplates?: boolean;
   formatCategories?: boolean;
   formatTables?: boolean;
+  tableCellSeparatorStyle?: TableCellSeparatorStyle;
   normalizeBlankLines?: boolean;
   level?: FormatLevel;
   htmlVoidTagStyle?: HtmlVoidTagStyle;
@@ -20,6 +22,7 @@ export interface ResolvedFormatOptions {
   formatTemplates: boolean;
   formatCategories: boolean;
   formatTables: boolean;
+  tableCellSeparatorStyle: TableCellSeparatorStyle;
   normalizeBlankLines: boolean;
   level: FormatLevel;
   htmlVoidTagStyle: HtmlVoidTagStyle;
@@ -32,6 +35,7 @@ export const defaultOptions: Readonly<ResolvedFormatOptions> = {
   formatTemplates: true,
   formatCategories: true,
   formatTables: false,
+  tableCellSeparatorStyle: "auto",
   normalizeBlankLines: true,
   level: "normal",
   htmlVoidTagStyle: "html5",

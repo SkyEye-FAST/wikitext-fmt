@@ -47,6 +47,7 @@ Without `--write`, formatted wikitext is written to stdout. `--check` writes not
 --no-format-categories
 --format-tables
 --no-format-tables
+--table-cell-separator-style auto|split|preserve
 --no-normalize-blank-lines
 ```
 
@@ -94,6 +95,7 @@ Configuration keys match `FormatOptions`:
   "formatTemplates": true,
   "formatCategories": true,
   "formatTables": false,
+  "tableCellSeparatorStyle": "auto",
   "normalizeBlankLines": true
 }
 ```
@@ -112,6 +114,7 @@ const output = formatWikitext(source, {
   formatTemplates: true,
   formatCategories: true,
   formatTables: false,
+  tableCellSeparatorStyle: "auto",
   normalizeBlankLines: true,
   level: "normal",
   htmlVoidTagStyle: "html5",
@@ -151,7 +154,15 @@ Enable the table pass explicitly:
 wikitext-fmt page.wiki --safe --level experimental --format-tables
 ```
 
-It currently trims trailing whitespace on recognized structural lines and splits only simple same-line `!!` and `||` cells. Simple wikilinks, piped wikilinks, external links, and straightforward cell/header attributes are supported when their separators can be identified safely. Dedicated fixtures cover supported tables, partial row formatting, and preserved unsafe cases.
+It currently trims trailing whitespace on recognized structural lines and handles only safely recognized same-line `!!` and `||` cells. Simple wikilinks, piped wikilinks, external links, and straightforward cell/header attributes are supported. Dedicated fixtures cover supported tables, partial row formatting, separator styles, and preserved unsafe cases.
+
+`tableCellSeparatorStyle` controls safe inline cell separators per table:
+
+- `auto` (default) preserves compact simple tables, but chooses split lines for mixed/split-style tables, four or more columns, cell attributes, or safe inline lines exceeding `lineWidth`.
+- `split` always splits safely recognized `!!` and `||` separators onto separate structural lines.
+- `preserve` keeps safe inline separators and only performs conservative trailing-whitespace and structural cleanup.
+
+Auto detection is table-local rather than file-wide. Debug diagnostics include the selected `split` or `preserve` style when a table is formatted.
 
 Within a structurally safe table, safe rows may be formatted while cell lines containing templates, HTML or extension tags, unsafe separators, or unbalanced brackets/quotes remain byte-for-byte unchanged. Debug diagnostics report these as skipped unsafe lines.
 

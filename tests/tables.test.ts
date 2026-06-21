@@ -47,7 +47,10 @@ describe("experimental table analysis diagnostics", () => {
   });
 
   it("returns changed output for a supported table", () => {
-    expect(analyzeSimpleTableForTesting("{|\n! A !! B\n|}")).toMatchObject({
+    expect(analyzeSimpleTableForTesting("{|\n! A !! B\n|}", {
+      lineWidth: 120,
+      tableCellSeparatorStyle: "split",
+    })).toMatchObject({
       changed: true,
       value: "{|\n! A\n! B\n|}",
     });
@@ -58,7 +61,11 @@ describe("experimental table analysis diagnostics", () => {
     const result = formatTablesWithDiagnostics(
       source,
       getParserConfig("mediawiki"),
-      resolveOptions({ level: "experimental", formatTables: true }),
+      resolveOptions({
+        level: "experimental",
+        formatTables: true,
+        tableCellSeparatorStyle: "split",
+      }),
     );
     expect(result.diagnostics).toEqual([
       expect.objectContaining({ start: 6, line: 3, changed: true }),
@@ -70,6 +77,7 @@ describe("experimental table analysis diagnostics", () => {
     const result = formatWikitextDetailedResult(source, {
       level: "experimental",
       formatTables: true,
+      tableCellSeparatorStyle: "split",
     });
     expect(result.tableDiagnostics).toEqual([
       expect.objectContaining({ start: source.indexOf("{|"), line: 5, changed: true }),
@@ -89,6 +97,7 @@ describe("experimental table analysis diagnostics", () => {
     const result = formatWikitextDetailedResult(source, {
       level: "experimental",
       formatTables: true,
+      tableCellSeparatorStyle: "split",
     });
     expect(result.formatted).toContain("! A\n! B");
     expect(result.formatted).toContain("| {{N/a}} || 1");
@@ -108,5 +117,41 @@ describe("experimental table analysis diagnostics", () => {
         }),
       ]),
     );
+  });
+
+  it("detects auto separator style independently for each table", () => {
+    const source = [
+      "{|",
+      "! A !! B",
+      "|-",
+      "| 1 || 2",
+      "|}",
+      "{|",
+      "! A !! B !! C !! D",
+      "|-",
+      "| 1 || 2 || 3 || 4",
+      "|}",
+      "",
+    ].join("\n");
+    const result = formatWikitextDetailedResult(source, {
+      level: "experimental",
+      formatTables: true,
+      tableCellSeparatorStyle: "auto",
+    });
+    expect(result.tableDiagnostics.map(({ separatorStyle }) => separatorStyle)).toEqual(["preserve", "split"]);
+    expect(result.formatted).toContain("! A !! B\n|-\n| 1 || 2");
+    expect(result.formatted).toContain("! A\n! B\n! C\n! D");
+  });
+
+  it("auto splits safe inline lines that exceed lineWidth", () => {
+    const result = analyzeSimpleTableForTesting("{|\n| Alpha || Beta\n|}", {
+      lineWidth: 10,
+      tableCellSeparatorStyle: "auto",
+    });
+    expect(result).toMatchObject({
+      changed: true,
+      separatorStyle: "split",
+      value: "{|\n| Alpha\n| Beta\n|}",
+    });
   });
 });

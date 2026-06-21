@@ -1,6 +1,11 @@
 import { readFile, stat } from "node:fs/promises";
 import { dirname, isAbsolute, parse, resolve } from "node:path";
-import type { FormatLevel, FormatOptions, HtmlVoidTagStyle } from "../options.js";
+import type {
+  FormatLevel,
+  FormatOptions,
+  HtmlVoidTagStyle,
+  TableCellSeparatorStyle,
+} from "../options.js";
 
 export const CONFIG_FILENAMES = [
   ".wikitextfmtrc",
@@ -62,6 +67,7 @@ export function validateConfig(value: unknown): FormatOptions {
     "formatTemplates",
     "formatCategories",
     "formatTables",
+    "tableCellSeparatorStyle",
     "normalizeBlankLines",
     "level",
     "htmlVoidTagStyle",
@@ -92,6 +98,13 @@ export function validateConfig(value: unknown): FormatOptions {
   }
   if (record.htmlVoidTagStyle !== undefined) {
     assertEnum<HtmlVoidTagStyle>(record.htmlVoidTagStyle, "htmlVoidTagStyle", ["html5", "xhtml", "preserve"]);
+  }
+  if (record.tableCellSeparatorStyle !== undefined) {
+    assertEnum<TableCellSeparatorStyle>(
+      record.tableCellSeparatorStyle,
+      "tableCellSeparatorStyle",
+      ["auto", "split", "preserve"],
+    );
   }
   return { ...record } as FormatOptions;
 }

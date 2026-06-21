@@ -83,9 +83,18 @@ describe("CLI configuration", () => {
   });
 
   it("accepts experimental table configuration", () => {
-    expect(validateConfig({ formatTables: true, level: "experimental" })).toEqual({
+    expect(validateConfig({
       formatTables: true,
       level: "experimental",
+      tableCellSeparatorStyle: "auto",
+    })).toEqual({
+      formatTables: true,
+      level: "experimental",
+      tableCellSeparatorStyle: "auto",
     });
+  });
+
+  it("rejects invalid table separator styles", () => {
+    expect(() => validateConfig({ tableCellSeparatorStyle: "inline" })).toThrow(/auto, split, preserve/u);
   });
 });

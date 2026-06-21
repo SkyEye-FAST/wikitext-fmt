@@ -44,7 +44,11 @@ describe("formatter API", () => {
     expect(formatWikitext(input)).toBe(input);
     expect(formatWikitext(input, { formatTables: true })).toBe(input);
     expect(formatWikitext(input, { level: "experimental" })).toBe(input);
-    expect(formatWikitext(input, { formatTables: true, level: "experimental" })).toBe(
+    expect(formatWikitext(input, {
+      formatTables: true,
+      level: "experimental",
+      tableCellSeparatorStyle: "split",
+    })).toBe(
       "{| class=\"wikitable\"\n! A\n! B\n|}\n",
     );
   });

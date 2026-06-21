@@ -77,6 +77,14 @@ function parseArgs(args: string[]): CliOptions {
       case "--no-format-categories": options.formatCategories = false; break;
       case "--format-tables": options.formatTables = true; break;
       case "--no-format-tables": options.formatTables = false; break;
+      case "--table-cell-separator-style": {
+        const value = args[++index];
+        if (value !== "auto" && value !== "split" && value !== "preserve") {
+          throw new Error("--table-cell-separator-style must be auto, split, or preserve");
+        }
+        options.tableCellSeparatorStyle = value;
+        break;
+      }
       case "--no-normalize-blank-lines": options.normalizeBlankLines = false; break;
       case "--help": stdout.write(`${usage()}\n`); process.exit(0); break;
       default:
@@ -134,8 +142,9 @@ function debugResult(
   const config = configPath ? ` config=${configPath}` : " config=defaults";
   stderr.write(`${label}: debug: mode=${mode} level=${level} status=${status}${config}\n`);
   for (const diagnostic of result.tableDiagnostics) {
+    const style = diagnostic.separatorStyle ? ` using ${diagnostic.separatorStyle} style` : "";
     const outcome = diagnostic.changed
-      ? diagnostic.reason ?? "formatted"
+      ? `formatted${style}${diagnostic.reason ? " with skipped unsafe lines" : ""}`
       : `skipped: ${diagnostic.reason ?? "unknown reason"}`;
     stderr.write(`${label}: table at line ${diagnostic.line} ${outcome}\n`);
   }
