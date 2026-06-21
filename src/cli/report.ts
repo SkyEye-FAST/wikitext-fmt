@@ -42,6 +42,8 @@ export function createBatchReport(files: FileDiagnostics[]): BatchReport {
         diagnostics.localizedDefaultsortAliasesCanonicalized,
       localizedBehaviorSwitchesCanonicalized:
         diagnostics.localizedBehaviorSwitchesCanonicalized,
+      interlanguageLinksMoved: diagnostics.interlanguageLinksMoved,
+      interlanguageLinksFormatted: diagnostics.interlanguageLinksFormatted,
       redirectsFormatted: diagnostics.redirectsFormatted,
       localizedRedirectAliasesCanonicalized:
         diagnostics.localizedRedirectAliasesCanonicalized,

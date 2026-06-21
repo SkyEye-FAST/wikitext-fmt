@@ -57,6 +57,12 @@ Without `--write`, formatted wikitext is written to stdout. `--check` writes not
 --no-format-categories
 --no-format-lists
 --no-format-file-links
+--format-interlanguage-links
+--no-format-interlanguage-links
+--interlanguage-placement preserve|footer
+--interlanguage-prefixes en,ja,zh
+--format-section-spacing
+--no-format-section-spacing
 --no-format-redirects
 --no-format-behavior-switches
 --behavior-switch-placement preserve|footer
@@ -74,7 +80,7 @@ Explicit files and glob patterns can be mixed. Expanded paths are deduplicated a
 
 `--diff` writes unified diffs to stdout without modifying files and exits with status 1 when formatting would change the input. Diffs use three context lines by default and separate distant changes into multiple hunks. It works with file paths, globs, and `--stdin` (labelled `stdin`), and cannot be combined with `--write`.
 
-`--diagnostics-json` writes one JSON object per input to stderr. Each object includes `file`, `changed`, `warning`, table counters, footer counters (`behaviorSwitchesMoved`, `behaviorSwitchesFormatted`, `defaultsortMoved`, and `categoriesMoved`), redirect counters (`redirectsFormatted`), file-link counters (`fileLinksFormatted`), canonicalization counters (`localizedCategoryAliasesCanonicalized`, `localizedDefaultsortAliasesCanonicalized`, `localizedBehaviorSwitchesCanonicalized`, `localizedRedirectAliasesCanonicalized`, `localizedFileNamespaceAliasesCanonicalized`, and `localizedImageOptionsCanonicalized`), and complete table diagnostics. Formatted text or diffs remain on stdout. JSON diagnostics cannot be combined with the text-oriented `--debug` mode.
+`--diagnostics-json` writes one JSON object per input to stderr. Each object includes `file`, `changed`, `warning`, table counters, footer counters (`behaviorSwitchesMoved`, `behaviorSwitchesFormatted`, `defaultsortMoved`, `categoriesMoved`, `interlanguageLinksMoved`, and `interlanguageLinksFormatted`), redirect counters (`redirectsFormatted`), file-link counters (`fileLinksFormatted`), canonicalization counters (`localizedCategoryAliasesCanonicalized`, `localizedDefaultsortAliasesCanonicalized`, `localizedBehaviorSwitchesCanonicalized`, `localizedRedirectAliasesCanonicalized`, `localizedFileNamespaceAliasesCanonicalized`, and `localizedImageOptionsCanonicalized`), and complete table diagnostics. Formatted text or diffs remain on stdout. JSON diagnostics cannot be combined with the text-oriented `--debug` mode.
 
 `--safe` enables parse-before, parse-after, and idempotency verification. If verification fails, the original input is returned and a warning is written to stderr. `--debug` writes the selected mode, rule level, and result status to stderr without contaminating formatted stdout.
 
@@ -125,6 +131,10 @@ Configuration keys match `FormatOptions`:
   "formatCategories": true,
   "formatLists": true,
   "formatFileLinks": true,
+  "formatInterlanguageLinks": false,
+  "interlanguagePlacement": "preserve",
+  "interlanguagePrefixes": ["en", "ja", "zh"],
+  "formatSectionSpacing": false,
   "formatRedirects": true,
   "formatBehaviorSwitches": true,
   "behaviorSwitchPlacement": "preserve",
@@ -168,6 +178,10 @@ const output = formatWikitext(source, {
   formatCategories: true,
   formatLists: true,
   formatFileLinks: true,
+  formatInterlanguageLinks: false,
+  interlanguagePlacement: "preserve",
+  interlanguagePrefixes: ["en", "ja", "zh"],
+  formatSectionSpacing: false,
   formatRedirects: true,
   formatBehaviorSwitches: true,
   behaviorSwitchPlacement: "preserve",
@@ -207,6 +221,8 @@ Every current rule has an exported reliability level in `ruleLevels`:
 - `categories`: `normal`
 - `lists`: `normal`
 - `fileLinks`: `normal`
+- `interlanguageLinks`: `experimental`
+- `sectionSpacing`: `experimental`
 - `redirects`: `normal`
 - `behaviorSwitches`: `normal`
 - `htmlVoidTags`: `safe`
@@ -262,6 +278,30 @@ __NOEDITSECTION__
 ```
 
 Standalone aliases for the MediaWiki `defaultsort` magic-word ID move before recognized namespace-ID-14 category links. Categories retain titles, sort keys, and relative order; category-talk namespaces and unknown category-like links remain in place. Disable switch handling with `--no-format-behavior-switches` or `formatBehaviorSwitches: false`.
+
+## Experimental interlanguage footer formatting
+
+Interlanguage link movement is experimental and disabled by default because many modern Wikimedia sites rely on Wikidata rather than page-local language links.
+
+Enable it explicitly:
+
+```sh
+wikitext-fmt page.wiki --level experimental --format-interlanguage-links --interlanguage-placement footer
+```
+
+The rule recognizes only standalone whole-line links with configured prefixes, such as `[[en:Foo]]`, `[[ja:Foo]]`, or `[[zh:Foo]]`. It does not handle `[[:en:Foo]]`, labelled links, embedded links, category links, file links, template arguments, table lines, multiple links on one line, or unknown prefixes. Targets and prefix spelling are preserved exactly and links are never sorted.
+
+When `interlanguagePlacement` is `footer`, recognized links move to the very end of the page, after categories, preserving their relative order. `interlanguagePrefixes` defaults to a small documented set of common language codes and can be replaced with a comma-separated CLI value or config array.
+
+## Experimental section spacing
+
+Section spacing is experimental and disabled by default. Enable it with:
+
+```sh
+wikitext-fmt page.wiki --level experimental --format-section-spacing
+```
+
+The rule only inserts a single blank line before or after headings when the adjacent line is ordinary paragraph text. It avoids headings at the start of the file and does not alter spacing next to templates, tables, lists, comments, behavior switches, categories, redirects, file links, HTML or extension tags, or protected blocks. It does not change heading marker spacing; that remains the heading rule's job.
 
 ### Localization data
 
@@ -327,6 +367,8 @@ wikitext-fmt page.wiki --safe --debug --level experimental --format-tables
 - Only standalone category namespace aliases backed by the selected localization data are moved; categories are never sorted.
 - List formatting is limited to safe spacing and trailing-whitespace cleanup on ordinary single-line items.
 - File/image link formatting is limited to one safe standalone file link per line; captions and values are preserved.
+- Interlanguage link movement is experimental, disabled by default, and limited to standalone unlabelled links with configured prefixes.
+- Section spacing is experimental, disabled by default, and only applies around headings adjacent to ordinary paragraph text.
 - Only aliases backed by built-in MediaWiki data, siteinfo, or explicit custom configuration participate in footer formatting.
 - Experimental table formatting is disabled by default and only handles simple standalone wikitables.
 - Unsafe template- or HTML-containing table lines are preserved even when other safe rows are formatted.

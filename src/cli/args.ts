@@ -150,6 +150,42 @@ export function parseArgs(args: string[]): CliOptions {
       case "--no-format-file-links":
         options.formatFileLinks = false;
         break;
+      case "--format-interlanguage-links":
+        options.formatInterlanguageLinks = true;
+        break;
+      case "--no-format-interlanguage-links":
+        options.formatInterlanguageLinks = false;
+        break;
+      case "--interlanguage-placement": {
+        const value = args[++index];
+        if (value !== "preserve" && value !== "footer") {
+          throw new Error(
+            "--interlanguage-placement must be preserve or footer",
+          );
+        }
+        options.interlanguagePlacement = value;
+        break;
+      }
+      case "--interlanguage-prefixes": {
+        const value = args[++index];
+        if (!value)
+          throw new Error("--interlanguage-prefixes requires a value");
+        options.interlanguagePrefixes = value
+          .split(",")
+          .map((prefix) => prefix.trim())
+          .filter(Boolean);
+        if (options.interlanguagePrefixes.length === 0)
+          throw new Error(
+            "--interlanguage-prefixes requires at least one prefix",
+          );
+        break;
+      }
+      case "--format-section-spacing":
+        options.formatSectionSpacing = true;
+        break;
+      case "--no-format-section-spacing":
+        options.formatSectionSpacing = false;
+        break;
       case "--no-format-behavior-switches":
         options.formatBehaviorSwitches = false;
         break;

@@ -2,6 +2,7 @@ export type FormatLevel = "safe" | "normal" | "experimental";
 export type HtmlVoidTagStyle = "html5" | "xhtml" | "preserve";
 export type TableCellSeparatorStyle = "auto" | "split" | "preserve";
 export type BehaviorSwitchPlacement = "preserve" | "footer";
+export type InterlanguagePlacement = "preserve" | "footer";
 export type LocalizationSource = "builtin" | "siteinfo" | "custom";
 export type LocalizedSyntaxStyle = "preserve" | "canonical-english";
 
@@ -22,6 +23,10 @@ export interface FormatOptions {
   formatCategories?: boolean;
   formatLists?: boolean;
   formatFileLinks?: boolean;
+  formatInterlanguageLinks?: boolean;
+  interlanguagePlacement?: InterlanguagePlacement;
+  interlanguagePrefixes?: string[];
+  formatSectionSpacing?: boolean;
   formatBehaviorSwitches?: boolean;
   formatRedirects?: boolean;
   behaviorSwitchPlacement?: BehaviorSwitchPlacement;
@@ -43,6 +48,10 @@ export interface ResolvedFormatOptions {
   formatCategories: boolean;
   formatLists: boolean;
   formatFileLinks: boolean;
+  formatInterlanguageLinks: boolean;
+  interlanguagePlacement: InterlanguagePlacement;
+  interlanguagePrefixes: string[];
+  formatSectionSpacing: boolean;
   formatBehaviorSwitches: boolean;
   formatRedirects: boolean;
   behaviorSwitchPlacement: BehaviorSwitchPlacement;
@@ -64,6 +73,24 @@ export const defaultOptions: Readonly<ResolvedFormatOptions> = {
   formatCategories: true,
   formatLists: true,
   formatFileLinks: true,
+  formatInterlanguageLinks: false,
+  interlanguagePlacement: "preserve",
+  interlanguagePrefixes: [
+    "ar",
+    "de",
+    "en",
+    "es",
+    "fr",
+    "it",
+    "ja",
+    "ko",
+    "pl",
+    "pt",
+    "ru",
+    "uk",
+    "zh",
+  ],
+  formatSectionSpacing: false,
   formatBehaviorSwitches: true,
   formatRedirects: true,
   behaviorSwitchPlacement: "preserve",

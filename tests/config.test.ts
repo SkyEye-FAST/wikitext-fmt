@@ -154,6 +154,22 @@ describe("CLI configuration", () => {
     });
   });
 
+  it("accepts experimental interlanguage and section spacing configuration", () => {
+    expect(
+      validateConfig({
+        formatInterlanguageLinks: true,
+        interlanguagePlacement: "footer",
+        interlanguagePrefixes: ["en", "ja", "zh-classical"],
+        formatSectionSpacing: true,
+      }),
+    ).toEqual({
+      formatInterlanguageLinks: true,
+      interlanguagePlacement: "footer",
+      interlanguagePrefixes: ["en", "ja", "zh-classical"],
+      formatSectionSpacing: true,
+    });
+  });
+
   it("accepts redirect formatting configuration", () => {
     expect(
       validateConfig({

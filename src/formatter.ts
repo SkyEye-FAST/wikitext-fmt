@@ -19,6 +19,7 @@ import {
   formatRedirects,
   type RedirectDiagnostics,
 } from "./rules/redirects.js";
+import { formatSectionSpacing } from "./rules/sectionSpacing.js";
 import {
   formatTablesWithDiagnostics,
   lineNumberAt,
@@ -46,6 +47,8 @@ const emptyFooterDiagnostics = (): FooterDiagnostics => ({
   localizedCategoryAliasesCanonicalized: 0,
   localizedDefaultsortAliasesCanonicalized: 0,
   localizedBehaviorSwitchesCanonicalized: 0,
+  interlanguageLinksMoved: 0,
+  interlanguageLinksFormatted: 0,
 });
 
 const emptyRedirectDiagnostics = (): RedirectDiagnostics => ({
@@ -158,6 +161,12 @@ export function formatWikitextDetailedResult(
     if (resolved.formatLists && isRuleEnabled("lists", resolved.level))
       output = formatLists(output);
     if (
+      resolved.formatSectionSpacing &&
+      isRuleEnabled("sectionSpacing", resolved.level)
+    ) {
+      output = formatSectionSpacing(output);
+    }
+    if (
       resolved.normalizeBlankLines &&
       isRuleEnabled("blankLines", resolved.level)
     ) {
@@ -171,10 +180,20 @@ export function formatWikitextDetailedResult(
     const behaviorSwitchesEnabled =
       resolved.formatBehaviorSwitches &&
       isRuleEnabled("behaviorSwitches", resolved.level);
-    if (categoriesEnabled || behaviorSwitchesEnabled) {
+    const interlanguageLinksEnabled =
+      resolved.formatInterlanguageLinks &&
+      isRuleEnabled("interlanguageLinks", resolved.level);
+    if (
+      categoriesEnabled ||
+      behaviorSwitchesEnabled ||
+      interlanguageLinksEnabled
+    ) {
       const footer = formatPageFooter(output, config, {
         formatCategories: categoriesEnabled,
         formatBehaviorSwitches: behaviorSwitchesEnabled,
+        formatInterlanguageLinks: interlanguageLinksEnabled,
+        interlanguagePlacement: resolved.interlanguagePlacement,
+        interlanguagePrefixes: resolved.interlanguagePrefixes,
         behaviorSwitchPlacement: resolved.behaviorSwitchPlacement,
         localizationSource: resolved.localizationSource,
         localizedSyntaxStyle: resolved.localizedSyntaxStyle,

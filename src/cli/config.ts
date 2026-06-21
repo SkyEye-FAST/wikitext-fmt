@@ -5,6 +5,7 @@ import type {
   FormatOptions,
   BehaviorSwitchPlacement,
   HtmlVoidTagStyle,
+  InterlanguagePlacement,
   LocalizationAliases,
   LocalizationSource,
   LocalizedSyntaxStyle,
@@ -82,6 +83,10 @@ export function validateConfig(value: unknown): FormatOptions {
     "formatCategories",
     "formatLists",
     "formatFileLinks",
+    "formatInterlanguageLinks",
+    "interlanguagePlacement",
+    "interlanguagePrefixes",
+    "formatSectionSpacing",
     "formatBehaviorSwitches",
     "formatRedirects",
     "behaviorSwitchPlacement",
@@ -120,6 +125,8 @@ export function validateConfig(value: unknown): FormatOptions {
     "formatCategories",
     "formatLists",
     "formatFileLinks",
+    "formatInterlanguageLinks",
+    "formatSectionSpacing",
     "formatBehaviorSwitches",
     "formatRedirects",
     "formatTables",
@@ -154,6 +161,16 @@ export function validateConfig(value: unknown): FormatOptions {
       "behaviorSwitchPlacement",
       ["preserve", "footer"],
     );
+  }
+  if (record.interlanguagePlacement !== undefined) {
+    assertEnum<InterlanguagePlacement>(
+      record.interlanguagePlacement,
+      "interlanguagePlacement",
+      ["preserve", "footer"],
+    );
+  }
+  if (record.interlanguagePrefixes !== undefined) {
+    validateStringArray(record.interlanguagePrefixes, "interlanguagePrefixes");
   }
   if (record.localizationSource !== undefined) {
     assertEnum<LocalizationSource>(

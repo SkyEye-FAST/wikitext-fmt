@@ -16,6 +16,8 @@ export interface FooterDiagnostics {
   localizedCategoryAliasesCanonicalized: number;
   localizedDefaultsortAliasesCanonicalized: number;
   localizedBehaviorSwitchesCanonicalized: number;
+  interlanguageLinksMoved: number;
+  interlanguageLinksFormatted: number;
 }
 
 export interface PageFooterResult {
@@ -117,6 +119,20 @@ function matchCategory(
   };
 }
 
+function matchInterlanguageLink(
+  line: string,
+  prefixes: ReadonlySet<string>,
+): { value: string } | undefined {
+  const trimmed = line.trimEnd();
+  if (line.trimStart() !== line) return undefined;
+  const match = /^\[\[([^:\]\n]+):([^\]\n|]+)\]\]$/u.exec(trimmed);
+  if (!match?.[1] || match[2] === undefined) return undefined;
+  const prefix = match[1].toLocaleLowerCase();
+  if (!prefixes.has(prefix)) return undefined;
+  if (/^(?:category|file|image)$/iu.test(prefix)) return undefined;
+  return { value: `[[${match[1]}:${match[2]}]]` };
+}
+
 function matchDefaultsort(
   line: string,
   aliases: readonly string[],
@@ -160,6 +176,9 @@ export function formatPageFooter(
   options: Pick<
     ResolvedFormatOptions,
     | "formatCategories"
+    | "formatInterlanguageLinks"
+    | "interlanguagePlacement"
+    | "interlanguagePrefixes"
     | "formatBehaviorSwitches"
     | "behaviorSwitchPlacement"
     | "localizationSource"
@@ -175,6 +194,8 @@ export function formatPageFooter(
     localizedCategoryAliasesCanonicalized: 0,
     localizedDefaultsortAliasesCanonicalized: 0,
     localizedBehaviorSwitchesCanonicalized: 0,
+    interlanguageLinksMoved: 0,
+    interlanguageLinksFormatted: 0,
   };
   const finalNewline = hasFinalNewline(source);
   const lines = source.split("\n");
@@ -189,6 +210,11 @@ export function formatPageFooter(
     ),
   );
   const switchAliases = behaviorLookup(aliases.behaviorSwitches);
+  const interlanguagePrefixes = new Set(
+    (options.interlanguagePrefixes ?? []).map((prefix) =>
+      prefix.toLocaleLowerCase(),
+    ),
+  );
   const canonicalEnglish = options.localizedSyntaxStyle === "canonical-english";
   const ranges = templateRanges(source, config);
   const lineStarts: number[] = [];
@@ -266,12 +292,38 @@ export function formatPageFooter(
     }
   }
 
+  const interlanguageLinks: FooterEntry[] = [];
+  const interlanguageIndexes = new Set<number>();
+  if (options.formatInterlanguageLinks) {
+    for (const [index, line] of lines.entries()) {
+      const value = matchInterlanguageLink(line, interlanguagePrefixes);
+      const start = lineStarts[index] ?? 0;
+      if (
+        !value ||
+        isInsideTemplate(start, start + line.trimEnd().length, ranges)
+      )
+        continue;
+      if (value.value !== line) diagnostics.interlanguageLinksFormatted++;
+      interlanguageLinks.push({
+        index,
+        value: value.value,
+        originalValue: line.trimEnd(),
+      });
+      interlanguageIndexes.add(index);
+    }
+  }
+
   if (
     categories.length === 0 &&
     defaultsorts.length === 0 &&
+    (options.interlanguagePlacement === "preserve" ||
+      interlanguageLinks.length === 0) &&
     options.behaviorSwitchPlacement === "preserve"
   ) {
     for (const entry of behaviorSwitches) lines[entry.index] = entry.value;
+    if (options.interlanguagePlacement === "preserve") {
+      for (const entry of interlanguageLinks) lines[entry.index] = entry.value;
+    }
     return {
       formatted: withFinalNewline(lines.join("\n"), finalNewline),
       diagnostics,
@@ -290,6 +342,9 @@ export function formatPageFooter(
         )
       : [];
   const removedIndexes = new Set([...categoryIndexes, ...defaultsortIndexes]);
+  if (options.interlanguagePlacement === "footer") {
+    for (const index of interlanguageIndexes) removedIndexes.add(index);
+  }
   if (options.behaviorSwitchPlacement === "footer") {
     for (const index of behaviorSwitchIndexes) removedIndexes.add(index);
   }
@@ -297,6 +352,14 @@ export function formatPageFooter(
   const bodyLines = lines.filter((_, index) => !removedIndexes.has(index));
   if (options.behaviorSwitchPlacement === "preserve") {
     for (const entry of behaviorSwitches) {
+      const removedBefore = [...removedIndexes].filter(
+        (index) => index < entry.index,
+      ).length;
+      bodyLines[entry.index - removedBefore] = entry.value;
+    }
+  }
+  if (options.interlanguagePlacement === "preserve") {
+    for (const entry of interlanguageLinks) {
       const removedBefore = [...removedIndexes].filter(
         (index) => index < entry.index,
       ).length;
@@ -315,6 +378,12 @@ export function formatPageFooter(
     .map(({ value }) => value)
     .join("\n");
   if (metadata) groups.push(metadata);
+  if (
+    options.interlanguagePlacement === "footer" &&
+    interlanguageLinks.length > 0
+  ) {
+    groups.push(interlanguageLinks.map(({ value }) => value).join("\n"));
+  }
   const formatted = withFinalNewline(groups.join("\n\n"), finalNewline);
   const outputLines = formatted.split("\n");
 
@@ -326,5 +395,11 @@ export function formatPageFooter(
   }
   diagnostics.defaultsortMoved = countMoved(defaultsorts, outputLines);
   diagnostics.categoriesMoved = countMoved(categories, outputLines);
+  if (options.interlanguagePlacement === "footer") {
+    diagnostics.interlanguageLinksMoved = countMoved(
+      interlanguageLinks,
+      outputLines,
+    );
+  }
   return { formatted, diagnostics };
 }

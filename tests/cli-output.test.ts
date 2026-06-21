@@ -119,6 +119,8 @@ describe("CLI output helpers", () => {
       localizedCategoryAliasesCanonicalized: 0,
       localizedDefaultsortAliasesCanonicalized: 0,
       localizedBehaviorSwitchesCanonicalized: 0,
+      interlanguageLinksMoved: 0,
+      interlanguageLinksFormatted: 0,
       redirectsFormatted: 0,
       localizedRedirectAliasesCanonicalized: 0,
       fileLinksFormatted: 0,

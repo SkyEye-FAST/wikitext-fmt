@@ -13,6 +13,7 @@ export {
   type FormatLevel,
   type FormatOptions,
   type HtmlVoidTagStyle,
+  type InterlanguagePlacement,
   type LocalizationAliases,
   type LocalizationSource,
   type LocalizedSyntaxStyle,

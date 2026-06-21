@@ -42,6 +42,8 @@ describe("formatter API", () => {
       categories: "normal",
       lists: "normal",
       fileLinks: "normal",
+      interlanguageLinks: "experimental",
+      sectionSpacing: "experimental",
       redirects: "normal",
       behaviorSwitches: "normal",
       htmlVoidTags: "safe",
