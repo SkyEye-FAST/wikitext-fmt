@@ -1,0 +1,13 @@
+{| class="wikitable"
+! Item !! Value
+|-
+| Safe row || 10
+|-
+| Template row || {{N/a}}
+|-
+| Tagged row || <span class="status">pending</span>
+|-
+| data-note="A || B" | Quoted separator || 12
+|-
+| Final row || 14
+|}

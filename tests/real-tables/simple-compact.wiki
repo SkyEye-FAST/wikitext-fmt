@@ -1,0 +1,8 @@
+{| class="wikitable"
+|+ Regional totals
+! Region !! Requests !! Success
+|-
+| [[Northern district|North]] || 1,204 || 98.4%
+|-
+| [[Southern district|South]] || 986 || 97.9%
+|}
