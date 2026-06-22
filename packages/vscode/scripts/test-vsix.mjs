@@ -5,7 +5,8 @@ import {
   runTests,
 } from "@vscode/test-electron";
 import { spawn } from "node:child_process";
-import { access, readdir } from "node:fs/promises";
+import { access, mkdtemp, readdir } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -20,7 +21,7 @@ process.env.DONT_PROMPT_WSL_INSTALL = "1";
 async function findVsix() {
   const entries = await readdir(packageRoot);
   const candidates = entries
-    .filter((entry) => /^wikitext-fmt-vscode-.*\.vsix$/.test(entry))
+    .filter((entry) => /^wikitext-formatter-.*\.vsix$/.test(entry))
     .sort();
   const latest = candidates.at(-1);
   if (!latest) {
@@ -67,16 +68,39 @@ async function waitForProcess(child, description, timeoutMs = 30_000) {
   }
 }
 
-async function installVsix(vscodeExecutablePath, vsix) {
+function stripCliOption(args, option) {
+  const stripped = [];
+  for (let index = 0; index < args.length; index += 1) {
+    if (args[index] === option) {
+      index += 1;
+      continue;
+    }
+    if (args[index]?.startsWith(`${option}=`)) {
+      continue;
+    }
+    stripped.push(args[index]);
+  }
+  return stripped;
+}
+
+async function installVsix(vscodeExecutablePath, vsix, extensionsDir) {
   const [cli, ...profileArgs] =
     resolveCliArgsFromVSCodeExecutablePath(vscodeExecutablePath);
   if (!cli) {
     throw new Error("Could not resolve VS Code CLI path");
   }
+  const installProfileArgs = stripCliOption(profileArgs, "--extensions-dir");
 
   const child = spawn(
     cli,
-    [...profileArgs, "--install-extension", vsix, "--force"],
+    [
+      ...installProfileArgs,
+      "--extensions-dir",
+      extensionsDir,
+      "--install-extension",
+      vsix,
+      "--force",
+    ],
     {
       stdio: "inherit",
       env: {
@@ -96,11 +120,14 @@ await assertCopiedRuntimeAssetsExist();
 
 const vsix = await findVsix();
 const vscodeExecutablePath = await downloadAndUnzipVSCode();
-await installVsix(vscodeExecutablePath, vsix);
+const extensionsDir = await mkdtemp(
+  resolve(tmpdir(), "wikitext-formatter-ext-"),
+);
+await installVsix(vscodeExecutablePath, vsix, extensionsDir);
 
 await runTests({
   extensionTestsPath: resolve(packageRoot, "dist-test/test/suite/index.js"),
-  launchArgs: [],
+  launchArgs: ["--extensions-dir", extensionsDir],
   vscodeExecutablePath: resolveCliPathFromVSCodeExecutablePath(
     vscodeExecutablePath,
   ).replace(/\/bin\/code$/, "/code"),

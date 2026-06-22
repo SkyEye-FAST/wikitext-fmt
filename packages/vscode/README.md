@@ -1,4 +1,4 @@
-# wikitext-fmt for VS Code
+# Wikitext Formatter for VS Code
 
 This is the initial VS Code wrapper for `wikitext-fmt`, a conservative MediaWiki wikitext formatter. The extension calls the existing `wikitext-fmt` core API; it does not duplicate formatter rules. The VSIX build is bundled, so installed extensions do not rely on pnpm workspace links being present at runtime.
 
@@ -9,7 +9,7 @@ This is the initial VS Code wrapper for `wikitext-fmt`, a conservative MediaWiki
 - Also registers a formatter for the `mediawiki` language id when another extension provides that language.
 - Provides the `wikitext-fmt.formatDocument` command.
 
-This wrapper does not provide syntax highlighting, an LSP server, siteinfo fetching, or Marketplace publishing setup.
+This wrapper does not provide syntax highlighting, an LSP server, or siteinfo fetching. Packaging metadata is included, but publishing is intentionally manual.
 
 ## Usage
 
@@ -20,7 +20,7 @@ To enable format-on-save:
 ```json
 {
   "[wikitext]": {
-    "editor.defaultFormatter": "skyeye-fast.wikitext-fmt-vscode",
+    "editor.defaultFormatter": "skyeye-fast.wikitext-formatter",
     "editor.formatOnSave": true
   }
 }
@@ -31,7 +31,7 @@ If you use another extension that contributes the `mediawiki` language id:
 ```json
 {
   "[mediawiki]": {
-    "editor.defaultFormatter": "skyeye-fast.wikitext-fmt-vscode",
+    "editor.defaultFormatter": "skyeye-fast.wikitext-formatter",
     "editor.formatOnSave": true
   }
 }
@@ -92,13 +92,14 @@ Use an explicit config path:
 ## Build and package
 
 ```sh
-pnpm --filter wikitext-fmt-vscode typecheck
-pnpm --filter wikitext-fmt-vscode build
-pnpm --filter wikitext-fmt-vscode test
-pnpm --filter wikitext-fmt-vscode test:extension
-pnpm --filter wikitext-fmt-vscode test:vsix
-pnpm --filter wikitext-fmt-vscode check:package-content
-pnpm --filter wikitext-fmt-vscode vscode:package
+pnpm --filter wikitext-formatter typecheck
+pnpm --filter wikitext-formatter build
+pnpm --filter wikitext-formatter test
+pnpm --filter wikitext-formatter test:extension
+pnpm --filter wikitext-formatter test:vsix
+pnpm --filter wikitext-formatter check:package-content
+pnpm --filter wikitext-formatter check:release
+pnpm --filter wikitext-formatter vscode:package
 ```
 
 `build` bundles `src/extension.ts`, `src/format.ts`, `wikitext-fmt`, and its JavaScript runtime dependencies into `dist/extension.js`; the VS Code API and Node built-ins remain external. It also copies the minimum `wikiparser-node` parser config assets needed at runtime under `dist/node_modules/` before `vsce package --no-dependencies` runs. Packaging is for local VSIX preparation only. Publishing is intentionally out of scope for this wrapper phase.

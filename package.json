@@ -25,9 +25,10 @@
     "build:all": "pnpm -r --sort build",
     "test": "vitest",
     "test:run": "vitest run",
-    "check": "pnpm build:all && pnpm --filter wikitext-fmt-vscode typecheck && pnpm --filter wikitext-fmt-vscode check:package-content && pnpm test:run && pnpm smoke",
-    "check:extension": "pnpm --filter wikitext-fmt-vscode test:extension",
-    "check:vsix": "pnpm --filter wikitext-fmt-vscode test:vsix",
+    "check": "pnpm build:all && pnpm --filter wikitext-formatter typecheck && pnpm --filter wikitext-formatter check:package-content && pnpm test:run && pnpm smoke",
+    "check:extension": "pnpm --filter wikitext-formatter test:extension",
+    "check:vsix": "pnpm --filter wikitext-formatter test:vsix",
+    "check:vscode-release": "pnpm --filter wikitext-formatter check:release",
     "smoke": "node dist/cli.js --help > /dev/null && node dist/cli.js --print-localization-aliases --localization-source builtin > /dev/null && node scripts/release-smoke.mjs",
     "release:smoke": "pnpm build && pnpm smoke",
     "localization:update": "node --experimental-strip-types scripts/update-mediawiki-aliases.ts"

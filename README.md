@@ -169,17 +169,18 @@ Unknown keys and invalid option values are rejected instead of being silently ig
 
 ## VS Code extension wrapper
 
-An initial VS Code wrapper lives in `packages/vscode`. It contributes the `wikitext` language id for `.wiki`, `.wikitext`, and `.mediawiki` files, registers Format Document providers for `wikitext` and `mediawiki`, and calls the existing formatter core API. The `mediawiki` formatter registration is compatibility support for users who already have another extension contributing that language id. The VSIX build is bundled and carries the minimum `wikiparser-node` parser config assets required at runtime under `dist/node_modules/`, so it does not rely on workspace dependencies after installation. This wrapper does not include syntax highlighting, an LSP server, siteinfo fetching, or Marketplace publishing.
+An initial VS Code wrapper lives in `packages/vscode`. It contributes the `wikitext` language id for `.wiki`, `.wikitext`, and `.mediawiki` files, registers Format Document providers for `wikitext` and `mediawiki`, and calls the existing formatter core API. The `mediawiki` formatter registration is compatibility support for users who already have another extension contributing that language id. The VSIX build is bundled and carries the minimum `wikiparser-node` parser config assets required at runtime under `dist/node_modules/`, so it does not rely on workspace dependencies after installation. This wrapper does not include syntax highlighting, an LSP server, or siteinfo fetching. Packaging metadata is included, but publishing is intentionally manual.
 
 Build it with:
 
 ```sh
-pnpm --filter wikitext-fmt-vscode typecheck
-pnpm --filter wikitext-fmt-vscode build
-pnpm --filter wikitext-fmt-vscode test
-pnpm --filter wikitext-fmt-vscode test:extension
-pnpm --filter wikitext-fmt-vscode test:vsix
-pnpm --filter wikitext-fmt-vscode vscode:package
+pnpm --filter wikitext-formatter typecheck
+pnpm --filter wikitext-formatter build
+pnpm --filter wikitext-formatter test
+pnpm --filter wikitext-formatter test:extension
+pnpm --filter wikitext-formatter test:vsix
+pnpm --filter wikitext-formatter check:release
+pnpm --filter wikitext-formatter vscode:package
 ```
 
 The extension package has its own README at `packages/vscode/README.md`.
@@ -213,11 +214,11 @@ Use VS Code's Format Document command, or enable format-on-save for wikitext fil
 ```json
 {
   "[wikitext]": {
-    "editor.defaultFormatter": "skyeye-fast.wikitext-fmt-vscode",
+    "editor.defaultFormatter": "skyeye-fast.wikitext-formatter",
     "editor.formatOnSave": true
   },
   "[mediawiki]": {
-    "editor.defaultFormatter": "skyeye-fast.wikitext-fmt-vscode",
+    "editor.defaultFormatter": "skyeye-fast.wikitext-formatter",
     "editor.formatOnSave": true
   }
 }

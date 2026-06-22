@@ -6,11 +6,24 @@
   "categories": [
     "Formatters"
   ],
+  "keywords": [
+    "wikitext",
+    "mediawiki",
+    "wiki",
+    "formatter",
+    "formatting"
+  ],
+  "qna": false,
+  "pricing": "Free",
+  "galleryBanner": {
+    "color": "#2f3340",
+    "theme": "dark"
+  },
   "contributes": {
     "commands": [
       {
         "command": "wikitext-fmt.formatDocument",
-        "title": "wikitext-fmt: Format Document"
+        "title": "Wikitext Formatter: Format Document"
       }
     ],
     "configuration": {
@@ -74,7 +87,7 @@
           ]
         }
       },
-      "title": "wikitext-fmt"
+      "title": "Wikitext Formatter"
     },
     "languages": [
       {
@@ -95,7 +108,7 @@
   "dependencies": {
     "wikitext-fmt": "workspace:*"
   },
-  "description": "VS Code wrapper for the conservative wikitext-fmt formatter",
+  "description": "Conservative MediaWiki wikitext formatter for VS Code",
   "devDependencies": {
     "@types/vscode": "^1.90.0",
     "@vscode/test-electron": "^2.5.2",
@@ -104,14 +117,17 @@
     "typescript": "^6.0.3",
     "vitest": "^4.1.9"
   },
-  "displayName": "wikitext-fmt",
+  "displayName": "Wikitext Formatter",
   "engines": {
     "vscode": "^1.90.0"
   },
   "license": "GPL-3.0-or-later",
+  "bugs": {
+    "url": "https://github.com/SkyEye-FAST/wikitext-fmt/issues"
+  },
+  "homepage": "https://github.com/SkyEye-FAST/wikitext-fmt#readme",
   "main": "./dist/extension.js",
-  "name": "wikitext-fmt-vscode",
-  "private": true,
+  "name": "wikitext-formatter",
   "publisher": "skyeye-fast",
   "repository": {
     "type": "git",
@@ -121,6 +137,7 @@
   "scripts": {
     "build": "pnpm --filter wikitext-fmt build && node scripts/build.mjs",
     "check:package-content": "node scripts/check-package-content.mjs",
+    "check:release": "pnpm typecheck && pnpm build && pnpm test && pnpm check:package-content && pnpm vscode:package",
     "package": "pnpm vscode:package",
     "test": "vitest run",
     "test:extension": "pnpm build && tsc -p tsconfig.test.json && node dist-test/test/runTest.js",

@@ -159,7 +159,7 @@ describe("VS Code formatter wrapper behavior", () => {
 
 describe("VS Code formatter wrapper config loading", () => {
   it("uses VS Code settings only when no config is found", async () => {
-    const root = await mkdtemp(join(tmpdir(), "wikitext-fmt-vscode-"));
+    const root = await mkdtemp(join(tmpdir(), "wikitext-formatter-"));
     const result = await resolveEditorSettings(config({}, true), {
       enabled: true,
       documentPath: join(root, "page.wiki"),
@@ -175,7 +175,7 @@ describe("VS Code formatter wrapper config loading", () => {
   });
 
   it("uses discovered config options", async () => {
-    const root = await mkdtemp(join(tmpdir(), "wikitext-fmt-vscode-"));
+    const root = await mkdtemp(join(tmpdir(), "wikitext-formatter-"));
     const nested = join(root, "pages", "nested");
     await mkdir(nested, { recursive: true });
     await writeFile(
@@ -200,7 +200,7 @@ describe("VS Code formatter wrapper config loading", () => {
   });
 
   it("lets explicit VS Code settings override config options", async () => {
-    const root = await mkdtemp(join(tmpdir(), "wikitext-fmt-vscode-"));
+    const root = await mkdtemp(join(tmpdir(), "wikitext-formatter-"));
     await writeFile(
       join(root, ".wikitextfmtrc"),
       JSON.stringify({ level: "experimental", formatTables: true }),
@@ -226,7 +226,7 @@ describe("VS Code formatter wrapper config loading", () => {
   });
 
   it("loads explicit config paths relative to the workspace folder", async () => {
-    const root = await mkdtemp(join(tmpdir(), "wikitext-fmt-vscode-"));
+    const root = await mkdtemp(join(tmpdir(), "wikitext-formatter-"));
     await writeFile(
       join(root, "formatter.json"),
       JSON.stringify({ htmlVoidTagStyle: "preserve" }),
@@ -250,7 +250,7 @@ describe("VS Code formatter wrapper config loading", () => {
   });
 
   it("ignores config files when config loading is disabled", async () => {
-    const root = await mkdtemp(join(tmpdir(), "wikitext-fmt-vscode-"));
+    const root = await mkdtemp(join(tmpdir(), "wikitext-formatter-"));
     await writeFile(
       join(root, ".wikitextfmtrc"),
       JSON.stringify({ level: "experimental" }),
@@ -270,7 +270,7 @@ describe("VS Code formatter wrapper config loading", () => {
   });
 
   it("returns a warning for invalid config", async () => {
-    const root = await mkdtemp(join(tmpdir(), "wikitext-fmt-vscode-"));
+    const root = await mkdtemp(join(tmpdir(), "wikitext-formatter-"));
     await writeFile(
       join(root, ".wikitextfmtrc"),
       JSON.stringify({ unknownOption: true }),
@@ -288,7 +288,7 @@ describe("VS Code formatter wrapper config loading", () => {
   });
 
   it("does not discover config for untitled documents", async () => {
-    const root = await mkdtemp(join(tmpdir(), "wikitext-fmt-vscode-"));
+    const root = await mkdtemp(join(tmpdir(), "wikitext-formatter-"));
     await writeFile(
       join(root, ".wikitextfmtrc"),
       JSON.stringify({ level: "experimental" }),

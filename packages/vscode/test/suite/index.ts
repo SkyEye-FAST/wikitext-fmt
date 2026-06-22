@@ -6,7 +6,7 @@ import * as vscode from "vscode";
 
 async function waitForExtensionActivation(): Promise<void> {
   const extension = vscode.extensions.getExtension(
-    "skyeye-fast.wikitext-fmt-vscode",
+    "skyeye-fast.wikitext-formatter",
   );
   assert.ok(extension, "extension should be discoverable by id");
   await extension.activate();
@@ -42,7 +42,7 @@ export async function run(): Promise<void> {
 
   assert.equal(editor.document.getText(), "== Title ==");
 
-  const root = await mkdtemp(join(tmpdir(), "wikitext-fmt-vscode-host-"));
+  const root = await mkdtemp(join(tmpdir(), "wikitext-formatter-host-"));
   await writeFile(
     join(root, ".wikitextfmtrc"),
     JSON.stringify({ htmlVoidTagStyle: "xhtml" }),

@@ -6,21 +6,35 @@ const required = [
   "dist/extension.js",
   "package.json",
   "README.md",
+  "CHANGELOG.md",
   "LICENSE",
   "dist/node_modules/wikiparser-node/package.json",
   "dist/node_modules/wikiparser-node/config/default.json",
 ];
-const forbidden = [
-  "src/extension.ts",
-  "src/format.ts",
-  "tests/format.test.ts",
-  "test/runTest.ts",
-  "scripts/build.mjs",
-  "tsconfig.json",
+const forbiddenFiles = ["tsconfig.json"];
+const forbiddenPatterns = [
+  /^src\//u,
+  /^tests\//u,
+  /^test\//u,
+  /^scripts\//u,
+  /^dist-test\//u,
+  /^fixtures\//u,
+  /^tsconfig.*\.json$/u,
+  /^vitest\.config\./u,
+  /\.vsix$/u,
 ];
 
 const missing = required.filter((file) => !files.includes(file));
-const includedForbidden = forbidden.filter((file) => files.includes(file));
+const includedForbiddenFiles = forbiddenFiles.filter((file) =>
+  files.includes(file),
+);
+const includedForbiddenPatterns = files.filter((file) =>
+  forbiddenPatterns.some((pattern) => pattern.test(file)),
+);
+const includedForbidden = [
+  ...includedForbiddenFiles,
+  ...includedForbiddenPatterns,
+];
 const wikiparserConfigFiles = files.filter((file) =>
   /^dist\/node_modules\/wikiparser-node\/config\/.+\.json$/.test(file),
 );
