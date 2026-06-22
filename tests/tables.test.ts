@@ -77,7 +77,7 @@ describe("experimental table analysis diagnostics", () => {
       "unsafe row",
       "{|\n! A !! B\n|-\n| {{N/a}} || 1\n|}",
       120,
-      "split",
+      "preserve",
       "contains skipped unsafe rows",
     ],
     [
@@ -165,13 +165,35 @@ describe("experimental table analysis diagnostics", () => {
     ).toEqual([]);
   });
 
-  it("reports partial formatting when unsafe rows are preserved", () => {
+  it("auto preserves inline separators when unsafe rows would cause partial splitting", () => {
     const result = formatWikitextDetailedResult(
       "{|\n! A !! B\n|-\n| {{N/a}} || 1\n|-\n| C || D\n|}\n",
       {
         level: "experimental",
         formatTables: true,
         tableCellSeparatorStyle: "auto",
+      },
+    );
+    expect(result.formatted).toBe(
+      "{|\n! A !! B\n|-\n| {{N/a}} || 1\n|-\n| C || D\n|}\n",
+    );
+    expect(result.tableDiagnostics).toEqual([
+      expect.objectContaining({
+        changed: false,
+        reason: "contains template or template-like syntax",
+        separatorStyle: "preserve",
+        separatorStyleReason: "contains skipped unsafe rows",
+      }),
+    ]);
+  });
+
+  it("explicit split still formats safe rows while preserving unsafe rows", () => {
+    const result = formatWikitextDetailedResult(
+      "{|\n! A !! B\n|-\n| {{N/a}} || 1\n|-\n| C || D\n|}\n",
+      {
+        level: "experimental",
+        formatTables: true,
+        tableCellSeparatorStyle: "split",
       },
     );
     expect(result.formatted).toContain("! A\n! B");
@@ -181,7 +203,8 @@ describe("experimental table analysis diagnostics", () => {
       expect.objectContaining({
         changed: true,
         reason: "formatted with skipped unsafe lines",
-        separatorStyleReason: "contains skipped unsafe rows",
+        separatorStyle: "split",
+        separatorStyleReason: "explicit split option",
       }),
     ]);
   });
@@ -250,7 +273,7 @@ describe("experimental table analysis diagnostics", () => {
     });
   });
 
-  it("preserves comments and continuation groups while formatting later safe rows", () => {
+  it("auto preserves inline separators when continuation groups would cause partial splitting", () => {
     const input = [
       "{|",
       "! Name !! Value",
@@ -265,6 +288,29 @@ describe("experimental table analysis diagnostics", () => {
     const result = analyzeSimpleTableForTesting(input, {
       lineWidth: 120,
       tableCellSeparatorStyle: "auto",
+    });
+    expect(result).toMatchObject({
+      changed: false,
+      separatorStyle: "preserve",
+      separatorStyleReason: "contains skipped unsafe rows",
+    });
+  });
+
+  it("explicit split preserves comments and continuation groups while formatting later safe rows", () => {
+    const input = [
+      "{|",
+      "! Name !! Value",
+      "|-",
+      "<!-- row comment -->",
+      "| Alpha",
+      "continued text",
+      "|-",
+      "| Beta || 2",
+      "|}",
+    ].join("\n");
+    const result = analyzeSimpleTableForTesting(input, {
+      lineWidth: 120,
+      tableCellSeparatorStyle: "split",
     });
     expect(result).toMatchObject({
       changed: true,

@@ -1,6 +1,5 @@
 {| class="wikitable"
-! Name
-! Value
+! Name !! Value
 |-
 | {{N/a}} || 1
 |-
@@ -8,6 +7,5 @@
 |-
 | data-x="A || B" | Gamma || 3
 |-
-| Delta
-| 4
+| Delta || 4
 |}

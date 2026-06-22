@@ -463,21 +463,21 @@ Enable the table pass explicitly:
 wikitext-fmt page.wiki --safe --level experimental --format-tables
 ```
 
-It currently trims trailing whitespace on recognized structural lines and handles only safely recognized same-line `!!` and `||` cells. Simple wikilinks, piped wikilinks, external links, and straightforward cell/header attributes are supported. Dedicated fixtures cover supported tables, partial row formatting, separator styles, and preserved unsafe cases.
+It currently trims trailing whitespace on recognized structural lines and handles only safely recognized same-line `!!` and `||` cells. Simple wikilinks, piped wikilinks, external links, and straightforward cell/header attributes are supported. Dedicated fixtures cover supported tables, separator styles, explicit best-effort splitting, and preserved unsafe cases.
 
 `tableCellSeparatorStyle` controls safe inline cell separators per table:
 
-- `auto` (default) preserves simple compact inline tables. It chooses split lines for cell attributes, four or more columns, safe inline lines exceeding `lineWidth`, already split or mixed layouts, skipped unsafe rows, and tables with 12 or more recognized cell lines.
-- `split` always splits safely recognized `!!` and `||` separators onto separate structural lines.
+- `auto` (default) preserves simple compact inline tables. It chooses split lines for cell attributes, four or more columns, safe inline lines exceeding `lineWidth`, already split or mixed layouts, and tables with 12 or more recognized cell lines, but only when doing so can keep the table internally consistent.
+- `split` always splits safely recognized `!!` and `||` separators onto separate structural lines, while still preserving unsafe rows unchanged.
 - `preserve` keeps safe inline separators and only performs conservative trailing-whitespace and structural cleanup.
 
-Auto detection is table-local rather than file-wide. Unsafe rows make auto prefer split style for the remaining safe rows, but those unsafe rows are still preserved unchanged. Explicit `split` and `preserve` settings override every auto heuristic.
+Auto detection is table-local rather than file-wide. If a table contains skipped unsafe cell/header rows or multiline continuation groups, auto mode preserves inline separator style for the whole table to avoid partial table-wide splitting. Use explicit `split` when you want best-effort splitting of safe rows while preserving unsafe rows unchanged. Explicit `split` and `preserve` settings override every auto heuristic.
 
 Debug diagnostics include both the selected style and reason, for example `formatted using split style: many columns`. These diagnostics are only written when `--debug` is enabled.
 
 Within a structurally safe table, safe rows may be formatted while cell lines containing templates, HTML or extension tags, unsafe separators, or unbalanced brackets/quotes remain byte-for-byte unchanged. Complete single-line HTML comments are recognized and preserved byte-for-byte without inspecting comment content; unclosed or multiline comments remain unsafe.
 
-Multiline cell continuation lines are also preserved conservatively. The cell line immediately preceding a continuation is not split, while later independent safe rows can still format. Nested or unbalanced tables, tables inside templates, tables containing other protected placeholders, and genuinely unclear line structures remain preserved entirely.
+Multiline cell continuation lines are also preserved conservatively. In `auto` mode, a continuation group makes the whole table keep inline separator style to avoid partial splitting. In explicit `split` mode, the cell line immediately preceding a continuation is not split, while later independent safe rows can still format. Nested or unbalanced tables, tables inside templates, tables containing other protected placeholders, and genuinely unclear line structures remain preserved entirely.
 
 Cell/header attribute analysis supports multiple quoted or unquoted ordinary attributes such as `colspan`, `rowspan`, `scope`, `class`, and `style`. Attributes stay on the first emitted cell and are never copied, reordered, or normalized. Separators inside quoted attribute values and uncertain attribute prefixes remain unsafe and prevent that line from being split. Row separator attributes such as `|- class="sortbottom"` are preserved exactly apart from trailing-whitespace cleanup.
 

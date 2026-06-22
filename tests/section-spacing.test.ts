@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { formatWikitext, formatWikitextDetailedResult } from "../src/index.js";
+import { formatSectionSpacing } from "../src/rules/sectionSpacing.js";
 
 const options = {
   level: "experimental" as const,
@@ -16,6 +17,25 @@ describe("experimental section spacing", () => {
     expect(formatWikitext("Intro\n==Title==\nText\n", options)).toBe(
       "Intro\n\n== Title ==\n\nText\n",
     );
+  });
+
+  it("adds one blank line after a heading followed by an ordinary paragraph", () => {
+    expect(formatSectionSpacing("== A ==\nText\n").formatted).toBe(
+      "== A ==\n\nText\n",
+    );
+  });
+
+  it("adds one blank line before a heading after an ordinary paragraph", () => {
+    expect(formatSectionSpacing("Intro\n== A ==\n").formatted).toBe(
+      "Intro\n\n== A ==\n",
+    );
+  });
+
+  it("keeps existing blank lines around headings stable", () => {
+    const input = "Intro\n\n== A ==\n\nText\n";
+    const once = formatSectionSpacing(input).formatted;
+    expect(once).toBe(input);
+    expect(formatSectionSpacing(once).formatted).toBe(once);
   });
 
   it("does not add a blank line at the start of the file", () => {
@@ -38,6 +58,40 @@ describe("experimental section spacing", () => {
   ])("preserves risky spacing context %s", (input) => {
     const output = formatWikitext(input, options);
     expect(output).not.toContain("\n\n== Title ==");
+  });
+
+  it.each([
+    ["template", "{{Infobox}}"],
+    ["table start", "{|"],
+    ["table end", "|}"],
+    ["list", "* Item"],
+    ["category", "[[Category:A]]"],
+    ["file link", "[[File:A.png|thumb]]"],
+    ["HTML tag", "<span>Text</span>"],
+    ["extension tag", "<ref>Text</ref>"],
+    ["comment", "<!-- comment -->"],
+    ["behavior switch", "__NOTOC__"],
+  ])("does not insert spacing before a heading after %s", (_name, risky) => {
+    expect(formatSectionSpacing(`${risky}\n== A ==\n`).formatted).toBe(
+      `${risky}\n== A ==\n`,
+    );
+  });
+
+  it.each([
+    ["template", "{{Infobox}}"],
+    ["table start", "{|"],
+    ["table end", "|}"],
+    ["list", "* Item"],
+    ["category", "[[Category:A]]"],
+    ["file link", "[[File:A.png|thumb]]"],
+    ["HTML tag", "<span>Text</span>"],
+    ["extension tag", "<ref>Text</ref>"],
+    ["comment", "<!-- comment -->"],
+    ["behavior switch", "__NOTOC__"],
+  ])("does not insert spacing after a heading before %s", (_name, risky) => {
+    expect(formatSectionSpacing(`== A ==\n${risky}\n`).formatted).toBe(
+      `== A ==\n${risky}\n`,
+    );
   });
 
   it("can be explicitly disabled", () => {

@@ -39,6 +39,15 @@ const matrix: Array<{ name: string; options: FormatOptions }> = [
     },
   },
   {
+    name: "experimental tables and section spacing",
+    options: {
+      level: "experimental",
+      formatTables: true,
+      tableCellSeparatorStyle: "auto",
+      formatSectionSpacing: true,
+    },
+  },
+  {
     name: "experimental references",
     options: {
       level: "experimental",

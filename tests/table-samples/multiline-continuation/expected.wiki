@@ -1,12 +1,10 @@
 {| class="wikitable"
-! Item
-! Notes
+! Item !! Notes
 |-
 | Alpha
 First observation line
 
 Second observation line
 |-
-| Beta
-| Complete
+| Beta || Complete
 |}
