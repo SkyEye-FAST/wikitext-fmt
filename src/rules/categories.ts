@@ -1,11 +1,17 @@
 import type { Config } from "wikiparser-node";
 import type { ResolvedFormatOptions } from "../options.js";
 import {
+  collectNodeRanges,
+  createParserContext,
+  isRangeInside,
+  type ParsedDocumentContext,
+  type SourceRange,
+} from "../parserContext.js";
+import {
   behaviorSwitchIds,
   resolveLocalizationAliases,
   type BehaviorSwitchId,
 } from "../localization/aliases.js";
-import { parseWikitext } from "../parser.js";
 import { hasFinalNewline, withFinalNewline } from "../utils/text.js";
 
 export interface FooterDiagnostics {
@@ -75,26 +81,12 @@ export function isStandaloneBehaviorSwitchLine(
 function templateRanges(
   source: string,
   config: Config,
-): Array<{ start: number; end: number }> {
-  return parseWikitext(source, config)
-    .querySelectorAll("template")
-    .map((node) => ({
-      start: node.getAbsoluteIndex(),
-      end: node.getAbsoluteIndex() + node.toString().length,
-    }));
-}
-
-function isInsideTemplate(
-  start: number,
-  end: number,
-  ranges: ReadonlyArray<{ start: number; end: number }>,
-): boolean {
-  return ranges.some(
-    (range) =>
-      range.start <= start &&
-      range.end >= end &&
-      (range.start < start || range.end > end),
-  );
+  context?: ParsedDocumentContext,
+): SourceRange[] {
+  // Parser contexts are valid only for the exact source snapshot used to build
+  // them. Callers must recreate the context after any prior rule changes text.
+  const current = context ?? createParserContext(source, config);
+  return collectNodeRanges(current.root, "template");
 }
 
 function matchCategory(
@@ -185,6 +177,7 @@ export function formatPageFooter(
     | "localizedSyntaxStyle"
     | "localizationAliases"
   >,
+  context?: ParsedDocumentContext,
 ): PageFooterResult {
   const diagnostics: FooterDiagnostics = {
     behaviorSwitchesMoved: 0,
@@ -216,12 +209,14 @@ export function formatPageFooter(
     ),
   );
   const canonicalEnglish = options.localizedSyntaxStyle === "canonical-english";
-  const ranges = templateRanges(source, config);
-  const lineStarts: number[] = [];
-  let offset = 0;
-  for (const line of lines) {
-    lineStarts.push(offset);
-    offset += line.length + 1;
+  const ranges = templateRanges(source, config, context);
+  const lineStarts = context?.source === source ? context.lineStarts : [];
+  if (lineStarts.length === 0) {
+    let offset = 0;
+    for (const line of lines) {
+      lineStarts.push(offset);
+      offset += line.length + 1;
+    }
   }
 
   const categories: FooterEntry[] = [];
@@ -230,10 +225,7 @@ export function formatPageFooter(
     for (const [index, line] of lines.entries()) {
       const value = matchCategory(line, categoryAliases, canonicalEnglish);
       const start = lineStarts[index] ?? 0;
-      if (
-        !value ||
-        isInsideTemplate(start, start + line.trimEnd().length, ranges)
-      )
+      if (!value || isRangeInside(start, start + line.trimEnd().length, ranges))
         continue;
       if (value.canonicalized)
         diagnostics.localizedCategoryAliasesCanonicalized++;
@@ -256,10 +248,7 @@ export function formatPageFooter(
         canonicalEnglish,
       );
       const start = lineStarts[index] ?? 0;
-      if (
-        !value ||
-        isInsideTemplate(start, start + line.trimEnd().length, ranges)
-      )
+      if (!value || isRangeInside(start, start + line.trimEnd().length, ranges))
         continue;
       if (value.canonicalized)
         diagnostics.localizedDefaultsortAliasesCanonicalized++;
@@ -279,7 +268,7 @@ export function formatPageFooter(
       const originalValue = line.trimEnd();
       const id = switchAliases.get(originalValue);
       const start = lineStarts[index] ?? 0;
-      if (!id || isInsideTemplate(start, start + originalValue.length, ranges))
+      if (!id || isRangeInside(start, start + originalValue.length, ranges))
         continue;
       const value = canonicalEnglish
         ? `__${id.toUpperCase()}__`
@@ -298,10 +287,7 @@ export function formatPageFooter(
     for (const [index, line] of lines.entries()) {
       const value = matchInterlanguageLink(line, interlanguagePrefixes);
       const start = lineStarts[index] ?? 0;
-      if (
-        !value ||
-        isInsideTemplate(start, start + line.trimEnd().length, ranges)
-      )
+      if (!value || isRangeInside(start, start + line.trimEnd().length, ranges))
         continue;
       if (value.value !== line) diagnostics.interlanguageLinksFormatted++;
       interlanguageLinks.push({

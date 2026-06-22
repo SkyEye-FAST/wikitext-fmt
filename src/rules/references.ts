@@ -48,6 +48,10 @@ function hasBalancedQuotes(value: string): boolean {
 function formatReferenceLine(
   line: string,
 ): { value: string; kind: "ref" | "references" } | undefined {
+  // wikiparser-node exposes ref/references as extension nodes, but the rule's
+  // safety boundary depends on exact source syntax: standalone, single tag,
+  // self-closing, and no content-bearing ref body. Keep this source-line check
+  // rather than relying only on ext node shape.
   if (hasUnsafeSyntax(line)) return undefined;
   const trimmed = line.trimEnd();
   const match = /^<(ref|references)\b([^<>]*)\/\s*>$/iu.exec(trimmed);

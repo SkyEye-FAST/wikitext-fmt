@@ -325,7 +325,7 @@ It recognizes File namespace aliases and image option aliases from the selected 
 
 In `"canonical-english"` mode, the rule rewrites only certainly matched syntax keywords: localized File namespace aliases become `File`, and recognized image options such as localized `thumb`, `right`, `left`, or `center` become their canonical English option names. File names, captions, alt text values, link targets, page numbers, class/lang values, widths such as `300px`, and normal text are not translated or reordered.
 
-The rule skips lines with multiple wikilinks, nested links, templates, parser-function-like syntax, HTML or extension tags, multiline links, gallery contents, and table lines. Disable it with `--no-format-file-links` or `formatFileLinks: false`.
+`wikiparser-node` exposes file-link nodes and image-parameter nodes, but this rule still uses a conservative whole-line source check so custom/site namespace aliases and inline-file rejection remain predictable. The rule skips lines with multiple wikilinks, nested links, templates, parser-function-like syntax, HTML or extension tags, multiline links, gallery contents, and table lines. Disable it with `--no-format-file-links` or `formatFileLinks: false`.
 
 ## Experimental reference formatting
 
@@ -351,7 +351,7 @@ become:
 <ref name="foo" />
 ```
 
-Attributes are preserved exactly apart from spacing before `/>`; attribute order, quote style, and values are not normalized. Content-bearing refs, inline refs, multiline refs, lines with multiple tags, templates, wikilinks, comments, table/list syntax, non-reference HTML, protected placeholders, or uncertain `<` / `>` balance are preserved unchanged.
+`wikiparser-node` exposes references as extension nodes, but the rule keeps a source-line check because safety depends on exact self-closing syntax and standalone placement. Attributes are preserved exactly apart from spacing before `/>`; attribute order, quote style, and values are not normalized. Content-bearing refs, inline refs, multiline refs, lines with multiple tags, templates, wikilinks, comments, table/list syntax, non-reference HTML, protected placeholders, or uncertain `<` / `>` balance are preserved unchanged.
 
 ## Page footer and behavior switches
 
@@ -370,7 +370,7 @@ __NOEDITSECTION__
 [[Category:B]]
 ```
 
-Standalone aliases for the MediaWiki `defaultsort` magic-word ID move before recognized namespace-ID-14 category links. Categories retain titles, sort keys, and relative order; category-talk namespaces and unknown category-like links remain in place. Disable switch handling with `--no-format-behavior-switches` or `formatBehaviorSwitches: false`.
+Standalone aliases for the MediaWiki `defaultsort` magic-word ID move before recognized namespace-ID-14 category links. Footer metadata detection is parser-assisted: the formatter uses `wikiparser-node` ranges to avoid moving categories, defaultsorts, behavior switches, or interlanguage links that are inside templates. Line-level matching is still used for localized syntax and whole-line checks. Categories retain titles, sort keys, and relative order; category-talk namespaces and unknown category-like links remain in place. Disable switch handling with `--no-format-behavior-switches` or `formatBehaviorSwitches: false`.
 
 ## Experimental interlanguage footer formatting
 

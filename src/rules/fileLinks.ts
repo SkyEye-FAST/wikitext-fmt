@@ -49,6 +49,10 @@ function hasRiskySyntax(value: string): boolean {
 }
 
 function splitFileLink(line: string): string[] | undefined {
+  // wikiparser-node exposes FileToken and image-parameter nodes, but this rule
+  // also supports custom/site namespace aliases and must reject inline file
+  // embeds. Keep this line-level fallback until parser-assisted option handling
+  // can cover those cases without broadening behavior.
   const trimmed = line.replace(/[ \t]+$/u, "");
   const match = /^\[\[([^\n]+)\]\]$/u.exec(trimmed);
   if (!match?.[1]) return undefined;

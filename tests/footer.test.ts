@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { formatWikitext } from "../src/index.js";
 import { getParserConfig } from "../src/parser.js";
 import {
   formatPageFooter,
@@ -40,8 +41,55 @@ describe("page footer formatting", () => {
         formatBehaviorSwitches: true,
         behaviorSwitchPlacement: "footer",
         ...localization,
+        formatInterlanguageLinks: false,
+        interlanguagePlacement: "preserve",
+        interlanguagePrefixes: [],
       }).formatted,
     ).toBe(source);
+  });
+
+  it("preserves footer metadata inside templates", () => {
+    const source =
+      "{{Foo|category=[[Category:Inside]]|sort={{DEFAULTSORT:Inside}}|language=[[en:Inside]]}}\nBody\n[[Category:Outside]]\n";
+    expect(
+      formatPageFooter(source, config, {
+        formatCategories: true,
+        formatBehaviorSwitches: false,
+        behaviorSwitchPlacement: "preserve",
+        formatInterlanguageLinks: true,
+        interlanguagePlacement: "footer",
+        interlanguagePrefixes: ["en"],
+        ...localization,
+      }).formatted,
+    ).toBe(
+      "{{Foo|category=[[Category:Inside]]|sort={{DEFAULTSORT:Inside}}|language=[[en:Inside]]}}\nBody\n\n[[Category:Outside]]\n",
+    );
+  });
+
+  it("does not move inline interlanguage-like links", () => {
+    const source = "Body [[en:Inline]]\n[[en:Footer]]\n";
+    expect(
+      formatPageFooter(source, config, {
+        formatCategories: false,
+        formatBehaviorSwitches: false,
+        behaviorSwitchPlacement: "preserve",
+        formatInterlanguageLinks: true,
+        interlanguagePlacement: "footer",
+        interlanguagePrefixes: ["en"],
+        ...localization,
+      }).formatted,
+    ).toBe("Body [[en:Inline]]\n\n[[en:Footer]]\n");
+  });
+
+  it("uses parser context for the current source snapshot after earlier rules change text", () => {
+    expect(
+      formatWikitext(
+        "__NOTOC__   \n[[File:A.png|thumb]]   \nBody\n[[Category:A]]\n",
+        {
+          behaviorSwitchPlacement: "footer",
+        },
+      ),
+    ).toBe("[[File:A.png|thumb]]\nBody\n\n__NOTOC__\n\n[[Category:A]]\n");
   });
 
   it("orders switches, DEFAULTSORT aliases, and categories conservatively", () => {
@@ -52,6 +100,9 @@ describe("page footer formatting", () => {
       formatBehaviorSwitches: true,
       behaviorSwitchPlacement: "footer",
       ...localization,
+      formatInterlanguageLinks: false,
+      interlanguagePlacement: "preserve",
+      interlanguagePrefixes: [],
     });
     expect(result.formatted).toBe(
       "Body\n\n__NOTOC__\n__NOINDEX__\n\n{{DEFAULTSORTKEY:Example}}\n[[Category:B]]\n",

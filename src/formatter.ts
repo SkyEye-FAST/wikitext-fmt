@@ -7,6 +7,7 @@ import {
   type DetailedDiagnostics,
 } from "./diagnostics.js";
 import { getParserConfig, isRoundTripSafe, parseWikitext } from "./parser.js";
+import { createParserContext } from "./parserContext.js";
 import { normalizeBlankLines } from "./rules/blankLines.js";
 import { formatPageFooter } from "./rules/categories.js";
 import { formatHeadings } from "./rules/headings.js";
@@ -189,17 +190,23 @@ export function formatWikitextDetailedResult(
       behaviorSwitchesEnabled ||
       interlanguageLinksEnabled
     ) {
-      const footer = formatPageFooter(output, config, {
-        formatCategories: categoriesEnabled,
-        formatBehaviorSwitches: behaviorSwitchesEnabled,
-        formatInterlanguageLinks: interlanguageLinksEnabled,
-        interlanguagePlacement: resolved.interlanguagePlacement,
-        interlanguagePrefixes: resolved.interlanguagePrefixes,
-        behaviorSwitchPlacement: resolved.behaviorSwitchPlacement,
-        localizationSource: resolved.localizationSource,
-        localizedSyntaxStyle: resolved.localizedSyntaxStyle,
-        localizationAliases: resolved.localizationAliases,
-      });
+      const footerContext = createParserContext(output, config);
+      const footer = formatPageFooter(
+        output,
+        config,
+        {
+          formatCategories: categoriesEnabled,
+          formatBehaviorSwitches: behaviorSwitchesEnabled,
+          formatInterlanguageLinks: interlanguageLinksEnabled,
+          interlanguagePlacement: resolved.interlanguagePlacement,
+          interlanguagePrefixes: resolved.interlanguagePrefixes,
+          behaviorSwitchPlacement: resolved.behaviorSwitchPlacement,
+          localizationSource: resolved.localizationSource,
+          localizedSyntaxStyle: resolved.localizedSyntaxStyle,
+          localizationAliases: resolved.localizationAliases,
+        },
+        footerContext,
+      );
       output = footer.formatted;
       diagnostics.footerDiagnostics = footer.diagnostics;
     }
