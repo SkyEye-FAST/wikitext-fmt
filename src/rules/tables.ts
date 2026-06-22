@@ -70,7 +70,14 @@ interface InlineScanPosition {
   externalLinkDepth: number;
 }
 
-function scanInlineStructures(
+// Hybrid table formatting note:
+// wikiparser-node is still the authority for finding standalone table nodes and
+// their source ranges. The parser exposes table cell tokens for many cases, but
+// it currently treats `||` inside some wikilink/external-link labels as table
+// separators. This fallback tokenizer is intentionally limited to top-level
+// table-cell separator detection inside a parser-confirmed table line. It is
+// not a general wikitext parser.
+function scanTopLevelTableCellText(
   content: string,
   onTopLevel: (position: InlineScanPosition) => boolean,
   onInsideQuote?: (position: InlineScanPosition) => boolean,
@@ -175,7 +182,7 @@ function splitSimpleCells(
   const parts: string[] = [];
   let start = 0;
 
-  const balanced = scanInlineStructures(
+  const balanced = scanTopLevelTableCellText(
     content,
     ({ index }) => {
       if (content.startsWith(separator, index)) {
@@ -194,7 +201,7 @@ function splitSimpleCells(
 
 function containsBalancedTemplate(content: string): boolean {
   if (!content.includes("{{")) return false;
-  return scanInlineStructures(
+  return scanTopLevelTableCellText(
     content,
     () => true,
     () => true,
@@ -289,7 +296,7 @@ export function analyzeCellAttributesForTesting(
 ): CellAttributeAnalysis {
   let delimiter = -1;
   let hasUnsafeSeparator = false;
-  const balanced = scanInlineStructures(
+  const balanced = scanTopLevelTableCellText(
     content,
     ({ index }) => {
       const character = content[index]!;

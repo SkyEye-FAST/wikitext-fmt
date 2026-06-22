@@ -175,6 +175,11 @@ describe("experimental table analysis diagnostics", () => {
       "{|\n| [https://example.com A || B] || C\n|}",
       "{|\n| [https://example.com A || B]\n| C\n|}",
     ],
+    [
+      "wikilink containing separator",
+      "{|\n| [[Page|A || B]] || C\n|}",
+      "{|\n| [[Page|A || B]]\n| C\n|}",
+    ],
   ])("splits %s in explicit split mode", (_name, raw, value) => {
     expect(
       analyzeSimpleTableForTesting(raw, {

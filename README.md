@@ -463,7 +463,7 @@ Enable the table pass explicitly:
 wikitext-fmt page.wiki --safe --level experimental --format-tables
 ```
 
-It currently trims trailing whitespace on recognized structural lines and handles only safely recognized same-line `!!` and `||` cells. Balanced templates, simple wikilinks, piped wikilinks, external links, and straightforward cell/header attributes inside cells are supported. Dedicated fixtures cover supported tables, separator styles, best-effort splitting, and preserved unsafe cases.
+It currently trims trailing whitespace on recognized structural lines and handles only safely recognized same-line `!!` and `||` cells. Table formatting is parser-assisted: `wikiparser-node` identifies standalone table ranges, and a narrow fallback tokenizer is used only for top-level table-cell separator detection where parser cell ranges are not sufficient. Balanced templates, simple wikilinks, piped wikilinks, external links, and straightforward cell/header attributes inside cells are supported. Dedicated fixtures cover supported tables, separator styles, best-effort splitting, and preserved unsafe cases.
 
 `tableCellSeparatorStyle` controls safe inline cell separators per table:
 
@@ -475,7 +475,7 @@ Auto detection is table-local rather than file-wide. Auto sits between `preserve
 
 Debug diagnostics include both the selected style and reason, for example `formatted using split style: many columns`. These diagnostics are only written when `--debug` is enabled.
 
-Within a structurally safe table, safe rows may be formatted while unsafe rows remain byte-for-byte unchanged. The cell scanner only splits separators that are outside balanced templates, wikilinks, external links, quoted attribute values, and the active row structure. Balanced templates such as `{{N/a}}` or `{{Icon|A}}` are allowed inside cells, and separators inside template arguments or link labels are not split. Lines with HTML or extension tags, unbalanced templates or links, unsafe quoted separators, or uncertain attribute prefixes remain unchanged. Complete single-line HTML comments are recognized and preserved byte-for-byte without inspecting comment content; unclosed or multiline comments remain unsafe.
+Within a structurally safe table, safe rows may be formatted while unsafe rows remain byte-for-byte unchanged. The fallback tokenizer is not a general wikitext parser; it only decides whether a candidate `!!` or `||` is a top-level table separator inside parser-confirmed table text. It splits separators only when they are outside balanced templates, wikilinks, external links, quoted attribute values, and the active row structure. Balanced templates such as `{{N/a}}` or `{{Icon|A}}` are allowed inside cells, and separators inside template arguments or link labels are not split. Lines with HTML or extension tags, unbalanced templates or links, unsafe quoted separators, or uncertain attribute prefixes remain unchanged. Complete single-line HTML comments are recognized and preserved byte-for-byte without inspecting comment content; unclosed or multiline comments remain unsafe.
 
 Multiline cell continuation lines are also preserved conservatively. The cell line immediately preceding a continuation is not split, while later independent safe rows can still format when the selected separator style is `split`. Nested or unbalanced tables, tables inside templates, tables containing other protected placeholders, and genuinely unclear line structures remain preserved entirely.
 
