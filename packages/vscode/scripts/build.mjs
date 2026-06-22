@@ -1,9 +1,46 @@
 import { build } from "esbuild";
-import { mkdir, rm } from "node:fs/promises";
-import { dirname, resolve } from "node:path";
+import { copyFile, mkdir, readdir, rm } from "node:fs/promises";
+import { createRequire } from "node:module";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+const workspaceRoot = resolve(packageRoot, "../..");
+const require = createRequire(resolve(workspaceRoot, "package.json"));
+
+async function copyJsonDirectory(source, destination) {
+  await mkdir(destination, { recursive: true });
+
+  const entries = await readdir(source, { withFileTypes: true });
+  entries.sort((a, b) => a.name.localeCompare(b.name));
+
+  for (const entry of entries) {
+    const sourcePath = join(source, entry.name);
+    const destinationPath = join(destination, entry.name);
+
+    if (entry.isDirectory()) {
+      await copyJsonDirectory(sourcePath, destinationPath);
+      continue;
+    }
+
+    if (entry.isFile() && entry.name.endsWith(".json")) {
+      await copyFile(sourcePath, destinationPath);
+    }
+  }
+}
+
+async function copyWikiparserRuntimeAssets(destinationRoot) {
+  const sourcePackageJson = require.resolve("wikiparser-node/package.json");
+  const sourceRoot = dirname(sourcePackageJson);
+
+  await rm(destinationRoot, { force: true, recursive: true });
+  await mkdir(destinationRoot, { recursive: true });
+  await copyFile(sourcePackageJson, resolve(destinationRoot, "package.json"));
+  await copyJsonDirectory(
+    resolve(sourceRoot, "config"),
+    resolve(destinationRoot, "config"),
+  );
+}
 
 await rm(resolve(packageRoot, "dist"), { force: true, recursive: true });
 await mkdir(resolve(packageRoot, "dist"), { recursive: true });
@@ -30,3 +67,10 @@ await build({
   sourcemap: false,
   target: "node20",
 });
+
+await copyWikiparserRuntimeAssets(
+  resolve(packageRoot, "node_modules/wikiparser-node"),
+);
+await copyWikiparserRuntimeAssets(
+  resolve(packageRoot, "dist/node_modules/wikiparser-node"),
+);

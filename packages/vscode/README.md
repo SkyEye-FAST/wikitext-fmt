@@ -101,4 +101,4 @@ pnpm --filter wikitext-fmt-vscode check:package-content
 pnpm --filter wikitext-fmt-vscode vscode:package
 ```
 
-`build` bundles `src/extension.ts`, `src/format.ts`, `wikitext-fmt`, and its runtime dependencies into `dist/extension.js`; only the VS Code API module is external. Packaging uses `vsce package` for local VSIX preparation only. Publishing is intentionally out of scope for this wrapper phase.
+`build` bundles `src/extension.ts`, `src/format.ts`, `wikitext-fmt`, and its JavaScript runtime dependencies into `dist/extension.js`; the VS Code API and Node built-ins remain external. It also copies the minimum `wikiparser-node` parser config assets needed at runtime under `dist/node_modules/` before `vsce package --no-dependencies` runs. Packaging is for local VSIX preparation only. Publishing is intentionally out of scope for this wrapper phase.

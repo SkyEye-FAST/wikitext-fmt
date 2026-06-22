@@ -124,7 +124,7 @@
     "package": "pnpm vscode:package",
     "test": "vitest run",
     "test:extension": "pnpm build && tsc -p tsconfig.test.json && node dist-test/test/runTest.js",
-    "test:vsix": "pnpm vscode:package && tsc -p tsconfig.test.json && node dist-test/test/runVsixTest.js",
+    "test:vsix": "pnpm vscode:package && tsc -p tsconfig.test.json && node scripts/test-vsix.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "vscode:package": "pnpm build && vsce package --no-dependencies"
   },
