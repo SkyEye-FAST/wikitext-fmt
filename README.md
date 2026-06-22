@@ -204,11 +204,11 @@ Use VS Code's Format Document command, or enable format-on-save for wikitext fil
 ```json
 {
   "[wikitext]": {
-    "editor.defaultFormatter": "SkyEye_FAST.wikitext-fmt-vscode",
+    "editor.defaultFormatter": "skyeye-fast.wikitext-fmt-vscode",
     "editor.formatOnSave": true
   },
   "[mediawiki]": {
-    "editor.defaultFormatter": "SkyEye_FAST.wikitext-fmt-vscode",
+    "editor.defaultFormatter": "skyeye-fast.wikitext-fmt-vscode",
     "editor.formatOnSave": true
   }
 }

@@ -85,6 +85,7 @@
   "description": "VS Code wrapper for the conservative wikitext-fmt formatter",
   "devDependencies": {
     "@types/vscode": "^1.90.0",
+    "@vscode/vsce": "^3.7.1",
     "typescript": "^6.0.3",
     "vitest": "^4.1.9"
   },
@@ -96,9 +97,15 @@
   "main": "./dist/extension.js",
   "name": "wikitext-fmt-vscode",
   "private": true,
-  "publisher": "SkyEye_FAST",
+  "publisher": "skyeye-fast",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/SkyEye-FAST/wikitext-fmt.git",
+    "directory": "packages/vscode"
+  },
   "scripts": {
     "build": "pnpm --filter wikitext-fmt build && tsc -p tsconfig.json",
+    "package": "vsce package --no-dependencies",
     "test": "vitest run"
   },
   "type": "module",

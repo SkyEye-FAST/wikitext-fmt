@@ -20,7 +20,7 @@ To enable format-on-save:
 ```json
 {
   "[wikitext]": {
-    "editor.defaultFormatter": "SkyEye_FAST.wikitext-fmt-vscode",
+    "editor.defaultFormatter": "skyeye-fast.wikitext-fmt-vscode",
     "editor.formatOnSave": true
   }
 }
@@ -31,7 +31,7 @@ If you use another extension that contributes the `mediawiki` language id:
 ```json
 {
   "[mediawiki]": {
-    "editor.defaultFormatter": "SkyEye_FAST.wikitext-fmt-vscode",
+    "editor.defaultFormatter": "skyeye-fast.wikitext-fmt-vscode",
     "editor.formatOnSave": true
   }
 }
@@ -52,3 +52,13 @@ If you use another extension that contributes the `mediawiki` language id:
 ```
 
 When `wikitextFmt.safe` is enabled, formatting uses `formatWikitextSafe()` and returns no edit if the core formatter reports a warning.
+
+## Build and package
+
+```sh
+pnpm --filter wikitext-fmt-vscode build
+pnpm --filter wikitext-fmt-vscode test
+pnpm --filter wikitext-fmt-vscode package
+```
+
+Packaging uses `vsce package` for local VSIX preparation only. Publishing is intentionally out of scope for this wrapper phase.
