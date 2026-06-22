@@ -59,6 +59,19 @@
           "default": true,
           "description": "Run with parse and idempotency safety checks.",
           "type": "boolean"
+        },
+        "wikitextFmt.config.enabled": {
+          "default": true,
+          "description": "Load wikitext-fmt configuration files for workspace/file documents.",
+          "type": "boolean"
+        },
+        "wikitextFmt.config.path": {
+          "default": null,
+          "description": "Explicit wikitext-fmt configuration file path. Relative paths are resolved from the workspace folder when available.",
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
       "title": "wikitext-fmt"
@@ -111,6 +124,7 @@
     "package": "pnpm vscode:package",
     "test": "vitest run",
     "test:extension": "pnpm build && tsc -p tsconfig.test.json && node dist-test/test/runTest.js",
+    "test:vsix": "pnpm vscode:package && tsc -p tsconfig.test.json && node dist-test/test/runVsixTest.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "vscode:package": "pnpm build && vsce package --no-dependencies"
   },

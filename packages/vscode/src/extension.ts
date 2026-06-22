@@ -1,8 +1,21 @@
 import * as vscode from "vscode";
-import { buildEditorSettings, getEditorFormattingResult } from "./format.js";
+import {
+  buildEditorConfigLoadOptions,
+  getEditorFormattingResult,
+  resolveEditorSettings,
+} from "./format.js";
 
-function getSettings() {
-  return buildEditorSettings(vscode.workspace.getConfiguration("wikitextFmt"));
+async function getSettings(document: vscode.TextDocument) {
+  const config = vscode.workspace.getConfiguration("wikitextFmt", document.uri);
+  const workspaceFolder = vscode.workspace.getWorkspaceFolder(document.uri);
+  const configOptions = buildEditorConfigLoadOptions(config);
+
+  return resolveEditorSettings(config, {
+    ...configOptions,
+    documentPath:
+      document.uri.scheme === "file" ? document.uri.fsPath : undefined,
+    workspaceFolderPath: workspaceFolder?.uri.fsPath,
+  });
 }
 
 export function fullDocumentRange(document: vscode.TextDocument): vscode.Range {
@@ -19,9 +32,18 @@ export function fullDocumentRange(document: vscode.TextDocument): vscode.Range {
   );
 }
 
-function formatDocument(document: vscode.TextDocument): vscode.TextEdit[] {
+async function formatDocument(
+  document: vscode.TextDocument,
+): Promise<vscode.TextEdit[]> {
   const source = document.getText();
-  const result = getEditorFormattingResult(source, getSettings());
+  const settings = await getSettings(document);
+
+  if (settings.kind === "warning") {
+    void vscode.window.showWarningMessage(`wikitext-fmt: ${settings.warning}`);
+    return [];
+  }
+
+  const result = getEditorFormattingResult(source, settings.settings);
 
   if (result.kind === "warning") {
     void vscode.window.showWarningMessage(`wikitext-fmt: ${result.warning}`);
@@ -59,7 +81,7 @@ export function activate(context: vscode.ExtensionContext): void {
         return;
       }
 
-      const edits = formatDocument(editor.document);
+      const edits = await formatDocument(editor.document);
       if (edits.length === 0) {
         return;
       }

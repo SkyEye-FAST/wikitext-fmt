@@ -42,6 +42,8 @@ If you use another extension that contributes the `mediawiki` language id:
 ```json
 {
   "wikitextFmt.safe": true,
+  "wikitextFmt.config.enabled": true,
+  "wikitextFmt.config.path": null,
   "wikitextFmt.level": "normal",
   "wikitextFmt.htmlVoidTagStyle": "html5",
   "wikitextFmt.formatTables": false,
@@ -53,6 +55,40 @@ If you use another extension that contributes the `mediawiki` language id:
 
 When `wikitextFmt.safe` is enabled, formatting uses `formatWikitextSafe()` and returns no edit if the core formatter reports a warning.
 
+## Configuration files
+
+By default, the extension reuses the same JSON configuration files as the CLI:
+
+- `.wikitextfmtrc`
+- `.wikitextfmtrc.json`
+- `wikitext-fmt.config.json`
+
+For file-backed documents, config discovery starts at the document directory and walks upward. In multi-root workspaces, explicit relative `wikitextFmt.config.path` values are resolved from the document's workspace folder. If the document is outside every workspace, relative explicit paths and discovery use the document location. Untitled documents do not use filesystem config discovery and are formatted with VS Code settings only.
+
+Precedence is:
+
+```text
+explicit VS Code settings > config file > formatter defaults
+```
+
+Only settings exposed by this extension override config values: `level`, `htmlVoidTagStyle`, `formatTables`, `formatReferences`, `formatSectionSpacing`, and `formatTemplateParameters`. `wikitextFmt.safe` is editor-only and is not part of `FormatOptions`.
+
+Disable config loading:
+
+```json
+{
+  "wikitextFmt.config.enabled": false
+}
+```
+
+Use an explicit config path:
+
+```json
+{
+  "wikitextFmt.config.path": "config/wikitext-fmt.json"
+}
+```
+
 ## Build and package
 
 ```sh
@@ -60,6 +96,7 @@ pnpm --filter wikitext-fmt-vscode typecheck
 pnpm --filter wikitext-fmt-vscode build
 pnpm --filter wikitext-fmt-vscode test
 pnpm --filter wikitext-fmt-vscode test:extension
+pnpm --filter wikitext-fmt-vscode test:vsix
 pnpm --filter wikitext-fmt-vscode check:package-content
 pnpm --filter wikitext-fmt-vscode vscode:package
 ```

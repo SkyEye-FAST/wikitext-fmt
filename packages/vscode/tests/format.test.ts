@@ -1,19 +1,34 @@
 import { describe, expect, it, vi } from "vitest";
+import { mkdtemp, mkdir, writeFile } from "node:fs/promises";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
 import {
   buildEditorSettings,
   buildFormatOptions,
   formatTextForEditor,
   getEditorFormattingResult,
+  resolveEditorSettings,
   type ConfigLike,
   type FormatterApi,
 } from "../src/format.js";
 
-function config(values: Record<string, unknown> = {}): ConfigLike {
-  return {
+function config(
+  values: Record<string, unknown> = {},
+  inspectable = false,
+): ConfigLike {
+  const result: ConfigLike = {
     get<T>(key: string, defaultValue: T): T {
       return (key in values ? values[key] : defaultValue) as T;
     },
   };
+  if (inspectable) {
+    result.inspect = <T>(key: string) => {
+      return key in values
+        ? ({ workspaceValue: values[key] } as { workspaceValue: T })
+        : {};
+    };
+  }
+  return result;
 }
 
 describe("VS Code formatter wrapper options", () => {
@@ -138,6 +153,157 @@ describe("VS Code formatter wrapper behavior", () => {
     expect(result).toEqual({
       kind: "changed",
       formatted: "== Title ==",
+    });
+  });
+});
+
+describe("VS Code formatter wrapper config loading", () => {
+  it("uses VS Code settings only when no config is found", async () => {
+    const root = await mkdtemp(join(tmpdir(), "wikitext-fmt-vscode-"));
+    const result = await resolveEditorSettings(config({}, true), {
+      enabled: true,
+      documentPath: join(root, "page.wiki"),
+    });
+
+    expect(result).toMatchObject({
+      kind: "settings",
+      settings: {
+        safe: true,
+        options: {},
+      },
+    });
+  });
+
+  it("uses discovered config options", async () => {
+    const root = await mkdtemp(join(tmpdir(), "wikitext-fmt-vscode-"));
+    const nested = join(root, "pages", "nested");
+    await mkdir(nested, { recursive: true });
+    await writeFile(
+      join(root, ".wikitextfmtrc"),
+      JSON.stringify({ level: "experimental", formatReferences: true }),
+    );
+
+    const result = await resolveEditorSettings(config({}, true), {
+      enabled: true,
+      documentPath: join(nested, "page.wiki"),
+    });
+
+    expect(result).toMatchObject({
+      kind: "settings",
+      settings: {
+        options: {
+          level: "experimental",
+          formatReferences: true,
+        },
+      },
+    });
+  });
+
+  it("lets explicit VS Code settings override config options", async () => {
+    const root = await mkdtemp(join(tmpdir(), "wikitext-fmt-vscode-"));
+    await writeFile(
+      join(root, ".wikitextfmtrc"),
+      JSON.stringify({ level: "experimental", formatTables: true }),
+    );
+
+    const result = await resolveEditorSettings(
+      config({ level: "normal", formatTables: false }, true),
+      {
+        enabled: true,
+        documentPath: join(root, "page.wiki"),
+      },
+    );
+
+    expect(result).toMatchObject({
+      kind: "settings",
+      settings: {
+        options: {
+          level: "normal",
+          formatTables: false,
+        },
+      },
+    });
+  });
+
+  it("loads explicit config paths relative to the workspace folder", async () => {
+    const root = await mkdtemp(join(tmpdir(), "wikitext-fmt-vscode-"));
+    await writeFile(
+      join(root, "formatter.json"),
+      JSON.stringify({ htmlVoidTagStyle: "preserve" }),
+    );
+
+    const result = await resolveEditorSettings(config({}, true), {
+      enabled: true,
+      configPath: "formatter.json",
+      documentPath: join(root, "subdir", "page.wiki"),
+      workspaceFolderPath: root,
+    });
+
+    expect(result).toMatchObject({
+      kind: "settings",
+      settings: {
+        options: {
+          htmlVoidTagStyle: "preserve",
+        },
+      },
+    });
+  });
+
+  it("ignores config files when config loading is disabled", async () => {
+    const root = await mkdtemp(join(tmpdir(), "wikitext-fmt-vscode-"));
+    await writeFile(
+      join(root, ".wikitextfmtrc"),
+      JSON.stringify({ level: "experimental" }),
+    );
+
+    const result = await resolveEditorSettings(config({}, true), {
+      enabled: false,
+      documentPath: join(root, "page.wiki"),
+    });
+
+    expect(result).toMatchObject({
+      kind: "settings",
+      settings: {
+        options: {},
+      },
+    });
+  });
+
+  it("returns a warning for invalid config", async () => {
+    const root = await mkdtemp(join(tmpdir(), "wikitext-fmt-vscode-"));
+    await writeFile(
+      join(root, ".wikitextfmtrc"),
+      JSON.stringify({ unknownOption: true }),
+    );
+
+    const result = await resolveEditorSettings(config({}, true), {
+      enabled: true,
+      documentPath: join(root, "page.wiki"),
+    });
+
+    expect(result.kind).toBe("warning");
+    expect(result).toMatchObject({
+      warning: expect.stringContaining("Unknown configuration option"),
+    });
+  });
+
+  it("does not discover config for untitled documents", async () => {
+    const root = await mkdtemp(join(tmpdir(), "wikitext-fmt-vscode-"));
+    await writeFile(
+      join(root, ".wikitextfmtrc"),
+      JSON.stringify({ level: "experimental" }),
+    );
+
+    const result = await resolveEditorSettings(config({}, true), {
+      enabled: true,
+      workspaceFolderPath: root,
+    });
+
+    expect(result).toMatchObject({
+      kind: "settings",
+      settings: {
+        options: {},
+      },
     });
   });
 });

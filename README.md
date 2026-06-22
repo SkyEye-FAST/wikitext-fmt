@@ -194,6 +194,8 @@ Supported settings are:
 ```json
 {
   "wikitextFmt.safe": true,
+  "wikitextFmt.config.enabled": true,
+  "wikitextFmt.config.path": null,
   "wikitextFmt.level": "normal",
   "wikitextFmt.htmlVoidTagStyle": "html5",
   "wikitextFmt.formatTables": false,
@@ -202,6 +204,8 @@ Supported settings are:
   "wikitextFmt.formatTemplateParameters": false
 }
 ```
+
+The VS Code wrapper can reuse the same `.wikitextfmtrc`, `.wikitextfmtrc.json`, and `wikitext-fmt.config.json` files as the CLI. Explicit VS Code settings override config-file values for the settings exposed by the extension. Untitled documents use VS Code settings only.
 
 Use VS Code's Format Document command, or enable format-on-save for wikitext files:
 

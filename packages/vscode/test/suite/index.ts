@@ -1,4 +1,7 @@
 import assert from "node:assert/strict";
+import { mkdtemp, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import * as vscode from "vscode";
 
 async function waitForExtensionActivation(): Promise<void> {
@@ -38,4 +41,21 @@ export async function run(): Promise<void> {
   await vscode.commands.executeCommand("wikitext-fmt.formatDocument");
 
   assert.equal(editor.document.getText(), "== Title ==");
+
+  const root = await mkdtemp(join(tmpdir(), "wikitext-fmt-vscode-host-"));
+  await writeFile(
+    join(root, ".wikitextfmtrc"),
+    JSON.stringify({ htmlVoidTagStyle: "xhtml" }),
+  );
+  await writeFile(join(root, "config-page.wiki"), "<br>");
+
+  const configuredDocument = await vscode.workspace.openTextDocument(
+    vscode.Uri.file(join(root, "config-page.wiki")),
+  );
+  const configuredEditor =
+    await vscode.window.showTextDocument(configuredDocument);
+
+  await vscode.commands.executeCommand("wikitext-fmt.formatDocument");
+
+  assert.equal(configuredEditor.document.getText(), "<br />");
 }

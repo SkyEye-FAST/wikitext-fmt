@@ -30,3 +30,9 @@ export type { TableDiagnostic } from "./rules/tables.js";
 export type { ResolvedLocalizationAliases } from "./localization/aliases.js";
 export type { DiagnosticsSummary } from "./cli/diagnostics.js";
 export { loadSiteInfoAliases } from "./localization/siteinfo.js";
+export {
+  CONFIG_FILENAMES,
+  discoverConfig,
+  loadConfig,
+  validateConfig,
+} from "./config.js";
