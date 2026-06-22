@@ -68,6 +68,10 @@ await build({
   target: "node20",
 });
 
+// The formatter core has a bundled fallback for the generic default/mediawiki
+// parser config. Keep these minimal wikiparser-node runtime assets in the VSIX
+// so explicit named parser configs such as enwiki/zhwiki can still resolve if
+// the extension exposes parser-config selection later.
 await copyWikiparserRuntimeAssets(
   resolve(packageRoot, "node_modules/wikiparser-node"),
 );
