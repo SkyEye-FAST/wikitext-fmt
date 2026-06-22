@@ -169,13 +169,15 @@ Unknown keys and invalid option values are rejected instead of being silently ig
 
 ## VS Code extension wrapper
 
-An initial VS Code wrapper lives in `packages/vscode`. It contributes the `wikitext` language id for `.wiki`, `.wikitext`, and `.mediawiki` files, registers Format Document providers for `wikitext` and `mediawiki`, and calls the existing formatter core API. It does not include syntax highlighting, an LSP server, siteinfo fetching, or Marketplace publishing.
+An initial VS Code wrapper lives in `packages/vscode`. It contributes the `wikitext` language id for `.wiki`, `.wikitext`, and `.mediawiki` files, registers Format Document providers for `wikitext` and `mediawiki`, and calls the existing formatter core API. The `mediawiki` formatter registration is compatibility support for users who already have another extension contributing that language id. This wrapper does not include syntax highlighting, an LSP server, siteinfo fetching, or Marketplace publishing.
 
 Build it with:
 
 ```sh
 pnpm --filter wikitext-fmt-vscode build
 ```
+
+The extension package has its own README at `packages/vscode/README.md`.
 
 The extension command is:
 
@@ -202,11 +204,11 @@ Use VS Code's Format Document command, or enable format-on-save for wikitext fil
 ```json
 {
   "[wikitext]": {
-    "editor.defaultFormatter": "skyeye-fast.wikitext-fmt-vscode",
+    "editor.defaultFormatter": "SkyEye_FAST.wikitext-fmt-vscode",
     "editor.formatOnSave": true
   },
   "[mediawiki]": {
-    "editor.defaultFormatter": "skyeye-fast.wikitext-fmt-vscode",
+    "editor.defaultFormatter": "SkyEye_FAST.wikitext-fmt-vscode",
     "editor.formatOnSave": true
   }
 }

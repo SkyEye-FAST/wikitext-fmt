@@ -1,40 +1,11 @@
 import * as vscode from "vscode";
-import {
-  formatWikitext,
-  formatWikitextSafe,
-  type FormatLevel,
-  type FormatOptions,
-  type HtmlVoidTagStyle,
-} from "wikitext-fmt";
+import { buildEditorSettings, getEditorFormattingResult } from "./format.js";
 
-interface ExtensionSettings {
-  safe: boolean;
-  options: FormatOptions;
+function getSettings() {
+  return buildEditorSettings(vscode.workspace.getConfiguration("wikitextFmt"));
 }
 
-function getSettings(): ExtensionSettings {
-  const config = vscode.workspace.getConfiguration("wikitextFmt");
-
-  return {
-    safe: config.get<boolean>("safe", true),
-    options: {
-      level: config.get<FormatLevel>("level", "normal"),
-      htmlVoidTagStyle: config.get<HtmlVoidTagStyle>(
-        "htmlVoidTagStyle",
-        "html5",
-      ),
-      formatTables: config.get<boolean>("formatTables", false),
-      formatReferences: config.get<boolean>("formatReferences", false),
-      formatSectionSpacing: config.get<boolean>("formatSectionSpacing", false),
-      formatTemplateParameters: config.get<boolean>(
-        "formatTemplateParameters",
-        false,
-      ),
-    },
-  };
-}
-
-function fullDocumentRange(document: vscode.TextDocument): vscode.Range {
+export function fullDocumentRange(document: vscode.TextDocument): vscode.Range {
   if (document.lineCount === 0) {
     return new vscode.Range(
       new vscode.Position(0, 0),
@@ -50,20 +21,14 @@ function fullDocumentRange(document: vscode.TextDocument): vscode.Range {
 
 function formatDocument(document: vscode.TextDocument): vscode.TextEdit[] {
   const source = document.getText();
-  const settings = getSettings();
-  const result = settings.safe
-    ? formatWikitextSafe(source, settings.options)
-    : {
-        formatted: formatWikitext(source, settings.options),
-        warning: undefined,
-      };
+  const result = getEditorFormattingResult(source, getSettings());
 
-  if (result.warning) {
+  if (result.kind === "warning") {
     void vscode.window.showWarningMessage(`wikitext-fmt: ${result.warning}`);
     return [];
   }
 
-  if (result.formatted === source) {
+  if (result.kind === "unchanged") {
     return [];
   }
 

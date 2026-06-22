@@ -22,9 +22,10 @@
   ],
   "scripts": {
     "build": "tsc",
+    "build:all": "pnpm -r --sort build",
     "test": "vitest",
     "test:run": "vitest run",
-    "check": "pnpm build && pnpm test:run && pnpm smoke",
+    "check": "pnpm build:all && pnpm test:run && pnpm smoke",
     "smoke": "node dist/cli.js --help > /dev/null && node dist/cli.js --print-localization-aliases --localization-source builtin > /dev/null && node scripts/release-smoke.mjs",
     "release:smoke": "pnpm build && pnpm smoke",
     "localization:update": "node --experimental-strip-types scripts/update-mediawiki-aliases.ts"
