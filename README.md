@@ -169,12 +169,16 @@ Unknown keys and invalid option values are rejected instead of being silently ig
 
 ## VS Code extension wrapper
 
-An initial VS Code wrapper lives in `packages/vscode`. It contributes the `wikitext` language id for `.wiki`, `.wikitext`, and `.mediawiki` files, registers Format Document providers for `wikitext` and `mediawiki`, and calls the existing formatter core API. The `mediawiki` formatter registration is compatibility support for users who already have another extension contributing that language id. This wrapper does not include syntax highlighting, an LSP server, siteinfo fetching, or Marketplace publishing.
+An initial VS Code wrapper lives in `packages/vscode`. It contributes the `wikitext` language id for `.wiki`, `.wikitext`, and `.mediawiki` files, registers Format Document providers for `wikitext` and `mediawiki`, and calls the existing formatter core API. The `mediawiki` formatter registration is compatibility support for users who already have another extension contributing that language id. The VSIX build is bundled so it does not rely on workspace dependencies at runtime. This wrapper does not include syntax highlighting, an LSP server, siteinfo fetching, or Marketplace publishing.
 
 Build it with:
 
 ```sh
+pnpm --filter wikitext-fmt-vscode typecheck
 pnpm --filter wikitext-fmt-vscode build
+pnpm --filter wikitext-fmt-vscode test
+pnpm --filter wikitext-fmt-vscode test:extension
+pnpm --filter wikitext-fmt-vscode vscode:package
 ```
 
 The extension package has its own README at `packages/vscode/README.md`.

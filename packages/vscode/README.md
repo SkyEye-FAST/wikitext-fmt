@@ -1,6 +1,6 @@
 # wikitext-fmt for VS Code
 
-This is the initial VS Code wrapper for `wikitext-fmt`, a conservative MediaWiki wikitext formatter. The extension calls the existing `wikitext-fmt` core API; it does not duplicate formatter rules.
+This is the initial VS Code wrapper for `wikitext-fmt`, a conservative MediaWiki wikitext formatter. The extension calls the existing `wikitext-fmt` core API; it does not duplicate formatter rules. The VSIX build is bundled, so installed extensions do not rely on pnpm workspace links being present at runtime.
 
 ## Features
 
@@ -56,9 +56,12 @@ When `wikitextFmt.safe` is enabled, formatting uses `formatWikitextSafe()` and r
 ## Build and package
 
 ```sh
+pnpm --filter wikitext-fmt-vscode typecheck
 pnpm --filter wikitext-fmt-vscode build
 pnpm --filter wikitext-fmt-vscode test
-pnpm --filter wikitext-fmt-vscode package
+pnpm --filter wikitext-fmt-vscode test:extension
+pnpm --filter wikitext-fmt-vscode check:package-content
+pnpm --filter wikitext-fmt-vscode vscode:package
 ```
 
-Packaging uses `vsce package` for local VSIX preparation only. Publishing is intentionally out of scope for this wrapper phase.
+`build` bundles `src/extension.ts`, `src/format.ts`, `wikitext-fmt`, and its runtime dependencies into `dist/extension.js`; only the VS Code API module is external. Packaging uses `vsce package` for local VSIX preparation only. Publishing is intentionally out of scope for this wrapper phase.

@@ -7,13 +7,12 @@
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "noUncheckedIndexedAccess": true,
-    "outDir": "dist",
+    "noEmit": true,
     "rootDir": "src",
     "skipLibCheck": true,
-    "sourceMap": true,
     "strict": true,
     "target": "ES2022",
-    "types": ["node"]
+    "types": ["node", "vscode"]
   },
   "include": ["src/**/*.ts", "src/**/*.d.ts"],
   "exclude": ["dist", "node_modules"]

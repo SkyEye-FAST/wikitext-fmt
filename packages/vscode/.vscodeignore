@@ -1,5 +1,13 @@
 src/**
 tests/**
-tsconfig.json
+test/**
+dist-test/**
+scripts/**
+tsconfig*.json
+vitest.config.*
+fixtures/**
 *.log
-*.map
+**/*.map
+dist/**/*.d.ts
+dist/**/*.d.ts.map
+*.vsix

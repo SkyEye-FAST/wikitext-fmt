@@ -85,7 +85,9 @@
   "description": "VS Code wrapper for the conservative wikitext-fmt formatter",
   "devDependencies": {
     "@types/vscode": "^1.90.0",
+    "@vscode/test-electron": "^2.5.2",
     "@vscode/vsce": "^3.7.1",
+    "esbuild": "^0.27.1",
     "typescript": "^6.0.3",
     "vitest": "^4.1.9"
   },
@@ -104,9 +106,13 @@
     "directory": "packages/vscode"
   },
   "scripts": {
-    "build": "pnpm --filter wikitext-fmt build && tsc -p tsconfig.json",
-    "package": "vsce package --no-dependencies",
-    "test": "vitest run"
+    "build": "pnpm --filter wikitext-fmt build && node scripts/build.mjs",
+    "check:package-content": "node scripts/check-package-content.mjs",
+    "package": "pnpm vscode:package",
+    "test": "vitest run",
+    "test:extension": "pnpm build && tsc -p tsconfig.test.json && node dist-test/test/runTest.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "vscode:package": "pnpm build && vsce package --no-dependencies"
   },
   "type": "module",
   "version": "0.1.0"
