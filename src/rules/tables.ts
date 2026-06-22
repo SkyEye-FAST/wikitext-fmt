@@ -310,9 +310,6 @@ function detectTableCellSeparatorStyle(
     );
   });
 
-  if (hasUnsafeRows) {
-    return { style: "preserve", reason: "contains skipped unsafe rows" };
-  }
   if (hasAttributes) return { style: "split", reason: "cell attributes" };
   if (maximumCellCount >= 4) return { style: "split", reason: "many columns" };
   if (hasLongInlineLine)
@@ -321,6 +318,8 @@ function detectTableCellSeparatorStyle(
     return { style: "split", reason: "mixed inline and split style" };
   }
   if (hasSplitLines) return { style: "split", reason: "already mostly split" };
+  if (hasUnsafeRows && inlineLineCount > 0)
+    return { style: "split", reason: "contains skipped unsafe rows" };
   if (cellLines.length >= 12)
     return { style: "split", reason: "many table rows" };
   return { style: "preserve", reason: "simple compact inline table" };

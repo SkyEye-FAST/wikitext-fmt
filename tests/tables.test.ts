@@ -77,7 +77,7 @@ describe("experimental table analysis diagnostics", () => {
       "unsafe row",
       "{|\n! A !! B\n|-\n| {{N/a}} || 1\n|}",
       120,
-      "preserve",
+      "split",
       "contains skipped unsafe rows",
     ],
     [
@@ -124,6 +124,80 @@ describe("experimental table analysis diagnostics", () => {
     ).toMatchObject({ changed: true, value: "{|\n! A\n! B\n|}" });
   });
 
+  it.each([
+    ["simple data row", "{|\n| A || B\n|}", "{|\n| A\n| B\n|}"],
+    [
+      "data row with wikilink",
+      "{|\n| [[A|Display]] || B\n|}",
+      "{|\n| [[A|Display]]\n| B\n|}",
+    ],
+    [
+      "data row with external link",
+      "{|\n| [https://example.com Example] || B\n|}",
+      "{|\n| [https://example.com Example]\n| B\n|}",
+    ],
+    [
+      "data row with simple attributes",
+      '{|\n| class="x" | A || B\n|}',
+      '{|\n| class="x" | A\n| B\n|}',
+    ],
+    [
+      "data row with multiple attributes",
+      '{|\n| colspan="2" rowspan="3" | A || B\n|}',
+      '{|\n| colspan="2" rowspan="3" | A\n| B\n|}',
+    ],
+  ])("splits %s in explicit split mode", (_name, raw, value) => {
+    expect(
+      analyzeSimpleTableForTesting(raw, {
+        lineWidth: 120,
+        tableCellSeparatorStyle: "split",
+      }),
+    ).toMatchObject({ changed: true, value });
+  });
+
+  it("auto splits safe header and data rows in a mixed table", () => {
+    expect(
+      analyzeSimpleTableForTesting("{|\n! A\n! B\n|-\n| C || D\n|}", {
+        lineWidth: 120,
+        tableCellSeparatorStyle: "auto",
+      }),
+    ).toMatchObject({
+      changed: true,
+      value: "{|\n! A\n! B\n|-\n| C\n| D\n|}",
+      separatorStyle: "split",
+      separatorStyleReason: "mixed inline and split style",
+    });
+  });
+
+  it("auto preserves a small compact inline table", () => {
+    expect(
+      analyzeSimpleTableForTesting(
+        "{|\n! Name !! Value\n|-\n| [[Alpha]] || 1\n|}",
+        {
+          lineWidth: 120,
+          tableCellSeparatorStyle: "auto",
+        },
+      ),
+    ).toMatchObject({
+      changed: false,
+      separatorStyle: "preserve",
+      separatorStyleReason: "simple compact inline table",
+    });
+  });
+
+  it("explicit preserve keeps inline separators even for complex inline rows", () => {
+    expect(
+      analyzeSimpleTableForTesting("{|\n! A !! B !! C !! D\n|}", {
+        lineWidth: 120,
+        tableCellSeparatorStyle: "preserve",
+      }),
+    ).toMatchObject({
+      changed: false,
+      separatorStyle: "preserve",
+      separatorStyleReason: "explicit preserve option",
+    });
+  });
+
   it("reports 1-based table line numbers", () => {
     const source = 'Lead\n\n{| class="wikitable"\n! A !! B\n|}\n';
     const result = formatTablesWithDiagnostics(
@@ -165,7 +239,7 @@ describe("experimental table analysis diagnostics", () => {
     ).toEqual([]);
   });
 
-  it("auto preserves inline separators when unsafe rows would cause partial splitting", () => {
+  it("auto can split safe rows while preserving unsafe rows", () => {
     const result = formatWikitextDetailedResult(
       "{|\n! A !! B\n|-\n| {{N/a}} || 1\n|-\n| C || D\n|}\n",
       {
@@ -174,14 +248,14 @@ describe("experimental table analysis diagnostics", () => {
         tableCellSeparatorStyle: "auto",
       },
     );
-    expect(result.formatted).toBe(
-      "{|\n! A !! B\n|-\n| {{N/a}} || 1\n|-\n| C || D\n|}\n",
-    );
+    expect(result.formatted).toContain("! A\n! B");
+    expect(result.formatted).toContain("| {{N/a}} || 1");
+    expect(result.formatted).toContain("| C\n| D");
     expect(result.tableDiagnostics).toEqual([
       expect.objectContaining({
-        changed: false,
-        reason: "contains template or template-like syntax",
-        separatorStyle: "preserve",
+        changed: true,
+        reason: "formatted with skipped unsafe lines",
+        separatorStyle: "split",
         separatorStyleReason: "contains skipped unsafe rows",
       }),
     ]);
@@ -273,7 +347,7 @@ describe("experimental table analysis diagnostics", () => {
     });
   });
 
-  it("auto preserves inline separators when continuation groups would cause partial splitting", () => {
+  it("auto can split independent safe rows around continuation groups", () => {
     const input = [
       "{|",
       "! Name !! Value",
@@ -290,8 +364,21 @@ describe("experimental table analysis diagnostics", () => {
       tableCellSeparatorStyle: "auto",
     });
     expect(result).toMatchObject({
-      changed: false,
-      separatorStyle: "preserve",
+      changed: true,
+      value: [
+        "{|",
+        "! Name",
+        "! Value",
+        "|-",
+        "<!-- row comment -->",
+        "| Alpha",
+        "continued text",
+        "|-",
+        "| Beta",
+        "| 2",
+        "|}",
+      ].join("\n"),
+      separatorStyle: "split",
       separatorStyleReason: "contains skipped unsafe rows",
     });
   });

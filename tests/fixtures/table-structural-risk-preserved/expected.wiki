@@ -22,7 +22,8 @@
 | First line
 continuation line
 |-
-| Next || Cell
+| Next
+| Cell
 |}
 
 <!-- wikitext-fmt-ignore-start -->

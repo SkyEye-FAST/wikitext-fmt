@@ -1,9 +1,15 @@
 {| class="wikitable"
-! Service !! Region !! Availability
+! Service
+! Region
+! Availability
 |-
-| Alpha || East || Available
+| Alpha
+| East
+| Available
 |-
 | Beta || West || {{N/a}}
 |-
-| Gamma || North || Limited
+| Gamma
+| North
+| Limited
 |}
