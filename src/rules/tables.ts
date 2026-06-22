@@ -62,19 +62,40 @@ export function lineNumberAt(source: string, index: number): number {
   return line;
 }
 
-function splitSimpleCells(
+interface InlineScanPosition {
+  index: number;
+  quote?: '"' | "'";
+  templateDepth: number;
+  wikilinkDepth: number;
+  externalLinkDepth: number;
+}
+
+function scanInlineStructures(
   content: string,
-  separator: "!!" | "||",
-): string[] | undefined {
-  let bracketDepth = 0;
+  onTopLevel: (position: InlineScanPosition) => boolean,
+  onInsideQuote?: (position: InlineScanPosition) => boolean,
+): boolean {
+  let templateDepth = 0;
+  let wikilinkDepth = 0;
+  let externalLinkDepth = 0;
   let quote: '"' | "'" | undefined;
-  const parts: string[] = [];
-  let start = 0;
 
   for (let index = 0; index < content.length; index++) {
     const character = content[index]!;
+
     if (quote) {
-      if (content.startsWith(separator, index)) return undefined;
+      if (
+        onInsideQuote &&
+        !onInsideQuote({
+          index,
+          quote,
+          templateDepth,
+          wikilinkDepth,
+          externalLinkDepth,
+        })
+      ) {
+        return false;
+      }
       if (character === quote) quote = undefined;
       continue;
     }
@@ -82,30 +103,112 @@ function splitSimpleCells(
       quote = character;
       continue;
     }
-    if (character === "[") bracketDepth++;
-    else if (character === "]") {
-      bracketDepth--;
-      if (bracketDepth < 0) return undefined;
+
+    if (content.startsWith("{{", index)) {
+      templateDepth++;
+      index++;
+      continue;
     }
-    if (bracketDepth > 0 && content.startsWith(separator, index))
-      return undefined;
-    if (bracketDepth === 0 && content.startsWith(separator, index)) {
-      parts.push(content.slice(start, index).trimEnd());
-      start = index + separator.length;
-      index += separator.length - 1;
+    if (content.startsWith("}}", index)) {
+      templateDepth--;
+      if (templateDepth < 0) return false;
+      index++;
+      continue;
+    }
+    if (content.startsWith("[[", index)) {
+      wikilinkDepth++;
+      index++;
+      continue;
+    }
+    if (content.startsWith("]]", index)) {
+      wikilinkDepth--;
+      if (wikilinkDepth < 0) return false;
+      index++;
+      continue;
+    }
+    if (
+      character === "[" &&
+      content[index + 1] !== "[" &&
+      wikilinkDepth === 0
+    ) {
+      externalLinkDepth++;
+      continue;
+    }
+    if (
+      character === "]" &&
+      content[index + 1] !== "]" &&
+      wikilinkDepth === 0
+    ) {
+      externalLinkDepth--;
+      if (externalLinkDepth < 0) return false;
+      continue;
+    }
+
+    if (
+      templateDepth === 0 &&
+      wikilinkDepth === 0 &&
+      externalLinkDepth === 0 &&
+      !onTopLevel({
+        index,
+        quote,
+        templateDepth,
+        wikilinkDepth,
+        externalLinkDepth,
+      })
+    ) {
+      return false;
     }
   }
 
-  if (quote || bracketDepth !== 0) return undefined;
+  return (
+    !quote &&
+    templateDepth === 0 &&
+    wikilinkDepth === 0 &&
+    externalLinkDepth === 0
+  );
+}
+
+function splitSimpleCells(
+  content: string,
+  separator: "!!" | "||",
+): string[] | undefined {
+  const parts: string[] = [];
+  let start = 0;
+
+  const balanced = scanInlineStructures(
+    content,
+    ({ index }) => {
+      if (content.startsWith(separator, index)) {
+        parts.push(content.slice(start, index).trimEnd());
+        start = index + separator.length;
+      }
+      return true;
+    },
+    ({ index }) => !content.startsWith(separator, index),
+  );
+
+  if (!balanced) return undefined;
   parts.push(content.slice(start).trimEnd());
   return parts.some((part) => part.trim() === "") ? undefined : parts;
 }
 
+function containsBalancedTemplate(content: string): boolean {
+  if (!content.includes("{{")) return false;
+  return scanInlineStructures(
+    content,
+    () => true,
+    () => true,
+  );
+}
+
 function lineRiskReason(line: string): string | undefined {
-  if (/\{\{|\}\}/u.test(line))
-    return "contains template or template-like syntax";
   if (/<[a-z!/]/iu.test(line)) return "contains HTML or extension tag";
   if (/[{}]/u.test(line)) return "contains ambiguous brace syntax";
+  return undefined;
+}
+
+function cellLineRiskReason(line: string): string | undefined {
+  if (/<[a-z!/]/iu.test(line)) return "contains HTML or extension tag";
   return undefined;
 }
 
@@ -135,7 +238,7 @@ function formatCellLine(
       reason: "cell has continuation line",
     };
   }
-  const reason = lineRiskReason(line);
+  const reason = cellLineRiskReason(line);
   if (reason) return { changed: false, value: line, reason };
   const separator = marker === "!" ? "!!" : "||";
   const attributes = analyzeCellAttributesForTesting(content, separator);
@@ -184,38 +287,29 @@ export function analyzeCellAttributesForTesting(
   content: string,
   _separator: "!!" | "||",
 ): CellAttributeAnalysis {
-  let bracketDepth = 0;
-  let quote: '"' | "'" | undefined;
   let delimiter = -1;
   let hasUnsafeSeparator = false;
-  for (let index = 0; index < content.length; index++) {
-    const character = content[index]!;
-    if (quote) {
+  const balanced = scanInlineStructures(
+    content,
+    ({ index }) => {
+      const character = content[index]!;
+      if (
+        character === "|" &&
+        content[index - 1] !== "|" &&
+        content[index + 1] !== "|"
+      ) {
+        delimiter = index;
+        return false;
+      }
+      return true;
+    },
+    ({ index }) => {
       if (content.startsWith("||", index) || content.startsWith("!!", index))
         hasUnsafeSeparator = true;
-      if (character === quote) quote = undefined;
-      continue;
-    }
-    if (character === '"' || character === "'") {
-      quote = character;
-      continue;
-    }
-    if (character === "[") bracketDepth++;
-    else if (character === "]") {
-      bracketDepth--;
-      if (bracketDepth < 0)
-        return { hasAttributes: false, hasUnsafeSeparator, isSafe: false };
-    } else if (
-      character === "|" &&
-      bracketDepth === 0 &&
-      content[index - 1] !== "|" &&
-      content[index + 1] !== "|"
-    ) {
-      delimiter = index;
-      break;
-    }
-  }
-  if (quote || bracketDepth !== 0)
+      return true;
+    },
+  );
+  if (!balanced && delimiter < 0)
     return { hasAttributes: false, hasUnsafeSeparator, isSafe: false };
   if (delimiter < 0)
     return { hasAttributes: false, hasUnsafeSeparator: false, isSafe: true };
@@ -261,7 +355,7 @@ function detectTableCellSeparatorStyle(
         marker === "!" ? "!!" : "||",
       );
       if (
-        lineRiskReason(line) ||
+        cellLineRiskReason(line) ||
         continuedCellLines.has(tableLineIndex) ||
         !attributeAnalysis.isSafe ||
         attributeAnalysis.hasUnsafeSeparator
@@ -295,6 +389,9 @@ function detectTableCellSeparatorStyle(
   const inlineLineCount = safeLines.filter(
     (line) => line.cells.length > 1,
   ).length;
+  const hasBalancedTemplateCells = safeLines.some(
+    (line) => line.cells.length > 1 && containsBalancedTemplate(line.content),
+  );
   const hasUnsafeRows = cellLines.some((line) => !line.safe);
   const hasSplitLines = safeLines.some((line, index) => {
     if (line.cells.length !== 1) return false;
@@ -314,6 +411,8 @@ function detectTableCellSeparatorStyle(
   if (maximumCellCount >= 4) return { style: "split", reason: "many columns" };
   if (hasLongInlineLine)
     return { style: "split", reason: "line exceeds lineWidth" };
+  if (hasBalancedTemplateCells)
+    return { style: "split", reason: "balanced template cells" };
   if (hasSplitLines && inlineLineCount > 0) {
     return { style: "split", reason: "mixed inline and split style" };
   }

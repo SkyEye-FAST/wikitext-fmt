@@ -7,7 +7,9 @@
 | East
 | Available
 |-
-| Beta || West || {{N/a}}
+| Beta
+| West
+| {{N/a}}
 |-
 | Gamma
 | North

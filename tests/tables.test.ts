@@ -15,7 +15,11 @@ describe("experimental table analysis diagnostics", () => {
       "{|\n| \uE000wikitext-fmt:0:\uE001\n|}",
       /placeholder/u,
     ],
-    ["template", "{|\n| {{N\/a}}\n|}", /template/u],
+    [
+      "unbalanced template",
+      "{|\n| {{N\/a\n|}",
+      /uncertain cell attribute prefix|unsafe data cell separator/u,
+    ],
     ["HTML tag", "{|\n| <span>value<\/span>\n|}", /HTML|tag/u],
     ["nested table", "{|\n|\n{|\n| nested\n|}\n|}", /nested/u],
     ["unbalanced table", "{|\n| value", /unbalanced/u],
@@ -75,7 +79,7 @@ describe("experimental table analysis diagnostics", () => {
     ],
     [
       "unsafe row",
-      "{|\n! A !! B\n|-\n| {{N/a}} || 1\n|}",
+      "{|\n! A !! B\n|-\n| <span>N/a</span> || 1\n|}",
       120,
       "split",
       "contains skipped unsafe rows",
@@ -146,6 +150,31 @@ describe("experimental table analysis diagnostics", () => {
       '{|\n| colspan="2" rowspan="3" | A || B\n|}',
       '{|\n| colspan="2" rowspan="3" | A\n| B\n|}',
     ],
+    [
+      "data row with simple template",
+      "{|\n| {{N/a}} || 1\n|}",
+      "{|\n| {{N/a}}\n| 1\n|}",
+    ],
+    [
+      "data row with template and wikilink",
+      "{|\n| {{Icon|A}} || [[Page|label]]\n|}",
+      "{|\n| {{Icon|A}}\n| [[Page|label]]\n|}",
+    ],
+    [
+      "template argument containing separator",
+      "{|\n| {{Template|a=A || B}} || C\n|}",
+      "{|\n| {{Template|a=A || B}}\n| C\n|}",
+    ],
+    [
+      "header row with template",
+      "{|\n! {{Header|A}} !! Value\n|}",
+      "{|\n! {{Header|A}}\n! Value\n|}",
+    ],
+    [
+      "external link containing separator",
+      "{|\n| [https://example.com A || B] || C\n|}",
+      "{|\n| [https://example.com A || B]\n| C\n|}",
+    ],
   ])("splits %s in explicit split mode", (_name, raw, value) => {
     expect(
       analyzeSimpleTableForTesting(raw, {
@@ -182,6 +211,34 @@ describe("experimental table analysis diagnostics", () => {
       changed: false,
       separatorStyle: "preserve",
       separatorStyleReason: "simple compact inline table",
+    });
+  });
+
+  it("auto splits a meaningful table with safe balanced template cells", () => {
+    expect(
+      analyzeSimpleTableForTesting("{|\n| {{N/a}} || 1\n|}", {
+        lineWidth: 120,
+        tableCellSeparatorStyle: "auto",
+      }),
+    ).toMatchObject({
+      changed: true,
+      value: "{|\n| {{N/a}}\n| 1\n|}",
+      separatorStyle: "split",
+      separatorStyleReason: "balanced template cells",
+    });
+  });
+
+  it("preserves unbalanced template rows", () => {
+    expect(
+      analyzeSimpleTableForTesting("{|\n| {{Template|a=A || B || C\n|}", {
+        lineWidth: 120,
+        tableCellSeparatorStyle: "split",
+      }),
+    ).toMatchObject({
+      changed: false,
+      reason: expect.stringMatching(
+        /uncertain cell attribute prefix|unsafe data cell separator/u,
+      ),
     });
   });
 
@@ -241,7 +298,7 @@ describe("experimental table analysis diagnostics", () => {
 
   it("auto can split safe rows while preserving unsafe rows", () => {
     const result = formatWikitextDetailedResult(
-      "{|\n! A !! B\n|-\n| {{N/a}} || 1\n|-\n| C || D\n|}\n",
+      "{|\n! A !! B\n|-\n| <span>N/a</span> || 1\n|-\n| C || D\n|}\n",
       {
         level: "experimental",
         formatTables: true,
@@ -249,7 +306,7 @@ describe("experimental table analysis diagnostics", () => {
       },
     );
     expect(result.formatted).toContain("! A\n! B");
-    expect(result.formatted).toContain("| {{N/a}} || 1");
+    expect(result.formatted).toContain("| <span>N/a</span> || 1");
     expect(result.formatted).toContain("| C\n| D");
     expect(result.tableDiagnostics).toEqual([
       expect.objectContaining({
@@ -263,7 +320,7 @@ describe("experimental table analysis diagnostics", () => {
 
   it("explicit split still formats safe rows while preserving unsafe rows", () => {
     const result = formatWikitextDetailedResult(
-      "{|\n! A !! B\n|-\n| {{N/a}} || 1\n|-\n| C || D\n|}\n",
+      "{|\n! A !! B\n|-\n| <span>N/a</span> || 1\n|-\n| C || D\n|}\n",
       {
         level: "experimental",
         formatTables: true,
@@ -271,7 +328,7 @@ describe("experimental table analysis diagnostics", () => {
       },
     );
     expect(result.formatted).toContain("! A\n! B");
-    expect(result.formatted).toContain("| {{N/a}} || 1");
+    expect(result.formatted).toContain("| <span>N/a</span> || 1");
     expect(result.formatted).toContain("| C\n| D");
     expect(result.tableDiagnostics).toEqual([
       expect.objectContaining({

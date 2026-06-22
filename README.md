@@ -463,11 +463,11 @@ Enable the table pass explicitly:
 wikitext-fmt page.wiki --safe --level experimental --format-tables
 ```
 
-It currently trims trailing whitespace on recognized structural lines and handles only safely recognized same-line `!!` and `||` cells. Simple wikilinks, piped wikilinks, external links, and straightforward cell/header attributes are supported. Dedicated fixtures cover supported tables, separator styles, best-effort splitting, and preserved unsafe cases.
+It currently trims trailing whitespace on recognized structural lines and handles only safely recognized same-line `!!` and `||` cells. Balanced templates, simple wikilinks, piped wikilinks, external links, and straightforward cell/header attributes inside cells are supported. Dedicated fixtures cover supported tables, separator styles, best-effort splitting, and preserved unsafe cases.
 
 `tableCellSeparatorStyle` controls safe inline cell separators per table:
 
-- `auto` (default) preserves simple compact inline tables, but otherwise uses table-local heuristics to prefer useful safe formatting. It may choose split lines for cell attributes, four or more columns, safe inline lines exceeding `lineWidth`, already split or mixed layouts, skipped unsafe rows when other safe rows can still improve, and tables with 12 or more recognized cell lines.
+- `auto` (default) preserves simple compact inline tables, but otherwise uses table-local heuristics to prefer useful safe formatting. It may choose split lines for cell attributes, four or more columns, safe inline lines exceeding `lineWidth`, balanced template cells, already split or mixed layouts, skipped unsafe rows when other safe rows can still improve, and tables with 12 or more recognized cell lines.
 - `split` always splits safely recognized `!!` and `||` separators onto separate structural lines, while still preserving unsafe rows unchanged.
 - `preserve` keeps safe inline separators and only performs conservative trailing-whitespace and structural cleanup.
 
@@ -475,7 +475,7 @@ Auto detection is table-local rather than file-wide. Auto sits between `preserve
 
 Debug diagnostics include both the selected style and reason, for example `formatted using split style: many columns`. These diagnostics are only written when `--debug` is enabled.
 
-Within a structurally safe table, safe rows may be formatted while cell lines containing templates, HTML or extension tags, unsafe separators, or unbalanced brackets/quotes remain byte-for-byte unchanged. Complete single-line HTML comments are recognized and preserved byte-for-byte without inspecting comment content; unclosed or multiline comments remain unsafe.
+Within a structurally safe table, safe rows may be formatted while unsafe rows remain byte-for-byte unchanged. The cell scanner only splits separators that are outside balanced templates, wikilinks, external links, quoted attribute values, and the active row structure. Balanced templates such as `{{N/a}}` or `{{Icon|A}}` are allowed inside cells, and separators inside template arguments or link labels are not split. Lines with HTML or extension tags, unbalanced templates or links, unsafe quoted separators, or uncertain attribute prefixes remain unchanged. Complete single-line HTML comments are recognized and preserved byte-for-byte without inspecting comment content; unclosed or multiline comments remain unsafe.
 
 Multiline cell continuation lines are also preserved conservatively. The cell line immediately preceding a continuation is not split, while later independent safe rows can still format when the selected separator style is `split`. Nested or unbalanced tables, tables inside templates, tables containing other protected placeholders, and genuinely unclear line structures remain preserved entirely.
 

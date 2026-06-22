@@ -2,7 +2,8 @@
 ! Name
 ! Value
 |-
-| {{N/a}} || 1
+| {{N/a}}
+| 1
 |-
 | <span>Beta</span> || 2
 |-
