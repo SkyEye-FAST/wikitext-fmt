@@ -20,7 +20,7 @@ To enable format-on-save:
 ```json
 {
   "[wikitext]": {
-    "editor.defaultFormatter": "skyeye-fast.wikitext-formatter",
+    "editor.defaultFormatter": "skyeyefast.wikitext-formatter",
     "editor.formatOnSave": true
   }
 }
@@ -31,7 +31,7 @@ If you use another extension that contributes the `mediawiki` language id:
 ```json
 {
   "[mediawiki]": {
-    "editor.defaultFormatter": "skyeye-fast.wikitext-formatter",
+    "editor.defaultFormatter": "skyeyefast.wikitext-formatter",
     "editor.formatOnSave": true
   }
 }

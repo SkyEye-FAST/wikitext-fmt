@@ -128,7 +128,7 @@
   "homepage": "https://github.com/SkyEye-FAST/wikitext-fmt#readme",
   "main": "./dist/extension.js",
   "name": "wikitext-formatter",
-  "publisher": "skyeye-fast",
+  "publisher": "skyeyefast",
   "repository": {
     "type": "git",
     "url": "https://github.com/SkyEye-FAST/wikitext-fmt.git",

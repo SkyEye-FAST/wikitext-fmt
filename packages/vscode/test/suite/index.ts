@@ -6,7 +6,7 @@ import * as vscode from "vscode";
 
 async function waitForExtensionActivation(): Promise<void> {
   const extension = vscode.extensions.getExtension(
-    "skyeye-fast.wikitext-formatter",
+    "skyeyefast.wikitext-formatter",
   );
   assert.ok(extension, "extension should be discoverable by id");
   await extension.activate();
