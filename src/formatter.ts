@@ -7,7 +7,10 @@ import {
   type DetailedDiagnostics,
 } from "./diagnostics.js";
 import { getParserConfig, isRoundTripSafe, parseWikitext } from "./parser.js";
-import { createParserContext } from "./parserContext.js";
+import {
+  createParserContext,
+  type ParsedDocumentContext,
+} from "./parserContext.js";
 import { normalizeBlankLines } from "./rules/blankLines.js";
 import { formatPageFooter } from "./rules/categories.js";
 import { formatHeadings } from "./rules/headings.js";
@@ -60,6 +63,20 @@ export function formatWikitextDetailedResult(
 
     // Parse once before transformations so malformed input fails closed.
     parseWikitext(source, config);
+    let contextSource: string | undefined;
+    let context: ParsedDocumentContext | undefined;
+    const contextFor = (snapshot: string): ParsedDocumentContext => {
+      if (!context || contextSource !== snapshot) {
+        context = createParserContext(snapshot, config);
+        contextSource = snapshot;
+      }
+      return context;
+    };
+    const invalidateContext = (): void => {
+      context = undefined;
+      contextSource = undefined;
+    };
+
     let tableOutput = source;
     if (resolved.formatTables && isRuleEnabled("tables", resolved.level)) {
       const tableBlocks = protectBlocks(tableOutput, {
@@ -107,15 +124,14 @@ export function formatWikitextDetailedResult(
         protectTables: true,
         protectReferenceTags: false,
       });
-      const referenceContext = createParserContext(
-        referenceBlocks.text,
-        config,
-      );
+      const referenceContext = contextFor(referenceBlocks.text);
       const references = formatReferences(
         referenceBlocks.text,
         referenceContext,
       );
-      tableOutput = referenceBlocks.restore(references.formatted);
+      const nextTableOutput = referenceBlocks.restore(references.formatted);
+      if (nextTableOutput !== tableOutput) invalidateContext();
+      tableOutput = nextTableOutput;
       diagnostics.referenceDiagnostics = references.diagnostics;
     }
 
@@ -131,28 +147,36 @@ export function formatWikitextDetailedResult(
         isRuleEnabled("templateParameters", resolved.level)
       )
     ) {
-      const templateContext = createParserContext(output, config);
+      const templateContext = contextFor(output);
+      const previous = output;
       output = formatTemplates(
         output,
         config,
         resolved.lineWidth,
         templateContext,
       );
+      if (output !== previous) invalidateContext();
     }
     if (
       resolved.formatTemplateParameters &&
       isRuleEnabled("templateParameters", resolved.level)
     ) {
+      const previous = output;
       const templateParameters = formatTemplateParameters(output);
       output = templateParameters.formatted;
       diagnostics.templateParameterDiagnostics = templateParameters.diagnostics;
+      if (output !== previous) invalidateContext();
     }
-    if (resolved.formatHeadings && isRuleEnabled("headings", resolved.level))
+    if (resolved.formatHeadings && isRuleEnabled("headings", resolved.level)) {
+      const previous = output;
       output = formatHeadings(output);
+      if (output !== previous) invalidateContext();
+    }
     if (
       resolved.formatRedirects &&
       isRuleEnabled("redirects", resolved.level)
     ) {
+      const previous = output;
       const redirect = formatRedirects(output, {
         localizationSource: resolved.localizationSource,
         localizedSyntaxStyle: resolved.localizedSyntaxStyle,
@@ -160,12 +184,14 @@ export function formatWikitextDetailedResult(
       });
       output = redirect.formatted;
       diagnostics.redirectDiagnostics = redirect.diagnostics;
+      if (output !== previous) invalidateContext();
     }
     if (
       resolved.formatFileLinks &&
       isRuleEnabled("fileLinks", resolved.level)
     ) {
-      const fileLinkContext = createParserContext(output, config);
+      const fileLinkContext = contextFor(output);
+      const previous = output;
       const fileLinks = formatFileLinks(
         output,
         {
@@ -177,25 +203,39 @@ export function formatWikitextDetailedResult(
       );
       output = fileLinks.formatted;
       diagnostics.fileLinkDiagnostics = fileLinks.diagnostics;
+      if (output !== previous) invalidateContext();
     }
-    if (resolved.formatLists && isRuleEnabled("lists", resolved.level))
+    if (resolved.formatLists && isRuleEnabled("lists", resolved.level)) {
+      const previous = output;
       output = formatLists(output);
+      if (output !== previous) invalidateContext();
+    }
     if (
       resolved.formatSectionSpacing &&
       isRuleEnabled("sectionSpacing", resolved.level)
     ) {
-      const sectionSpacing = formatSectionSpacing(output);
+      const sectionSpacingContext = contextFor(output);
+      const previous = output;
+      const sectionSpacing = formatSectionSpacing(
+        output,
+        sectionSpacingContext,
+      );
       output = sectionSpacing.formatted;
       diagnostics.sectionSpacingDiagnostics = sectionSpacing.diagnostics;
+      if (output !== previous) invalidateContext();
     }
     if (
       resolved.normalizeBlankLines &&
       isRuleEnabled("blankLines", resolved.level)
     ) {
+      const previous = output;
       output = normalizeBlankLines(output);
+      if (output !== previous) invalidateContext();
     }
     if (isRuleEnabled("htmlVoidTags", resolved.level)) {
+      const previous = output;
       output = formatHtmlVoidTags(output, resolved.htmlVoidTagStyle);
+      if (output !== previous) invalidateContext();
     }
     const categoriesEnabled =
       resolved.formatCategories && isRuleEnabled("categories", resolved.level);
@@ -210,7 +250,7 @@ export function formatWikitextDetailedResult(
       behaviorSwitchesEnabled ||
       interlanguageLinksEnabled
     ) {
-      const footerContext = createParserContext(output, config);
+      const footerContext = contextFor(output);
       const footer = formatPageFooter(
         output,
         config,
@@ -229,6 +269,7 @@ export function formatWikitextDetailedResult(
       );
       output = footer.formatted;
       diagnostics.footerDiagnostics = footer.diagnostics;
+      if (output !== footerContext.source) invalidateContext();
     }
     output = protectedText.restore(output);
 

@@ -1,11 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { formatWikitext, formatWikitextDetailedResult } from "../src/index.js";
+import { getParserConfig } from "../src/parser.js";
+import { createParserContext } from "../src/parserContext.js";
 import { formatSectionSpacing } from "../src/rules/sectionSpacing.js";
 
 const options = {
   level: "experimental" as const,
   formatSectionSpacing: true,
 };
+const config = getParserConfig("mediawiki");
 
 describe("experimental section spacing", () => {
   it("is disabled by default", () => {
@@ -23,6 +26,30 @@ describe("experimental section spacing", () => {
     expect(formatSectionSpacing("== A ==\nText\n").formatted).toBe(
       "== A ==\n\nText\n",
     );
+  });
+
+  it("uses parser-confirmed heading nodes when context is provided", () => {
+    const source = "Intro\n== A ==\nText\n";
+    expect(
+      formatSectionSpacing(source, createParserContext(source, config))
+        .formatted,
+    ).toBe("Intro\n\n== A ==\n\nText\n");
+  });
+
+  it("ignores a stale section-spacing parser context for a different source", () => {
+    const source = "Intro\n== A ==\nText\n";
+    expect(
+      formatSectionSpacing(source, createParserContext("Plain text\n", config))
+        .formatted,
+    ).toBe("Intro\n\n== A ==\n\nText\n");
+  });
+
+  it("does not treat parser level-1 headings as section-spacing headings", () => {
+    const source = "Intro\n= Not a section =\nText\n";
+    expect(
+      formatSectionSpacing(source, createParserContext(source, config))
+        .formatted,
+    ).toBe(source);
   });
 
   it("adds one blank line before a heading after an ordinary paragraph", () => {
@@ -112,5 +139,11 @@ describe("experimental section spacing", () => {
       sectionSpacingBeforeHeadingsInserted: 1,
       sectionSpacingAfterHeadingsInserted: 1,
     });
+  });
+
+  it("uses the current source snapshot after heading formatting changes text", () => {
+    expect(formatWikitext("Intro\n==Title==\nText\n", options)).toBe(
+      "Intro\n\n== Title ==\n\nText\n",
+    );
   });
 });

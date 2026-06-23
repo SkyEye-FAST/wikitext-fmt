@@ -394,7 +394,7 @@ Section spacing is experimental and disabled by default. Enable it with:
 wikitext-fmt page.wiki --level experimental --format-section-spacing
 ```
 
-The rule only inserts a single blank line before or after headings when the adjacent line is ordinary paragraph text. It avoids headings at the start of the file and does not alter spacing next to templates, tables, lists, comments, behavior switches, categories, redirects, file links, HTML or extension tags, or protected blocks. It does not change heading marker spacing; that remains the heading rule's job.
+The rule is parser-assisted for heading detection, then only inserts a single blank line before or after headings when the adjacent line is ordinary paragraph text. It avoids headings at the start of the file and does not alter spacing next to templates, tables, lists, comments, behavior switches, categories, redirects, file links, HTML or extension tags, or protected blocks. It does not change heading marker spacing; that remains the heading rule's job.
 
 ## Experimental multiline template parameter formatting
 

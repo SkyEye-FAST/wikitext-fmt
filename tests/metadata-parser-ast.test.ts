@@ -81,6 +81,38 @@ describe("parser AST capabilities for metadata-like rules", () => {
         }),
       ]),
     );
+    expect(summarize("[[分類:Foo]]")).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: "category",
+          className: "CategoryToken",
+          index: 0,
+          text: "[[分類:Foo]]",
+        }),
+      ]),
+    );
+    expect(summarize("Text [[Category:Inline]]")).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: "category",
+          index: 5,
+          text: "[[Category:Inline]]",
+        }),
+      ]),
+    );
+    expect(summarize("{{T|x=[[Category:Inside]]}}")).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: "category",
+          text: "[[Category:Inside]]",
+        }),
+      ]),
+    );
+    expect(summarize("__NOTOC__")).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ type: "behavior-switch" }),
+      ]),
+    );
   });
 
   it("exposes file-link nodes and ranges but line-level validation remains necessary", () => {
@@ -195,6 +227,60 @@ describe("parser AST capabilities for metadata-like rules", () => {
           className: "HeadingToken",
           index: 6,
           text: "== A ==",
+        }),
+      ]),
+    );
+    expect(summarize("=== B ===")).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: "heading",
+          className: "HeadingToken",
+          index: 0,
+          text: "=== B ===",
+        }),
+      ]),
+    );
+    expect(summarize("= not a section =")).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: "heading",
+          className: "HeadingToken",
+          index: 0,
+          text: "= not a section =",
+        }),
+      ]),
+    );
+    expect(summarize("== malformed")).not.toEqual(
+      expect.arrayContaining([expect.objectContaining({ type: "heading" })]),
+    );
+  });
+
+  it("exposes external-link nodes for future investigation", () => {
+    expect(summarize("[https://example.com  Label]")).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: "ext-link",
+          className: "ExtLinkToken",
+          index: 0,
+          text: "[https://example.com  Label]",
+        }),
+      ]),
+    );
+    expect(summarize("Text [https://example.com  Label]")).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: "ext-link",
+          index: 5,
+          text: "[https://example.com  Label]",
+        }),
+      ]),
+    );
+    expect(summarize("[https://example.com]")).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: "ext-link",
+          index: 0,
+          text: "[https://example.com]",
         }),
       ]),
     );

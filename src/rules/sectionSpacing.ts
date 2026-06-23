@@ -1,3 +1,11 @@
+import {
+  collectNodes,
+  isNodeWholeLine,
+  lineIndexAt,
+  lineTextAt,
+  type ParsedDocumentContext,
+} from "../parserContext.js";
+
 const HEADING = /^={2,6}[^=\n].*={2,6}[ \t]*$/u;
 const BLANK = /^[ \t]*$/u;
 const RISKY =
@@ -15,6 +23,24 @@ export interface SectionSpacingResult {
 
 function isHeading(line: string): boolean {
   return HEADING.test(line.trimEnd());
+}
+
+function parserHeadingLineIndexes(
+  source: string,
+  lines: readonly string[],
+  context?: ParsedDocumentContext,
+): Set<number> | undefined {
+  if (context?.source !== source) return undefined;
+  const indexes = new Set<number>();
+  for (const node of collectNodes(context, "heading")) {
+    if (!isNodeWholeLine(context, node)) continue;
+    const lineIndex = lineIndexAt(context, node.getAbsoluteIndex());
+    const line = lines[lineIndex] ?? lineTextAt(context, lineIndex);
+    // wikiparser-node also exposes level-1 headings. Preserve the formatter's
+    // existing conservative 2-6 level policy for section-spacing changes.
+    if (isHeading(line)) indexes.add(lineIndex);
+  }
+  return indexes;
 }
 
 function isOrdinaryParagraph(line: string): boolean {
@@ -35,7 +61,10 @@ function nextNonBlank(lines: readonly string[], index: number): number {
   return -1;
 }
 
-export function formatSectionSpacing(source: string): SectionSpacingResult {
+export function formatSectionSpacing(
+  source: string,
+  context?: ParsedDocumentContext,
+): SectionSpacingResult {
   const diagnostics: SectionSpacingDiagnostics = {
     sectionSpacingBeforeHeadingsInserted: 0,
     sectionSpacingAfterHeadingsInserted: 0,
@@ -44,10 +73,15 @@ export function formatSectionSpacing(source: string): SectionSpacingResult {
   const lines = source.split("\n");
   if (finalNewline) lines.pop();
   const output: string[] = [];
+  const parserHeadingLines = parserHeadingLineIndexes(source, lines, context);
+  const lineIsHeading = (index: number): boolean =>
+    parserHeadingLines
+      ? parserHeadingLines.has(index)
+      : isHeading(lines[index]!);
 
   for (let index = 0; index < lines.length; index++) {
     const line = lines[index]!;
-    if (isHeading(line)) {
+    if (lineIsHeading(index)) {
       const previous = previousNonBlank(lines, index);
       if (
         previous >= 0 &&
@@ -59,7 +93,7 @@ export function formatSectionSpacing(source: string): SectionSpacingResult {
       }
     }
     output.push(line);
-    if (isHeading(line)) {
+    if (lineIsHeading(index)) {
       const next = nextNonBlank(lines, index);
       if (
         next >= 0 &&

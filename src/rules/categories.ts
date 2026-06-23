@@ -1,9 +1,12 @@
 import type { Config } from "wikiparser-node";
 import type { ResolvedFormatOptions } from "../options.js";
 import {
+  collectNodes,
   collectNodeRanges,
   createParserContext,
   isRangeInside,
+  isNodeWholeLine,
+  lineIndexAt,
   type ParsedDocumentContext,
   type SourceRange,
 } from "../parserContext.js";
@@ -88,6 +91,19 @@ function templateRanges(
   const current =
     context?.source === source ? context : createParserContext(source, config);
   return collectNodeRanges(current, "template");
+}
+
+function parserCategoryLineIndexes(
+  source: string,
+  context?: ParsedDocumentContext,
+): Set<number> | undefined {
+  if (context?.source !== source) return undefined;
+  const indexes = new Set<number>();
+  for (const node of collectNodes(context, "category")) {
+    if (!isNodeWholeLine(context, node)) continue;
+    indexes.add(lineIndexAt(context, node.getAbsoluteIndex()));
+  }
+  return indexes;
 }
 
 function matchCategory(
@@ -211,6 +227,7 @@ export function formatPageFooter(
   );
   const canonicalEnglish = options.localizedSyntaxStyle === "canonical-english";
   const ranges = templateRanges(source, config, context);
+  const parserCategoryLines = parserCategoryLineIndexes(source, context);
   let lineStarts = context?.source === source ? context.lineStarts : undefined;
   if (!lineStarts) {
     lineStarts = [];
@@ -227,6 +244,11 @@ export function formatPageFooter(
     for (const [index, line] of lines.entries()) {
       const value = matchCategory(line, categoryAliases, canonicalEnglish);
       const start = lineStarts[index] ?? 0;
+      const parserConfirmed = parserCategoryLines?.has(index) ?? false;
+      // Parser-confirmed category lines cover aliases known to the active
+      // parser config. The string matcher remains authoritative for custom or
+      // siteinfo aliases that wikiparser-node may not know.
+      void parserConfirmed;
       if (!value || isRangeInside(start, start + line.trimEnd().length, ranges))
         continue;
       if (value.canonicalized)
