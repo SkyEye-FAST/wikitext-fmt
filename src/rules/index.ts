@@ -8,6 +8,7 @@ export type RuleName =
   | "categories"
   | "lists"
   | "fileLinks"
+  | "externalLinks"
   | "references"
   | "interlanguageLinks"
   | "sectionSpacing"
@@ -24,6 +25,7 @@ export const ruleLevels = {
   categories: "normal",
   lists: "normal",
   fileLinks: "normal",
+  externalLinks: "experimental",
   references: "experimental",
   interlanguageLinks: "experimental",
   sectionSpacing: "experimental",

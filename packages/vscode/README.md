@@ -48,6 +48,7 @@ If you use another extension that contributes the `mediawiki` language id:
   "wikitextFmt.htmlVoidTagStyle": "html5",
   "wikitextFmt.formatTables": false,
   "wikitextFmt.formatReferences": false,
+  "wikitextFmt.formatExternalLinks": false,
   "wikitextFmt.formatSectionSpacing": false,
   "wikitextFmt.formatTemplateParameters": false
 }
@@ -71,7 +72,7 @@ Precedence is:
 explicit VS Code settings > config file > formatter defaults
 ```
 
-Only settings exposed by this extension override config values: `level`, `htmlVoidTagStyle`, `formatTables`, `formatReferences`, `formatSectionSpacing`, and `formatTemplateParameters`. `wikitextFmt.safe` is editor-only and is not part of `FormatOptions`.
+Only settings exposed by this extension override config values: `level`, `htmlVoidTagStyle`, `formatTables`, `formatReferences`, `formatExternalLinks`, `formatSectionSpacing`, and `formatTemplateParameters`. `wikitextFmt.safe` is editor-only and is not part of `FormatOptions`.
 
 Disable config loading:
 

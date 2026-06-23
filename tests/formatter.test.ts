@@ -43,6 +43,7 @@ describe("formatter API", () => {
       categories: "normal",
       lists: "normal",
       fileLinks: "normal",
+      externalLinks: "experimental",
       references: "experimental",
       interlanguageLinks: "experimental",
       sectionSpacing: "experimental",

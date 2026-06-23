@@ -182,6 +182,12 @@ describe("CLI configuration", () => {
     });
   });
 
+  it("accepts experimental external link formatting configuration", () => {
+    expect(validateConfig({ formatExternalLinks: true })).toEqual({
+      formatExternalLinks: true,
+    });
+  });
+
   it("accepts redirect formatting configuration", () => {
     expect(
       validateConfig({

@@ -19,6 +19,7 @@ import { isRuleEnabled } from "./rules/index.js";
 import { formatHtmlVoidTags } from "./rules/htmlVoidTags.js";
 import { formatLists } from "./rules/lists.js";
 import { formatFileLinks } from "./rules/fileLinks.js";
+import { formatExternalLinks } from "./rules/externalLinks.js";
 import { formatReferences } from "./rules/references.js";
 import { formatRedirects } from "./rules/redirects.js";
 import { formatSectionSpacing } from "./rules/sectionSpacing.js";
@@ -40,6 +41,7 @@ export interface FormatDetailedResult extends FormatResult {
   footerDiagnostics: DetailedDiagnostics["footerDiagnostics"];
   redirectDiagnostics: DetailedDiagnostics["redirectDiagnostics"];
   fileLinkDiagnostics: DetailedDiagnostics["fileLinkDiagnostics"];
+  externalLinkDiagnostics: DetailedDiagnostics["externalLinkDiagnostics"];
   referenceDiagnostics: DetailedDiagnostics["referenceDiagnostics"];
   sectionSpacingDiagnostics: DetailedDiagnostics["sectionSpacingDiagnostics"];
   templateParameterDiagnostics: DetailedDiagnostics["templateParameterDiagnostics"];
@@ -205,6 +207,17 @@ export function formatWikitextDetailedResult(
       diagnostics.fileLinkDiagnostics = fileLinks.diagnostics;
       if (output !== previous) invalidateContext();
     }
+    if (
+      resolved.formatExternalLinks &&
+      isRuleEnabled("externalLinks", resolved.level)
+    ) {
+      const externalLinkContext = contextFor(output);
+      const previous = output;
+      const externalLinks = formatExternalLinks(output, externalLinkContext);
+      output = externalLinks.formatted;
+      diagnostics.externalLinkDiagnostics = externalLinks.diagnostics;
+      if (output !== previous) invalidateContext();
+    }
     if (resolved.formatLists && isRuleEnabled("lists", resolved.level)) {
       const previous = output;
       output = formatLists(output);
@@ -331,6 +344,7 @@ export function formatWikitextSafeDetailed(
       footerDiagnostics: first.footerDiagnostics,
       redirectDiagnostics: first.redirectDiagnostics,
       fileLinkDiagnostics: first.fileLinkDiagnostics,
+      externalLinkDiagnostics: first.externalLinkDiagnostics,
       referenceDiagnostics: first.referenceDiagnostics,
       sectionSpacingDiagnostics: first.sectionSpacingDiagnostics,
       templateParameterDiagnostics: first.templateParameterDiagnostics,

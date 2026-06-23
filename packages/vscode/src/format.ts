@@ -98,6 +98,7 @@ export function buildFormatOptions(
   applySetting<HtmlVoidTagStyle>(options, config, "htmlVoidTagStyle", "html5");
   applySetting<boolean>(options, config, "formatTables", false);
   applySetting<boolean>(options, config, "formatReferences", false);
+  applySetting<boolean>(options, config, "formatExternalLinks", false);
   applySetting<boolean>(options, config, "formatSectionSpacing", false);
   applySetting<boolean>(options, config, "formatTemplateParameters", false);
 

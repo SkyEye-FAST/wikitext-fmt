@@ -33,6 +33,11 @@
           "description": "Enable experimental reference formatting.",
           "type": "boolean"
         },
+        "wikitextFmt.formatExternalLinks": {
+          "default": false,
+          "description": "Enable experimental external link formatting.",
+          "type": "boolean"
+        },
         "wikitextFmt.formatSectionSpacing": {
           "default": false,
           "description": "Enable experimental section spacing formatting.",

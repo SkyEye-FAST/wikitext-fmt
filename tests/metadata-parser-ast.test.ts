@@ -321,5 +321,32 @@ describe("parser AST capabilities for metadata-like rules", () => {
         }),
       ]),
     );
+    expect(summarize("[mailto:test@example.com  Mail]")).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: "ext-link",
+          className: "ExtLinkToken",
+          index: 0,
+          text: "[mailto:test@example.com  Mail]",
+        }),
+      ]),
+    );
+    expect(summarize("[//example.com  Protocol-relative]")).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: "ext-link",
+          className: "ExtLinkToken",
+          index: 0,
+          text: "[//example.com  Protocol-relative]",
+        }),
+      ]),
+    );
+    const context = createParserContext(
+      "[https://example.com  Label]\n",
+      config,
+    );
+    const [externalLink] = collectNodes(context, "ext-link");
+    expect(externalLink).toBeTruthy();
+    expect(isNodeWholeLine(context, externalLink!)).toBe(true);
   });
 });

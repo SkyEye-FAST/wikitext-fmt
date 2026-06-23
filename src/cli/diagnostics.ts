@@ -20,6 +20,8 @@ export interface DiagnosticsSummary {
   fileLinksFormatted: number;
   localizedFileNamespaceAliasesCanonicalized: number;
   localizedImageOptionsCanonicalized: number;
+  externalLinksFormatted: number;
+  externalLinksSkippedUnsafe: number;
   referencesFormatted: number;
   referenceGroupsFormatted: number;
   referenceLinesSkippedUnsafe: number;
@@ -59,6 +61,8 @@ export function emptyDiagnosticsSummary(): DiagnosticsSummary {
     fileLinksFormatted: 0,
     localizedFileNamespaceAliasesCanonicalized: 0,
     localizedImageOptionsCanonicalized: 0,
+    externalLinksFormatted: 0,
+    externalLinksSkippedUnsafe: 0,
     referencesFormatted: 0,
     referenceGroupsFormatted: 0,
     referenceLinesSkippedUnsafe: 0,
@@ -109,6 +113,7 @@ export function createDiagnosticsSummary(
     ...result.footerDiagnostics,
     ...result.redirectDiagnostics,
     ...result.fileLinkDiagnostics,
+    ...result.externalLinkDiagnostics,
     ...result.referenceDiagnostics,
     ...result.sectionSpacingDiagnostics,
     ...result.templateParameterDiagnostics,

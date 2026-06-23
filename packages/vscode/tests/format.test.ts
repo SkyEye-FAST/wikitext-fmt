@@ -41,6 +41,7 @@ describe("VS Code formatter wrapper options", () => {
       htmlVoidTagStyle: "html5",
       formatTables: false,
       formatReferences: false,
+      formatExternalLinks: false,
       formatSectionSpacing: false,
       formatTemplateParameters: false,
     });
@@ -53,6 +54,7 @@ describe("VS Code formatter wrapper options", () => {
         htmlVoidTagStyle: "preserve",
         formatTables: true,
         formatReferences: true,
+        formatExternalLinks: true,
         formatSectionSpacing: true,
         formatTemplateParameters: true,
       }),
@@ -63,6 +65,7 @@ describe("VS Code formatter wrapper options", () => {
       htmlVoidTagStyle: "preserve",
       formatTables: true,
       formatReferences: true,
+      formatExternalLinks: true,
       formatSectionSpacing: true,
       formatTemplateParameters: true,
     });

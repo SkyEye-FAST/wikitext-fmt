@@ -126,6 +126,8 @@ describe("CLI output helpers", () => {
       fileLinksFormatted: 0,
       localizedFileNamespaceAliasesCanonicalized: 0,
       localizedImageOptionsCanonicalized: 0,
+      externalLinksFormatted: 0,
+      externalLinksSkippedUnsafe: 0,
       referencesFormatted: 0,
       referenceGroupsFormatted: 0,
       referenceLinesSkippedUnsafe: 0,

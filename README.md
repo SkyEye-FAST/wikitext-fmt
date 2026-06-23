@@ -59,6 +59,8 @@ Without `--write`, formatted wikitext is written to stdout. `--check` writes not
 --no-format-categories
 --no-format-lists
 --no-format-file-links
+--format-external-links
+--no-format-external-links
 --format-references
 --no-format-references
 --format-interlanguage-links
@@ -84,7 +86,7 @@ Explicit files and glob patterns can be mixed. Expanded paths are deduplicated a
 
 `--diff` writes unified diffs to stdout without modifying files and exits with status 1 when formatting would change the input. Diffs use three context lines by default and separate distant changes into multiple hunks. It works with file paths, globs, and `--stdin` (labelled `stdin`), and cannot be combined with `--write`.
 
-`--diagnostics-json` writes one JSON object per input to stderr. Each object includes `file`, `changed`, `warning`, table counters, footer counters (`behaviorSwitchesMoved`, `behaviorSwitchesFormatted`, `defaultsortMoved`, `categoriesMoved`, `interlanguageLinksMoved`, and `interlanguageLinksFormatted`), redirect counters (`redirectsFormatted`), file-link counters (`fileLinksFormatted`), reference counters, section-spacing counters, template-parameter counters, canonicalization counters (`localizedCategoryAliasesCanonicalized`, `localizedDefaultsortAliasesCanonicalized`, `localizedBehaviorSwitchesCanonicalized`, `localizedRedirectAliasesCanonicalized`, `localizedFileNamespaceAliasesCanonicalized`, and `localizedImageOptionsCanonicalized`), and complete table diagnostics. Formatted text or diffs remain on stdout. JSON diagnostics cannot be combined with the text-oriented `--debug` mode.
+`--diagnostics-json` writes one JSON object per input to stderr. Each object includes `file`, `changed`, `warning`, table counters, footer counters (`behaviorSwitchesMoved`, `behaviorSwitchesFormatted`, `defaultsortMoved`, `categoriesMoved`, `interlanguageLinksMoved`, and `interlanguageLinksFormatted`), redirect counters (`redirectsFormatted`), file-link counters (`fileLinksFormatted`), external-link counters, reference counters, section-spacing counters, template-parameter counters, canonicalization counters (`localizedCategoryAliasesCanonicalized`, `localizedDefaultsortAliasesCanonicalized`, `localizedBehaviorSwitchesCanonicalized`, `localizedRedirectAliasesCanonicalized`, `localizedFileNamespaceAliasesCanonicalized`, and `localizedImageOptionsCanonicalized`), and complete table diagnostics. Formatted text or diffs remain on stdout. JSON diagnostics cannot be combined with the text-oriented `--debug` mode.
 
 `--safe` enables parse-before, parse-after, and idempotency verification. If verification fails, the original input is returned and a warning is written to stderr. `--debug` writes the selected mode, rule level, and result status to stderr without contaminating formatted stdout.
 
@@ -136,6 +138,7 @@ Configuration keys match `FormatOptions`:
   "formatCategories": true,
   "formatLists": true,
   "formatFileLinks": true,
+  "formatExternalLinks": false,
   "formatReferences": false,
   "formatInterlanguageLinks": false,
   "interlanguagePlacement": "preserve",
@@ -202,6 +205,7 @@ Supported settings are:
   "wikitextFmt.htmlVoidTagStyle": "html5",
   "wikitextFmt.formatTables": false,
   "wikitextFmt.formatReferences": false,
+  "wikitextFmt.formatExternalLinks": false,
   "wikitextFmt.formatSectionSpacing": false,
   "wikitextFmt.formatTemplateParameters": false
 }
@@ -242,6 +246,7 @@ const output = formatWikitext(source, {
   formatCategories: true,
   formatLists: true,
   formatFileLinks: true,
+  formatExternalLinks: false,
   formatReferences: false,
   formatInterlanguageLinks: false,
   interlanguagePlacement: "preserve",
@@ -352,6 +357,28 @@ become:
 ```
 
 Reference formatting is parser-assisted: `wikiparser-node` identifies standalone extension nodes, and the rule then keeps a source-line safety check because exact self-closing syntax matters. Attributes are preserved exactly apart from spacing before `/>`; attribute order, quote style, and values are not normalized. Content-bearing refs, inline refs, multiline refs, lines with multiple tags, templates, wikilinks, comments, table/list syntax, non-reference HTML, protected placeholders, or uncertain `<` / `>` balance are preserved unchanged.
+
+## Experimental external link formatting
+
+External link formatting is experimental and disabled by default:
+
+```sh
+wikitext-fmt page.wiki --level experimental --format-external-links
+```
+
+The rule is parser-assisted and handles only standalone whole-line labelled external links. It normalizes only extra horizontal whitespace between the URL and label:
+
+```wikitext
+[https://example.com  Label]
+```
+
+becomes:
+
+```wikitext
+[https://example.com Label]
+```
+
+Bare external links, inline links, malformed links, links with templates, nested wikilinks, HTML, table/list/ref contexts, multiple links on one line, and protected placeholders are preserved unchanged. URLs and labels are not otherwise rewritten.
 
 ## Page footer and behavior switches
 
@@ -495,6 +522,7 @@ wikitext-fmt page.wiki --safe --debug --level experimental --format-tables
 - Only standalone category namespace aliases backed by the selected localization data are moved; categories are never sorted.
 - List formatting is limited to safe spacing and trailing-whitespace cleanup on ordinary single-line items.
 - File/image link formatting is limited to one safe standalone file link per line; captions and values are preserved.
+- External link formatting is experimental, disabled by default, and limited to parser-confirmed standalone labelled links.
 - Reference formatting is experimental, disabled by default, and limited to standalone self-closing `<ref ... />` and `<references ... />` lines.
 - Interlanguage link movement is experimental, disabled by default, and limited to standalone unlabelled links with configured prefixes.
 - Section spacing is experimental, disabled by default, and only applies around headings adjacent to ordinary paragraph text.

@@ -74,6 +74,15 @@ export const optionSchema: readonly OptionSchemaEntry[] = [
     ruleLevel: "normal",
   },
   {
+    name: "formatExternalLinks",
+    type: "boolean",
+    defaultValue: false,
+    positiveFlag: "--format-external-links",
+    negativeFlag: "--no-format-external-links",
+    ruleName: "externalLinks",
+    ruleLevel: "experimental",
+  },
+  {
     name: "formatReferences",
     type: "boolean",
     defaultValue: false,
