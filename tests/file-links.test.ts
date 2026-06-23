@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import generatedAliases from "../src/localization/generated/mediawiki-aliases.json" with { type: "json" };
 import { formatWikitext, formatWikitextDetailedResult } from "../src/index.js";
+import { getParserConfig } from "../src/parser.js";
+import { createParserContext } from "../src/parserContext.js";
+import { formatFileLinks } from "../src/rules/fileLinks.js";
+
+const config = getParserConfig("mediawiki");
 
 describe("file/image link formatting", () => {
   it("leaves English file links unchanged except trailing whitespace", () => {
@@ -74,6 +79,36 @@ describe("file/image link formatting", () => {
     ).toBe("[[File:A.png|thumb|right|300px]]\n");
   });
 
+  it("uses parser-confirmed whole-line file nodes when context is provided", () => {
+    const source = "[[文件:A.png|缩略图|右]]\n";
+    expect(
+      formatFileLinks(
+        source,
+        {
+          localizationSource: "builtin",
+          localizedSyntaxStyle: "canonical-english",
+          localizationAliases: {},
+        },
+        createParserContext(source, config),
+      ).formatted,
+    ).toBe("[[File:A.png|thumb|right]]\n");
+  });
+
+  it("ignores a stale file-link parser context for a different source", () => {
+    const source = "[[file:A.png|thumb]]\n";
+    expect(
+      formatFileLinks(
+        source,
+        {
+          localizationSource: "builtin",
+          localizedSyntaxStyle: "canonical-english",
+          localizationAliases: {},
+        },
+        createParserContext("Plain text\n", config),
+      ).formatted,
+    ).toBe("[[File:A.png|thumb]]\n");
+  });
+
   it("canonicalizes left and center options from generated aliases", () => {
     expect(
       formatWikitext("[[文件:A.png|缩略图|左|居中]]\n", {
@@ -118,6 +153,8 @@ describe("file/image link formatting", () => {
     "[[File:A.png|thumb|alt={{Example}}]]\n",
     "[[File:A.png|thumb|link=[[Target]]]]\n",
     "| [[File:A.png|thumb]]\n",
+    "Text [[File:A.png|thumb]]\n",
+    "[[Page|label]]   \n",
   ])("preserves unsafe file link line %s", (input) => {
     expect(
       formatWikitext(input, { localizedSyntaxStyle: "canonical-english" }),

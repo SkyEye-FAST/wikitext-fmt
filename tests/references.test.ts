@@ -1,10 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { formatWikitext, formatWikitextDetailedResult } from "../src/index.js";
+import { getParserConfig } from "../src/parser.js";
+import { createParserContext } from "../src/parserContext.js";
+import { formatReferences } from "../src/rules/references.js";
 
 const options = {
   level: "experimental" as const,
   formatReferences: true,
 };
+const config = getParserConfig("mediawiki");
 
 describe("experimental reference formatting", () => {
   it("is disabled by default", () => {
@@ -29,6 +33,21 @@ describe("experimental reference formatting", () => {
     ['<ref name="foo" />   \n', '<ref name="foo" />\n'],
   ])("formats safe standalone reference line %s", (input, expected) => {
     expect(formatWikitext(input, options)).toBe(expected);
+  });
+
+  it("uses parser-confirmed whole-line extension nodes when context is provided", () => {
+    const source = '<references group="note"/>\n';
+    expect(
+      formatReferences(source, createParserContext(source, config)).formatted,
+    ).toBe('<references group="note" />\n');
+  });
+
+  it("ignores a stale reference parser context for a different source", () => {
+    const source = '<ref name="foo"/>\n';
+    expect(
+      formatReferences(source, createParserContext("Plain text\n", config))
+        .formatted,
+    ).toBe('<ref name="foo" />\n');
   });
 
   it.each([

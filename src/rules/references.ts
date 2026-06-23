@@ -1,3 +1,9 @@
+import {
+  collectNodes,
+  isNodeWholeLine,
+  lineIndexAt,
+  type ParsedDocumentContext,
+} from "../parserContext.js";
 import { hasFinalNewline, withFinalNewline } from "../utils/text.js";
 
 export interface ReferenceDiagnostics {
@@ -63,15 +69,38 @@ function formatReferenceLine(
   return { value: `<${kind}${attrs} />`, kind };
 }
 
-export function formatReferences(source: string): ReferenceFormatResult {
+function parserReferenceLineIndexes(
+  source: string,
+  context?: ParsedDocumentContext,
+): Set<number> | undefined {
+  if (context?.source !== source) return undefined;
+  const lineIndexes = new Set<number>();
+  for (const node of collectNodes(context, "ext")) {
+    if (!isNodeWholeLine(context, node)) continue;
+    const text = node.toString();
+    if (!/^<(?:ref|references)\b/iu.test(text)) continue;
+    lineIndexes.add(lineIndexAt(context, node.getAbsoluteIndex()));
+  }
+  return lineIndexes;
+}
+
+export function formatReferences(
+  source: string,
+  context?: ParsedDocumentContext,
+): ReferenceFormatResult {
   const diagnostics = emptyReferenceDiagnostics();
   const finalNewline = hasFinalNewline(source);
   const lines = source.split("\n");
   if (finalNewline) lines.pop();
+  const parserConfirmedLines = parserReferenceLineIndexes(source, context);
   let changed = false;
 
   for (let index = 0; index < lines.length; index++) {
     const line = lines[index]!;
+    if (parserConfirmedLines && !parserConfirmedLines.has(index)) {
+      if (isReferenceLikeLine(line)) diagnostics.referenceLinesSkippedUnsafe++;
+      continue;
+    }
     const formatted = formatReferenceLine(line);
     if (!formatted) {
       if (isReferenceLikeLine(line)) diagnostics.referenceLinesSkippedUnsafe++;

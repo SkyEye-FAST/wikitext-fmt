@@ -72,6 +72,13 @@ export function collectNodeRanges(
     .map((node) => nodeRange(node as ParserNodeLike));
 }
 
+export function collectNodeRangesForContext(
+  context: ParsedDocumentContext,
+  selector: string,
+): SourceRange[] {
+  return collectNodeRanges(context, selector);
+}
+
 export function isRangeInside(
   start: number,
   end: number,

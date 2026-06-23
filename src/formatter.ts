@@ -107,7 +107,14 @@ export function formatWikitextDetailedResult(
         protectTables: true,
         protectReferenceTags: false,
       });
-      const references = formatReferences(referenceBlocks.text);
+      const referenceContext = createParserContext(
+        referenceBlocks.text,
+        config,
+      );
+      const references = formatReferences(
+        referenceBlocks.text,
+        referenceContext,
+      );
       tableOutput = referenceBlocks.restore(references.formatted);
       diagnostics.referenceDiagnostics = references.diagnostics;
     }
@@ -158,11 +165,16 @@ export function formatWikitextDetailedResult(
       resolved.formatFileLinks &&
       isRuleEnabled("fileLinks", resolved.level)
     ) {
-      const fileLinks = formatFileLinks(output, {
-        localizationSource: resolved.localizationSource,
-        localizedSyntaxStyle: resolved.localizedSyntaxStyle,
-        localizationAliases: resolved.localizationAliases,
-      });
+      const fileLinkContext = createParserContext(output, config);
+      const fileLinks = formatFileLinks(
+        output,
+        {
+          localizationSource: resolved.localizationSource,
+          localizedSyntaxStyle: resolved.localizedSyntaxStyle,
+          localizationAliases: resolved.localizationAliases,
+        },
+        fileLinkContext,
+      );
       output = fileLinks.formatted;
       diagnostics.fileLinkDiagnostics = fileLinks.diagnostics;
     }

@@ -325,7 +325,7 @@ It recognizes File namespace aliases and image option aliases from the selected 
 
 In `"canonical-english"` mode, the rule rewrites only certainly matched syntax keywords: localized File namespace aliases become `File`, and recognized image options such as localized `thumb`, `right`, `left`, or `center` become their canonical English option names. File names, captions, alt text values, link targets, page numbers, class/lang values, widths such as `300px`, and normal text are not translated or reordered.
 
-`wikiparser-node` exposes file-link nodes and image-parameter nodes, but this rule still uses a conservative whole-line source check so custom/site namespace aliases and inline-file rejection remain predictable. The rule skips lines with multiple wikilinks, nested links, templates, parser-function-like syntax, HTML or extension tags, multiline links, gallery contents, and table lines. Disable it with `--no-format-file-links` or `formatFileLinks: false`.
+File/image link formatting is parser-assisted: `wikiparser-node` identifies whole-line file-link nodes where possible, and a conservative whole-line source fallback remains for custom or site-provided aliases that the parser configuration may not know. The rule skips inline file links, lines with multiple wikilinks, nested links, templates, parser-function-like syntax, HTML or extension tags, multiline links, gallery contents, and table lines. Disable it with `--no-format-file-links` or `formatFileLinks: false`.
 
 ## Experimental reference formatting
 
@@ -351,7 +351,7 @@ become:
 <ref name="foo" />
 ```
 
-`wikiparser-node` exposes references as extension nodes, but the rule keeps a source-line check because safety depends on exact self-closing syntax and standalone placement. Attributes are preserved exactly apart from spacing before `/>`; attribute order, quote style, and values are not normalized. Content-bearing refs, inline refs, multiline refs, lines with multiple tags, templates, wikilinks, comments, table/list syntax, non-reference HTML, protected placeholders, or uncertain `<` / `>` balance are preserved unchanged.
+Reference formatting is parser-assisted: `wikiparser-node` identifies standalone extension nodes, and the rule then keeps a source-line safety check because exact self-closing syntax matters. Attributes are preserved exactly apart from spacing before `/>`; attribute order, quote style, and values are not normalized. Content-bearing refs, inline refs, multiline refs, lines with multiple tags, templates, wikilinks, comments, table/list syntax, non-reference HTML, protected placeholders, or uncertain `<` / `>` balance are preserved unchanged.
 
 ## Page footer and behavior switches
 

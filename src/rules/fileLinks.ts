@@ -1,5 +1,11 @@
 import { resolveLocalizationAliases } from "../localization/aliases.js";
 import type { ResolvedFormatOptions } from "../options.js";
+import {
+  collectNodes,
+  isNodeWholeLine,
+  lineIndexAt,
+  type ParsedDocumentContext,
+} from "../parserContext.js";
 import { hasFinalNewline, withFinalNewline } from "../utils/text.js";
 
 export interface FileLinkDiagnostics {
@@ -180,18 +186,39 @@ function formatFileLinkLine(
   };
 }
 
+function parserFileLineIndexes(
+  source: string,
+  context?: ParsedDocumentContext,
+): Set<number> | undefined {
+  if (context?.source !== source) return undefined;
+  const lineIndexes = new Set<number>();
+  for (const node of collectNodes(context, "file")) {
+    if (!isNodeWholeLine(context, node)) continue;
+    lineIndexes.add(lineIndexAt(context, node.getAbsoluteIndex()));
+  }
+  return lineIndexes;
+}
+
 export function formatFileLinks(
   source: string,
   options: FileLinkOptions,
+  context?: ParsedDocumentContext,
 ): FileLinkFormatResult {
   const diagnostics = emptyFileLinkDiagnostics();
   const finalNewline = hasFinalNewline(source);
   const lines = source.split("\n");
   if (finalNewline) lines.pop();
+  const parserConfirmedLines = parserFileLineIndexes(source, context);
 
   let changed = false;
   for (let index = 0; index < lines.length; index++) {
     const line = lines[index]!;
+    // Parser-confirmed whole-line FileToken nodes cover built-in and parser
+    // config aliases. Keep the formatter's existing conservative whole-line
+    // fallback for custom/site aliases that wikiparser-node may not know.
+    const parserConfirmed =
+      parserConfirmedLines === undefined || parserConfirmedLines.has(index);
+    if (!parserConfirmed && !splitFileLink(line)) continue;
     const formatted = formatFileLinkLine(line, options);
     if (!formatted || formatted.value === line) continue;
     lines[index] = formatted.value;
