@@ -78,7 +78,7 @@ describe("page footer formatting", () => {
       interlanguagePlacement: "preserve",
       interlanguagePrefixes: [],
       ...localization,
-    } as const;
+    } satisfies Parameters<typeof formatPageFooter>[2];
     expect(
       formatPageFooter(
         source,
@@ -87,6 +87,68 @@ describe("page footer formatting", () => {
         createParserContext(source, config),
       ).formatted,
     ).toBe(formatPageFooter(source, config, options).formatted);
+  });
+
+  it("moves parser-confirmed English category lines with explicit context", () => {
+    const source = "[[Category:A]]\nBody\n";
+    expect(
+      formatPageFooter(
+        source,
+        config,
+        {
+          formatCategories: true,
+          formatBehaviorSwitches: false,
+          behaviorSwitchPlacement: "preserve",
+          formatInterlanguageLinks: false,
+          interlanguagePlacement: "preserve",
+          interlanguagePrefixes: [],
+          ...localization,
+        },
+        createParserContext(source, config),
+      ).formatted,
+    ).toBe("Body\n\n[[Category:A]]\n");
+  });
+
+  it("handles localized category aliases known to the parser", () => {
+    const source = "Body\n[[分類:歌曲|示例]]\n";
+    expect(
+      formatPageFooter(
+        source,
+        config,
+        {
+          formatCategories: true,
+          formatBehaviorSwitches: false,
+          behaviorSwitchPlacement: "preserve",
+          formatInterlanguageLinks: false,
+          interlanguagePlacement: "preserve",
+          interlanguagePrefixes: [],
+          ...localization,
+        },
+        createParserContext(source, config),
+      ).formatted,
+    ).toBe("Body\n\n[[分類:歌曲|示例]]\n");
+  });
+
+  it("keeps custom category aliases working through the line fallback", () => {
+    const source = "[[CatX:Foo]]\nBody\n";
+    expect(
+      formatPageFooter(
+        source,
+        config,
+        {
+          formatCategories: true,
+          formatBehaviorSwitches: false,
+          behaviorSwitchPlacement: "preserve",
+          formatInterlanguageLinks: false,
+          interlanguagePlacement: "preserve",
+          interlanguagePrefixes: [],
+          localizationSource: "custom",
+          localizedSyntaxStyle: "canonical-english",
+          localizationAliases: { categoryNamespaces: ["CatX"] },
+        },
+        createParserContext(source, config),
+      ).formatted,
+    ).toBe("Body\n\n[[Category:Foo]]\n");
   });
 
   it("does not use a stale parser context for a different source", () => {
@@ -123,6 +185,26 @@ describe("page footer formatting", () => {
         ...localization,
       }).formatted,
     ).toBe("Body [[en:Inline]]\n\n[[en:Footer]]\n");
+  });
+
+  it("does not move inline category-like links", () => {
+    const source = "Body [[Category:Inline]]\n[[Category:Footer]]\n";
+    expect(
+      formatPageFooter(
+        source,
+        config,
+        {
+          formatCategories: true,
+          formatBehaviorSwitches: false,
+          behaviorSwitchPlacement: "preserve",
+          formatInterlanguageLinks: false,
+          interlanguagePlacement: "preserve",
+          interlanguagePrefixes: [],
+          ...localization,
+        },
+        createParserContext(source, config),
+      ).formatted,
+    ).toBe("Body [[Category:Inline]]\n\n[[Category:Footer]]\n");
   });
 
   it("uses parser context for the current source snapshot after earlier rules change text", () => {

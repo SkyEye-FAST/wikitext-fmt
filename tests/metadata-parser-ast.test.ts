@@ -61,6 +61,16 @@ describe("parser AST capabilities for metadata-like rules", () => {
         }),
       ]),
     );
+    expect(summarize("[[Category:Foo|Sort]]")).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: "category",
+          className: "CategoryToken",
+          index: 0,
+          text: "[[Category:Foo|Sort]]",
+        }),
+      ]),
+    );
     expect(summarize("{{DEFAULTSORT:Foo}}")).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
@@ -68,6 +78,16 @@ describe("parser AST capabilities for metadata-like rules", () => {
           className: "TranscludeToken",
           index: 0,
           text: "{{DEFAULTSORT:Foo}}",
+        }),
+      ]),
+    );
+    expect(summarize("{{DEFAULTSORTKEY:Foo}}")).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: "magic-word",
+          className: "TranscludeToken",
+          index: 0,
+          text: "{{DEFAULTSORTKEY:Foo}}",
         }),
       ]),
     );
@@ -113,6 +133,23 @@ describe("parser AST capabilities for metadata-like rules", () => {
         expect.objectContaining({ type: "behavior-switch" }),
       ]),
     );
+  });
+
+  it("supports whole-line checks for category nodes but not embedded categories", () => {
+    const wholeLine = createParserContext("[[Category:A]]\n", config);
+    const [wholeLineCategory] = collectNodes(wholeLine, "category");
+    expect(wholeLineCategory).toBeTruthy();
+    expect(isNodeWholeLine(wholeLine, wholeLineCategory!)).toBe(true);
+
+    const inline = createParserContext("Text [[Category:Inline]]\n", config);
+    const [inlineCategory] = collectNodes(inline, "category");
+    expect(inlineCategory).toBeTruthy();
+    expect(isNodeWholeLine(inline, inlineCategory!)).toBe(false);
+
+    const nested = createParserContext("{{T|x=[[Category:Inside]]}}\n", config);
+    const [nestedCategory] = collectNodes(nested, "category");
+    expect(nestedCategory).toBeTruthy();
+    expect(isNodeWholeLine(nested, nestedCategory!)).toBe(false);
   });
 
   it("exposes file-link nodes and ranges but line-level validation remains necessary", () => {

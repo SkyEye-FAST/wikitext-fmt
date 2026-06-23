@@ -40,6 +40,15 @@ interface FooterEntry {
   originalValue: string;
 }
 
+interface MetadataCandidate {
+  index: number;
+  line: string;
+  trimmed: string;
+  start: number;
+  end: number;
+  parserConfirmed?: boolean;
+}
+
 function behaviorAliasToken(alias: string): string {
   return /^(?:__.*__|＿＿.*＿＿)$/u.test(alias) ? alias : `__${alias}__`;
 }
@@ -104,6 +113,34 @@ function parserCategoryLineIndexes(
     indexes.add(lineIndexAt(context, node.getAbsoluteIndex()));
   }
   return indexes;
+}
+
+function collectMetadataCandidates(
+  lines: readonly string[],
+  lineStarts: readonly number[],
+  templateRanges: readonly SourceRange[],
+  parserCategoryLines?: ReadonlySet<number>,
+): MetadataCandidate[] {
+  const candidates: MetadataCandidate[] = [];
+  for (const [index, line] of lines.entries()) {
+    const trimmed = line.trimEnd();
+    const start = lineStarts[index] ?? 0;
+    const end = start + trimmed.length;
+    if (isRangeInside(start, end, templateRanges)) continue;
+    candidates.push({
+      index,
+      line,
+      trimmed,
+      start,
+      end,
+      ...(parserCategoryLines?.has(index) ? { parserConfirmed: true } : {}),
+    });
+  }
+  return candidates;
+}
+
+function looksLikeCategoryLink(line: string): boolean {
+  return /^\[\[[^:\]\n]+:/u.test(line.trimEnd());
 }
 
 function matchCategory(
@@ -237,89 +274,96 @@ export function formatPageFooter(
       offset += line.length + 1;
     }
   }
+  const candidates = collectMetadataCandidates(
+    lines,
+    lineStarts,
+    ranges,
+    parserCategoryLines,
+  );
 
   const categories: FooterEntry[] = [];
   const categoryIndexes = new Set<number>();
   if (options.formatCategories) {
-    for (const [index, line] of lines.entries()) {
-      const value = matchCategory(line, categoryAliases, canonicalEnglish);
-      const start = lineStarts[index] ?? 0;
-      const parserConfirmed = parserCategoryLines?.has(index) ?? false;
-      // Parser-confirmed category lines cover aliases known to the active
-      // parser config. The string matcher remains authoritative for custom or
-      // siteinfo aliases that wikiparser-node may not know.
-      void parserConfirmed;
-      if (!value || isRangeInside(start, start + line.trimEnd().length, ranges))
+    for (const candidate of candidates) {
+      if (!candidate.parserConfirmed && !looksLikeCategoryLink(candidate.line))
         continue;
+      // Parser-confirmed category lines cover aliases known to the active
+      // parser config. They still must satisfy the formatter's current
+      // localization alias policy; custom/siteinfo aliases that the parser does
+      // not know continue through the line-level fallback.
+      const value = matchCategory(
+        candidate.line,
+        categoryAliases,
+        canonicalEnglish,
+      );
+      if (!value) continue;
       if (value.canonicalized)
         diagnostics.localizedCategoryAliasesCanonicalized++;
       categories.push({
-        index,
+        index: candidate.index,
         value: value.value,
-        originalValue: line.trimEnd(),
+        originalValue: candidate.trimmed,
       });
-      categoryIndexes.add(index);
+      categoryIndexes.add(candidate.index);
     }
   }
 
   const defaultsorts: FooterEntry[] = [];
   const defaultsortIndexes = new Set<number>();
   if (options.formatCategories) {
-    for (const [index, line] of lines.entries()) {
+    for (const candidate of candidates) {
       const value = matchDefaultsort(
-        line,
+        candidate.line,
         aliases.defaultsortMagicWords,
         canonicalEnglish,
       );
-      const start = lineStarts[index] ?? 0;
-      if (!value || isRangeInside(start, start + line.trimEnd().length, ranges))
-        continue;
+      if (!value) continue;
       if (value.canonicalized)
         diagnostics.localizedDefaultsortAliasesCanonicalized++;
       defaultsorts.push({
-        index,
+        index: candidate.index,
         value: value.value,
-        originalValue: line.trimEnd(),
+        originalValue: candidate.trimmed,
       });
-      defaultsortIndexes.add(index);
+      defaultsortIndexes.add(candidate.index);
     }
   }
 
   const behaviorSwitches: FooterEntry[] = [];
   const behaviorSwitchIndexes = new Set<number>();
   if (options.formatBehaviorSwitches) {
-    for (const [index, line] of lines.entries()) {
-      const originalValue = line.trimEnd();
+    for (const candidate of candidates) {
+      const originalValue = candidate.trimmed;
       const id = switchAliases.get(originalValue);
-      const start = lineStarts[index] ?? 0;
-      if (!id || isRangeInside(start, start + originalValue.length, ranges))
-        continue;
+      if (!id) continue;
       const value = canonicalEnglish
         ? `__${id.toUpperCase()}__`
         : originalValue;
-      if (value !== line) diagnostics.behaviorSwitchesFormatted++;
+      if (value !== candidate.line) diagnostics.behaviorSwitchesFormatted++;
       if (canonicalEnglish && value !== originalValue)
         diagnostics.localizedBehaviorSwitchesCanonicalized++;
-      behaviorSwitches.push({ index, value, originalValue });
-      behaviorSwitchIndexes.add(index);
+      behaviorSwitches.push({ index: candidate.index, value, originalValue });
+      behaviorSwitchIndexes.add(candidate.index);
     }
   }
 
   const interlanguageLinks: FooterEntry[] = [];
   const interlanguageIndexes = new Set<number>();
   if (options.formatInterlanguageLinks) {
-    for (const [index, line] of lines.entries()) {
-      const value = matchInterlanguageLink(line, interlanguagePrefixes);
-      const start = lineStarts[index] ?? 0;
-      if (!value || isRangeInside(start, start + line.trimEnd().length, ranges))
-        continue;
-      if (value.value !== line) diagnostics.interlanguageLinksFormatted++;
+    for (const candidate of candidates) {
+      const value = matchInterlanguageLink(
+        candidate.line,
+        interlanguagePrefixes,
+      );
+      if (!value) continue;
+      if (value.value !== candidate.line)
+        diagnostics.interlanguageLinksFormatted++;
       interlanguageLinks.push({
-        index,
+        index: candidate.index,
         value: value.value,
-        originalValue: line.trimEnd(),
+        originalValue: candidate.trimmed,
       });
-      interlanguageIndexes.add(index);
+      interlanguageIndexes.add(candidate.index);
     }
   }
 

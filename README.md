@@ -370,7 +370,7 @@ __NOEDITSECTION__
 [[Category:B]]
 ```
 
-Standalone aliases for the MediaWiki `defaultsort` magic-word ID move before recognized namespace-ID-14 category links. Footer metadata detection is parser-assisted: the formatter uses `wikiparser-node` ranges to avoid moving categories, defaultsorts, behavior switches, or interlanguage links that are inside templates. Line-level matching is still used for localized syntax and whole-line checks. Categories retain titles, sort keys, and relative order; category-talk namespaces and unknown category-like links remain in place. Disable switch handling with `--no-format-behavior-switches` or `formatBehaviorSwitches: false`.
+Standalone aliases for the MediaWiki `defaultsort` magic-word ID move before recognized namespace-ID-14 category links. Footer metadata detection is parser-assisted: the formatter uses `wikiparser-node` category nodes when available and parser ranges to avoid moving categories, defaultsorts, behavior switches, or interlanguage links that are inside templates. Line-level matching remains for custom/site category aliases, localized syntax, and other whole-line metadata checks. Categories retain titles, sort keys, and relative order; category-talk namespaces and unknown category-like links remain in place. Disable switch handling with `--no-format-behavior-switches` or `formatBehaviorSwitches: false`.
 
 ## Experimental interlanguage footer formatting
 
