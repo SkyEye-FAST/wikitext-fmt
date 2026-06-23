@@ -23,9 +23,11 @@
   "scripts": {
     "build": "tsc",
     "build:all": "pnpm -r --sort build",
+    "typecheck": "tsc --noEmit",
+    "typecheck:tests": "tsc -p tsconfig.test.json",
     "test": "vitest",
     "test:run": "vitest run",
-    "check": "pnpm build:all && pnpm --filter wikitext-formatter typecheck && pnpm --filter wikitext-formatter check:package-content && pnpm test:run && pnpm smoke",
+    "check": "pnpm build:all && pnpm typecheck:tests && pnpm --filter wikitext-formatter typecheck && pnpm --filter wikitext-formatter check:package-content && pnpm test:run && pnpm smoke",
     "check:extension": "pnpm --filter wikitext-formatter test:extension",
     "check:vsix": "pnpm --filter wikitext-formatter test:vsix",
     "check:vscode-release": "pnpm --filter wikitext-formatter check:release",
