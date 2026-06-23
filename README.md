@@ -312,7 +312,7 @@ List lines containing templates, table syntax, wikilinks, HTML, or extension tag
 
 ## Redirect formatting
 
-The normal-level redirect rule handles only a redirect on the first non-empty page line. It recognizes the selected localization data's `redirect` magic-word aliases and normalizes spacing from `#REDIRECT[[Target]]` to `#REDIRECT [[Target]]`.
+The normal-level redirect rule handles only a redirect on the first non-empty page line. It is parser-assisted when `wikiparser-node` exposes redirect structure, with the existing conservative line-level alias and target checks kept as a fallback for custom or siteinfo aliases. It recognizes the selected localization data's `redirect` magic-word aliases and normalizes spacing from `#REDIRECT[[Target]]` to `#REDIRECT [[Target]]`.
 
 With `localizedSyntaxStyle: "preserve"`, the original alias spelling is kept, such as `#転送 [[Target]]`. With `"canonical-english"`, recognized localized aliases are emitted as `#REDIRECT [[Target]]`, and `localizedRedirectAliasesCanonicalized` is incremented when the keyword changes.
 

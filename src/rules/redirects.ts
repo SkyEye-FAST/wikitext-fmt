@@ -1,5 +1,11 @@
 import type { ResolvedFormatOptions } from "../options.js";
 import { resolveLocalizationAliases } from "../localization/aliases.js";
+import {
+  collectNodes,
+  isNodeWholeLine,
+  lineIndexAt,
+  type ParsedDocumentContext,
+} from "../parserContext.js";
 import { hasFinalNewline, withFinalNewline } from "../utils/text.js";
 
 export interface RedirectDiagnostics {
@@ -65,19 +71,41 @@ function formatRedirectLine(
   return undefined;
 }
 
+function firstMeaningfulLineIndex(lines: readonly string[]): number {
+  return lines.findIndex((line) => line.trim() !== "");
+}
+
+function parserRedirectLineIndex(
+  source: string,
+  context?: ParsedDocumentContext,
+): number | undefined {
+  if (context?.source !== source) return undefined;
+  const [syntax] = collectNodes(context, "redirect-syntax");
+  if (syntax) return lineIndexAt(context, syntax.getAbsoluteIndex());
+  for (const node of collectNodes(context, "redirect")) {
+    if (!isNodeWholeLine(context, node)) continue;
+    return lineIndexAt(context, node.getAbsoluteIndex());
+  }
+  return undefined;
+}
+
 export function formatRedirects(
   source: string,
   options: Pick<
     ResolvedFormatOptions,
     "localizationSource" | "localizedSyntaxStyle" | "localizationAliases"
   >,
+  context?: ParsedDocumentContext,
 ): RedirectFormatResult {
   const diagnostics = emptyRedirectDiagnostics();
   const finalNewline = hasFinalNewline(source);
   const lines = source.split("\n");
   if (finalNewline) lines.pop();
-  const index = lines.findIndex((line) => line.trim() !== "");
+  const index = firstMeaningfulLineIndex(lines);
   if (index < 0) return { formatted: source, diagnostics };
+  const parserIndex = parserRedirectLineIndex(source, context);
+  if (parserIndex !== undefined && parserIndex !== index)
+    return { formatted: source, diagnostics };
 
   const formatted = formatRedirectLine(
     lines[index]!,

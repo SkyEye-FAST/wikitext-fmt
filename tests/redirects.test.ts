@@ -1,5 +1,15 @@
 import { describe, expect, it } from "vitest";
 import { formatWikitext, formatWikitextDetailedResult } from "../src/index.js";
+import { getParserConfig } from "../src/parser.js";
+import { createParserContext } from "../src/parserContext.js";
+import { formatRedirects } from "../src/rules/redirects.js";
+
+const config = getParserConfig("mediawiki");
+const redirectOptions = {
+  localizationSource: "builtin",
+  localizedSyntaxStyle: "preserve",
+  localizationAliases: {},
+} as const;
 
 describe("redirect formatting", () => {
   it.each([
@@ -17,6 +27,34 @@ describe("redirect formatting", () => {
         localizedSyntaxStyle: "canonical-english",
       }),
     ).toBe("#REDIRECT [[Target]]\n");
+  });
+
+  it("formats a parser-confirmed redirect with explicit context", () => {
+    const source = "#REDIRECT[[Target]]\n";
+    expect(
+      formatRedirects(
+        source,
+        redirectOptions,
+        createParserContext(source, config),
+      ).formatted,
+    ).toBe("#REDIRECT [[Target]]\n");
+  });
+
+  it("ignores a stale redirect parser context safely", () => {
+    const source = "#REDIRECT[[Target]]\n";
+    expect(
+      formatRedirects(
+        source,
+        redirectOptions,
+        createParserContext("Plain text\n", config),
+      ).formatted,
+    ).toBe("#REDIRECT [[Target]]\n");
+  });
+
+  it("formats redirects after leading blank lines", () => {
+    expect(formatWikitext("\n\n#REDIRECT[[Target]]\n")).toBe(
+      "\n\n#REDIRECT [[Target]]\n",
+    );
   });
 
   it("reports redirect formatting and canonicalization", () => {
@@ -41,8 +79,9 @@ describe("redirect formatting", () => {
     "#REDIRECT[[Target]][[Other]]\n",
     "#REDIRECT[[Target|label]]\n",
     "#UNKNOWN[[Target]]\n",
+    "{{T|x=#REDIRECT [[Target]]}}\n",
   ])("preserves unsafe redirect line %s", (input) => {
-    expect(formatWikitext(input)).toBe(input);
+    expect(formatWikitext(input, { formatTemplates: false })).toBe(input);
   });
 
   it("supports custom redirect aliases", () => {

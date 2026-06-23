@@ -178,12 +178,17 @@ export function formatWikitextDetailedResult(
       resolved.formatRedirects &&
       isRuleEnabled("redirects", resolved.level)
     ) {
+      const redirectContext = contextFor(output);
       const previous = output;
-      const redirect = formatRedirects(output, {
-        localizationSource: resolved.localizationSource,
-        localizedSyntaxStyle: resolved.localizedSyntaxStyle,
-        localizationAliases: resolved.localizationAliases,
-      });
+      const redirect = formatRedirects(
+        output,
+        {
+          localizationSource: resolved.localizationSource,
+          localizedSyntaxStyle: resolved.localizedSyntaxStyle,
+          localizationAliases: resolved.localizationAliases,
+        },
+        redirectContext,
+      );
       output = redirect.formatted;
       diagnostics.redirectDiagnostics = redirect.diagnostics;
       if (output !== previous) invalidateContext();

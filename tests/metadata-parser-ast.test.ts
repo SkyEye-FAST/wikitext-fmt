@@ -349,4 +349,68 @@ describe("parser AST capabilities for metadata-like rules", () => {
     expect(externalLink).toBeTruthy();
     expect(isNodeWholeLine(context, externalLink!)).toBe(true);
   });
+
+  it("exposes redirect nodes only for redirect-position syntax", () => {
+    expect(summarize("#REDIRECT [[Target]]")).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: "redirect",
+          className: "RedirectToken",
+          index: 0,
+          text: "#REDIRECT [[Target]]",
+        }),
+        expect.objectContaining({
+          type: "redirect-target",
+          className: "RedirectTargetToken",
+          text: "[[Target]]",
+        }),
+      ]),
+    );
+    expect(summarize("#redirect [[Target]]")).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: "redirect",
+          className: "RedirectToken",
+          index: 0,
+          text: "#redirect [[Target]]",
+        }),
+      ]),
+    );
+    expect(summarize("#重定向 [[Target]]")).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: "redirect",
+          className: "RedirectToken",
+          index: 0,
+          text: "#重定向 [[Target]]",
+        }),
+      ]),
+    );
+    expect(summarize("Text\n#REDIRECT [[Target]]")).not.toEqual(
+      expect.arrayContaining([expect.objectContaining({ type: "redirect" })]),
+    );
+    expect(summarize("{{T|x=#REDIRECT [[Target]]}}")).not.toEqual(
+      expect.arrayContaining([expect.objectContaining({ type: "redirect" })]),
+    );
+    expect(summarize("#REDIRECT [[Target|label]]")).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: "redirect",
+          text: "#REDIRECT [[Target|label]]",
+        }),
+      ]),
+    );
+    expect(summarize("#REDIRECT [[Target#Section]]")).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: "redirect",
+          text: "#REDIRECT [[Target#Section]]",
+        }),
+      ]),
+    );
+    const context = createParserContext("#REDIRECT [[Target]]\n", config);
+    const [redirect] = collectNodes(context, "redirect");
+    expect(redirect).toBeTruthy();
+    expect(isNodeWholeLine(context, redirect!)).toBe(true);
+  });
 });
