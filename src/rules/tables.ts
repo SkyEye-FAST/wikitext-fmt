@@ -3,7 +3,10 @@ import type {
   ResolvedFormatOptions,
   TableCellSeparatorStyle,
 } from "../options.js";
-import { parseWikitext } from "../parser.js";
+import {
+  createParserContext,
+  type ParsedDocumentContext,
+} from "../parserContext.js";
 
 interface Replacement {
   start: number;
@@ -572,8 +575,12 @@ export function formatTablesWithDiagnostics(
   source: string,
   config: Config,
   _options: ResolvedFormatOptions,
+  context?: ParsedDocumentContext,
 ): TableFormatWithDiagnosticsResult {
-  const root = parseWikitext(source, config);
+  const root =
+    context?.source === source
+      ? context.root
+      : createParserContext(source, config).root;
   const replacements: Replacement[] = [];
   const diagnostics: TableDiagnostic[] = [];
   for (const node of root.querySelectorAll("table")) {

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { formatWikitext } from "../src/index.js";
 import { getParserConfig } from "../src/parser.js";
+import { createParserContext } from "../src/parserContext.js";
 import {
   formatPageFooter,
   isStandaloneBehaviorSwitchLine,
@@ -64,6 +65,49 @@ describe("page footer formatting", () => {
     ).toBe(
       "{{Foo|category=[[Category:Inside]]|sort={{DEFAULTSORT:Inside}}|language=[[en:Inside]]}}\nBody\n\n[[Category:Outside]]\n",
     );
+  });
+
+  it("produces the same footer output with an explicit parser context", () => {
+    const source =
+      "{{Foo|category=[[Category:Inside]]}}\nBody\n[[Category:Outside]]\n";
+    const options = {
+      formatCategories: true,
+      formatBehaviorSwitches: false,
+      behaviorSwitchPlacement: "preserve",
+      formatInterlanguageLinks: false,
+      interlanguagePlacement: "preserve",
+      interlanguagePrefixes: [],
+      ...localization,
+    } as const;
+    expect(
+      formatPageFooter(
+        source,
+        config,
+        options,
+        createParserContext(source, config),
+      ).formatted,
+    ).toBe(formatPageFooter(source, config, options).formatted);
+  });
+
+  it("does not use a stale parser context for a different source", () => {
+    const staleSource = "{{Foo|category=[[Category:Inside]]}}\nBody\n";
+    const source = "Body\n[[Category:Outside]]\n";
+    expect(
+      formatPageFooter(
+        source,
+        config,
+        {
+          formatCategories: true,
+          formatBehaviorSwitches: false,
+          behaviorSwitchPlacement: "preserve",
+          formatInterlanguageLinks: false,
+          interlanguagePlacement: "preserve",
+          interlanguagePrefixes: [],
+          ...localization,
+        },
+        createParserContext(staleSource, config),
+      ).formatted,
+    ).toBe("Body\n\n[[Category:Outside]]\n");
   });
 
   it("does not move inline interlanguage-like links", () => {

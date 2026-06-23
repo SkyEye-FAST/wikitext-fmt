@@ -66,10 +66,12 @@ export function formatWikitextDetailedResult(
         protectTables: false,
         protectComments: false,
       });
+      const tableContext = createParserContext(tableBlocks.text, config);
       const tableResult = formatTablesWithDiagnostics(
         tableBlocks.text,
         config,
         resolved,
+        tableContext,
       );
       tableOutput = tableResult.formatted;
       diagnostics.tableDiagnostics = tableResult.diagnostics.map(
@@ -122,7 +124,13 @@ export function formatWikitextDetailedResult(
         isRuleEnabled("templateParameters", resolved.level)
       )
     ) {
-      output = formatTemplates(output, config, resolved.lineWidth);
+      const templateContext = createParserContext(output, config);
+      output = formatTemplates(
+        output,
+        config,
+        resolved.lineWidth,
+        templateContext,
+      );
     }
     if (
       resolved.formatTemplateParameters &&

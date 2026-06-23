@@ -533,6 +533,8 @@ GitHub Actions runs frozen pnpm installs, builds, and the complete test suite on
 
 The repository is a pnpm workspace. The root package contains the formatter core and CLI; `packages/vscode` is a thin VS Code wrapper that depends on the root package and does not duplicate formatter rules. Core modules do not import the CLI or the editor wrapper.
 
+Parser-assisted rules share an internal parser context for a single source snapshot where practical. That context is deliberately not part of the public API: once any rule changes text, later parser-assisted rules must parse the new source snapshot instead of reusing stale node ranges.
+
 Regression fixtures use this layout:
 
 ```text

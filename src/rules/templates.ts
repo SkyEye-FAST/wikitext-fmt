@@ -1,5 +1,8 @@
 import type { Config } from "wikiparser-node";
-import { parseWikitext } from "../parser.js";
+import {
+  createParserContext,
+  type ParsedDocumentContext,
+} from "../parserContext.js";
 
 interface Replacement {
   start: number;
@@ -14,8 +17,12 @@ export function formatTemplates(
   source: string,
   config: Config,
   lineWidth: number,
+  context?: ParsedDocumentContext,
 ): string {
-  const root = parseWikitext(source, config);
+  const root =
+    context?.source === source
+      ? context.root
+      : createParserContext(source, config).root;
   const replacements: Replacement[] = [];
 
   for (const node of root.querySelectorAll("template")) {

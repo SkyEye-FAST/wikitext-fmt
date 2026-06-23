@@ -85,8 +85,9 @@ function templateRanges(
 ): SourceRange[] {
   // Parser contexts are valid only for the exact source snapshot used to build
   // them. Callers must recreate the context after any prior rule changes text.
-  const current = context ?? createParserContext(source, config);
-  return collectNodeRanges(current.root, "template");
+  const current =
+    context?.source === source ? context : createParserContext(source, config);
+  return collectNodeRanges(current, "template");
 }
 
 function matchCategory(
@@ -210,8 +211,9 @@ export function formatPageFooter(
   );
   const canonicalEnglish = options.localizedSyntaxStyle === "canonical-english";
   const ranges = templateRanges(source, config, context);
-  const lineStarts = context?.source === source ? context.lineStarts : [];
-  if (lineStarts.length === 0) {
+  let lineStarts = context?.source === source ? context.lineStarts : undefined;
+  if (!lineStarts) {
+    lineStarts = [];
     let offset = 0;
     for (const line of lines) {
       lineStarts.push(offset);

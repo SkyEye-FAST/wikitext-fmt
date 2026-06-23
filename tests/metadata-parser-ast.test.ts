@@ -1,6 +1,15 @@
 import Parser from "wikiparser-node";
 import { describe, expect, it } from "vitest";
 import { getParserConfig } from "../src/parser.js";
+import {
+  collectNodes,
+  createParserContext,
+  isNodeWholeLine,
+  lineIndexAt,
+  lineRangeAt,
+  lineTextAt,
+  nodeRange,
+} from "../src/parserContext.js";
 
 const config = getParserConfig("mediawiki");
 
@@ -29,6 +38,18 @@ function summarize(source: string) {
 }
 
 describe("parser AST capabilities for metadata-like rules", () => {
+  it("provides shared source range and line utilities for parser-assisted rules", () => {
+    const source = "Lead\n[[Category:Foo]]\nTail";
+    const context = createParserContext(source, config);
+    const [category] = collectNodes(context, "category");
+    expect(category).toBeTruthy();
+    expect(nodeRange(category!)).toEqual({ start: 5, end: 21 });
+    expect(isNodeWholeLine(context, category!)).toBe(true);
+    expect(lineIndexAt(context, nodeRange(category!).start)).toBe(1);
+    expect(lineRangeAt(context, 1)).toEqual({ start: 5, end: 21 });
+    expect(lineTextAt(context, 1)).toBe("[[Category:Foo]]");
+  });
+
   it("exposes category, defaultsort, and interlanguage-like link nodes", () => {
     expect(summarize("[[Category:Foo|Bar]]")).toEqual(
       expect.arrayContaining([
@@ -91,6 +112,26 @@ describe("parser AST capabilities for metadata-like rules", () => {
         }),
       ]),
     );
+    expect(summarize("[[文件:Example.png|缩略图]]")).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: "file",
+          className: "FileToken",
+          index: 0,
+        }),
+        expect.objectContaining({ type: "image-parameter", text: "缩略图" }),
+      ]),
+    );
+    expect(summarize("[[Page|Caption]]")).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: "link",
+          className: "LinkToken",
+          index: 0,
+          text: "[[Page|Caption]]",
+        }),
+      ]),
+    );
   });
 
   it("exposes reference extension nodes but source text is still needed for self-closing safety", () => {
@@ -115,15 +156,44 @@ describe("parser AST capabilities for metadata-like rules", () => {
         expect.objectContaining({ type: "ext-inner", text: "content" }),
       ]),
     );
+    expect(summarize('<ref name="foo"/>')).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: "ext",
+          className: "ExtToken",
+          index: 0,
+          text: '<ref name="foo"/>',
+        }),
+      ]),
+    );
+    expect(summarize('Text <ref name="foo"/>')).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: "ext",
+          index: 5,
+          text: '<ref name="foo"/>',
+        }),
+      ]),
+    );
   });
 
-  it("exposes heading nodes and ranges", () => {
+  it("exposes heading nodes and ranges but section spacing still needs adjacency checks", () => {
     expect(summarize("== A ==\nText")).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
           type: "heading",
           className: "HeadingToken",
           index: 0,
+          text: "== A ==",
+        }),
+      ]),
+    );
+    expect(summarize("{{T}}\n== A ==\n* item")).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: "heading",
+          className: "HeadingToken",
+          index: 6,
           text: "== A ==",
         }),
       ]),

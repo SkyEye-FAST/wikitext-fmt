@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { formatWikitextDetailedResult } from "../src/formatter.js";
 import { getParserConfig } from "../src/parser.js";
+import { createParserContext } from "../src/parserContext.js";
 import { resolveOptions } from "../src/options.js";
 import {
   analyzeCellAttributesForTesting,
@@ -274,6 +275,42 @@ describe("experimental table analysis diagnostics", () => {
     expect(result.diagnostics).toEqual([
       expect.objectContaining({ start: 6, line: 3, changed: true }),
     ]);
+  });
+
+  it("produces the same table output with an explicit parser context", () => {
+    const source = "{|\n| A || B\n|}\n";
+    const config = getParserConfig("mediawiki");
+    const options = resolveOptions({
+      level: "experimental",
+      formatTables: true,
+      tableCellSeparatorStyle: "split",
+    });
+    expect(
+      formatTablesWithDiagnostics(
+        source,
+        config,
+        options,
+        createParserContext(source, config),
+      ),
+    ).toEqual(formatTablesWithDiagnostics(source, config, options));
+  });
+
+  it("ignores a stale table parser context for a different source", () => {
+    const config = getParserConfig("mediawiki");
+    const options = resolveOptions({
+      level: "experimental",
+      formatTables: true,
+      tableCellSeparatorStyle: "split",
+    });
+    const source = "{|\n| A || B\n|}\n";
+    expect(
+      formatTablesWithDiagnostics(
+        source,
+        config,
+        options,
+        createParserContext("Plain text\n", config),
+      ).formatted,
+    ).toBe("{|\n| A\n| B\n|}\n");
   });
 
   it("maps diagnostics across protected blocks", () => {
