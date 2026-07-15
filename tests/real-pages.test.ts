@@ -149,9 +149,8 @@ describe("real page regressions", () => {
       }),
     );
     expect(templateSummary.templateParameterLinesFormatted).toBeGreaterThan(0);
-    expect(templateSummary.templateParameterLinesSkippedUnsafe).toBeGreaterThan(
-      0,
-    );
+    expect(templateSummary.templateParameterLinesSkippedUnsafe).toBe(0);
+    expect(templateSummary.templatesFormatted).toBeGreaterThan(0);
 
     const redirectSummary = createDiagnosticsSummary(
       formatWikitextSafeDetailed(redirect),

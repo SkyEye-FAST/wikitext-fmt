@@ -1,0 +1,5 @@
+== Parser functions ==
+
+{{#if:{{{value|}}}|{{#switch:{{{mode|default}}}|compact={{Card|title=Compact|body=Short}}|expanded={{Card|title=Expanded|body={{#expr: 2 + 2}}}}|#default={{Card|title=Default|body=None}}}}|{{Fallback|reason=missing value}}}}
+
+{{#ifeq:{{NAMESPACE}}|Template|Template documentation|Article content}}

@@ -1,0 +1,15 @@
+== Nested tables ==
+
+{| class="wikitable" style="width:100%"
+|+ Outer table
+! Item !! Details
+|-
+| First || Before the nested table
+{|
+! Inner heading 1 !! Inner heading 2
+|-
+| Alpha || Beta
+|}
+|-
+| Second || A [[Target|linked value]]
+|}

@@ -32,7 +32,7 @@ export const ruleLevels = {
   redirects: "normal",
   behaviorSwitches: "normal",
   htmlVoidTags: "safe",
-  tables: "experimental",
+  tables: "normal",
 } as const satisfies Record<RuleName, FormatLevel>;
 
 const levelOrder: Record<FormatLevel, number> = {

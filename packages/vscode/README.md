@@ -1,6 +1,6 @@
 # Wikitext Formatter for VS Code
 
-This is the initial VS Code wrapper for `wikitext-fmt`, a conservative MediaWiki wikitext formatter. The extension calls the existing `wikitext-fmt` core API; it does not duplicate formatter rules. The VSIX build is bundled, so installed extensions do not rely on pnpm workspace links being present at runtime.
+This is the VS Code wrapper for `wikitext-fmt`, a parser-assisted structural MediaWiki wikitext formatter. The extension calls the core API and shares its template/table equivalence and idempotency safety gates. The VSIX build is bundled, so installed extensions do not rely on pnpm workspace links being present at runtime.
 
 ## Features
 
@@ -44,9 +44,10 @@ If you use another extension that contributes the `mediawiki` language id:
   "wikitextFmt.safe": true,
   "wikitextFmt.config.enabled": true,
   "wikitextFmt.config.path": null,
+  "wikitextFmt.profile": "default",
   "wikitextFmt.level": "normal",
   "wikitextFmt.htmlVoidTagStyle": "html5",
-  "wikitextFmt.formatTables": false,
+  "wikitextFmt.formatTables": true,
   "wikitextFmt.formatReferences": false,
   "wikitextFmt.formatExternalLinks": false,
   "wikitextFmt.formatSectionSpacing": false,
@@ -72,7 +73,7 @@ Precedence is:
 explicit VS Code settings > config file > formatter defaults
 ```
 
-Only settings exposed by this extension override config values: `level`, `htmlVoidTagStyle`, `formatTables`, `formatReferences`, `formatExternalLinks`, `formatSectionSpacing`, and `formatTemplateParameters`. `wikitextFmt.safe` is editor-only and is not part of `FormatOptions`.
+Only settings exposed by this extension override config values: `profile`, `level`, `htmlVoidTagStyle`, `formatTables`, `formatReferences`, `formatExternalLinks`, `formatSectionSpacing`, and `formatTemplateParameters`. `wikitextFmt.safe` is editor-only and is not part of `FormatOptions`.
 
 Disable config loading:
 

@@ -22,6 +22,12 @@ export interface OptionSchemaEntry<
 }
 
 export const optionSchema: readonly OptionSchemaEntry[] = [
+  {
+    name: "profile",
+    type: "enum",
+    defaultValue: "default",
+    enumValues: ["default", "production", "aggressive"],
+  },
   { name: "parserConfig", type: "string", defaultValue: "mediawiki" },
   { name: "lineWidth", type: "number", defaultValue: 120 },
   {
@@ -157,11 +163,11 @@ export const optionSchema: readonly OptionSchemaEntry[] = [
   {
     name: "formatTables",
     type: "boolean",
-    defaultValue: false,
+    defaultValue: true,
     positiveFlag: "--format-tables",
     negativeFlag: "--no-format-tables",
     ruleName: "tables",
-    ruleLevel: "experimental",
+    ruleLevel: "normal",
   },
   {
     name: "tableCellSeparatorStyle",

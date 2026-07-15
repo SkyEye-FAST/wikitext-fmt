@@ -1,0 +1,11 @@
+== Table in a template parameter ==
+
+{{Panel|title=Results|content=
+{| class="wikitable sortable"
+! Name !! Score
+|-
+| Alpha || 10
+|-
+| Beta || {{Score|value=20|status=verified}}
+|}
+|footer=<ref>Representative source</ref>}}

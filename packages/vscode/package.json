@@ -44,14 +44,24 @@
           "type": "boolean"
         },
         "wikitextFmt.formatTables": {
-          "default": false,
-          "description": "Enable experimental table formatting.",
+          "default": true,
+          "description": "Enable normal-level parser-assisted table formatting.",
           "type": "boolean"
         },
         "wikitextFmt.formatTemplateParameters": {
           "default": false,
           "description": "Enable experimental multiline template parameter formatting.",
           "type": "boolean"
+        },
+        "wikitextFmt.profile": {
+          "default": "default",
+          "description": "Formatter profile. Production and aggressive enable the full safe structural formatter.",
+          "enum": [
+            "default",
+            "production",
+            "aggressive"
+          ],
+          "type": "string"
         },
         "wikitextFmt.htmlVoidTagStyle": {
           "default": "html5",
@@ -113,7 +123,7 @@
   "dependencies": {
     "wikitext-fmt": "workspace:*"
   },
-  "description": "Conservative MediaWiki wikitext formatter for VS Code",
+  "description": "Parser-assisted structural MediaWiki wikitext formatter for VS Code",
   "devDependencies": {
     "@types/vscode": "^1.90.0",
     "@vscode/test-electron": "^2.5.2",

@@ -1,0 +1,7 @@
+{{Infobox work|title=Example title|native_title={{lang|ja|サンプル}}|image=Example.png|caption=A caption with [[Example|a link]] and <ref name="source">{{cite web|url=https://example.test/source|title=Example source}}</ref>|author=Example author|released={{Start date|2026|7|15}}|website=[https://example.test Official website]}}
+
+'''Example title''' is a representative infobox-heavy article.
+
+== References ==
+
+<references />

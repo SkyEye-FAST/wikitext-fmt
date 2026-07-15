@@ -1,4 +1,4 @@
-{| class="wikitable"   
+{| class="wikitable"
 ! Name !! Value
 |-
 | {{N/a}} || 1

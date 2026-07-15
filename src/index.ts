@@ -11,6 +11,7 @@ export {
   defaultOptions,
   type BehaviorSwitchPlacement,
   type FormatLevel,
+  type FormatProfile,
   type FormatOptions,
   type HtmlVoidTagStyle,
   type InterlanguagePlacement,
@@ -27,7 +28,13 @@ export type { ReferenceDiagnostics } from "./rules/references.js";
 export type { RedirectDiagnostics } from "./rules/redirects.js";
 export type { SectionSpacingDiagnostics } from "./rules/sectionSpacing.js";
 export type { TemplateParameterDiagnostics } from "./rules/templateParameters.js";
+export type { TemplateDiagnostics } from "./rules/templates.js";
 export type { TableDiagnostic } from "./rules/tables.js";
+export {
+  verifyStructuralEquivalence,
+  type StructuralEquivalenceKind,
+  type StructuralEquivalenceResult,
+} from "./equivalence.js";
 export type { ResolvedLocalizationAliases } from "./localization/aliases.js";
 export type { DiagnosticsSummary } from "./cli/diagnostics.js";
 export { loadSiteInfoAliases } from "./localization/siteinfo.js";

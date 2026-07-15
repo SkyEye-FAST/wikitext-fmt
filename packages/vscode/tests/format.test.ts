@@ -39,7 +39,7 @@ describe("VS Code formatter wrapper options", () => {
     expect(settings.options).toMatchObject({
       level: "normal",
       htmlVoidTagStyle: "html5",
-      formatTables: false,
+      formatTables: true,
       formatReferences: false,
       formatExternalLinks: false,
       formatSectionSpacing: false,

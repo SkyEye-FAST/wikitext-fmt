@@ -1,10 +1,10 @@
 # wikitext-fmt
 
-`wikitext-fmt` is a conservative, standalone formatter for MediaWiki wikitext. It uses [`wikiparser-node`](https://github.com/bhsd-harry/wikiparser-node) to parse and validate input, but it is not a MediaWiki extension and does not require a running MediaWiki installation.
+`wikitext-fmt` is a production-oriented, standalone structural formatter for MediaWiki wikitext. It uses [`wikiparser-node`](https://github.com/bhsd-harry/wikiparser-node) to discover and validate structure, but it is not a MediaWiki extension and does not require a running MediaWiki installation.
 
-The formatter intentionally handles only structures that can be changed with a small, predictable transformation. It does **not** guarantee that every wikitext construct will be formatted. Risky templates, tables, protected extension tags, and ignored regions are preserved rather than aggressively rewritten.
+Parser-confirmed templates and tables are formatted aggressively by default. Nested templates, parser functions, structured parameter values, nested tables, tables embedded in template text, attributes, captions, continuation lines, HTML, refs, comments, and links are supported without reordering semantic content. Protected extension blocks and explicit ignore regions remain unchanged. A structure is preserved only when parser boundaries are demonstrably ambiguous, and diagnostics report the exact limitation.
 
-It is not a full replacement for Pywikibot's `cosmetic_changes.py`. Its scope and defaults are deliberately narrower, including HTML5-style `<br>` output rather than XHTML-style `<br />` output.
+It does not perform site-specific semantic rewrites: parameters, rows, cells, attributes, categories, titles, and values are never reordered or translated. HTML5-style `<br>` remains the default rather than XHTML-style `<br />`.
 
 ## Install and build
 
@@ -26,7 +26,7 @@ wikitext-fmt page.wiki --safe --level safe
 wikitext-fmt page.wiki --debug
 wikitext-fmt "pages/**/*.wiki" --check
 wikitext-fmt "pages/**/*.wiki" --write
-wikitext-fmt page.wiki --level experimental --format-tables
+wikitext-fmt page.wiki --profile production --safe
 wikitext-fmt page.wiki --diff
 wikitext-fmt page.wiki --diagnostics-json --check
 wikitext-fmt page.wiki --safe --check --fail-on-warning
@@ -37,28 +37,29 @@ wikitext-fmt --print-localization-aliases --localization-source builtin
 
 ### Production usage profiles
 
-For CI, first run the conservative defaults with the full safety gate. A file
+For CI, run the production profile with the full safety gate. A file
 that would change or any file that falls back with a warning makes the command
 fail:
 
 ```sh
-wikitext-fmt "pages/**/*.wiki" --safe --check --fail-on-warning
+wikitext-fmt "pages/**/*.wiki" --profile production --safe --check --fail-on-warning
 ```
 
 After that check is clean, apply the same profile and retain a machine-readable
 batch report:
 
 ```sh
-wikitext-fmt "pages/**/*.wiki" --safe --write --report report.json
+wikitext-fmt "pages/**/*.wiki" --profile production --safe --write --report report.json
 ```
 
-Experimental rules require both the experimental level and an explicit opt-in.
-Enable only the rules evaluated for the target wiki, while retaining the safety
-gate:
+`production` and `aggressive` are equivalent presets before 1.0. They enable
+references, external links, section spacing, unified template normalization,
+aggressive table splitting, and structural-equivalence verification. Individual
+options can still override a preset:
 
 ```sh
-wikitext-fmt "pages/**/*.wiki" --safe --level experimental \
-  --format-references --format-external-links --check --fail-on-warning
+wikitext-fmt "pages/**/*.wiki" --profile production --safe \
+  --no-format-external-links --check --fail-on-warning
 ```
 
 For a site with custom namespace, magic-word, or image-option aliases, load
@@ -89,6 +90,7 @@ Without `--write`, formatted wikitext is written to stdout. `--check` writes not
 --report <path>
 --config <path>
 --no-config
+--profile default|production|aggressive
 --level safe|normal|experimental
 --html-void-tag-style html5|xhtml|preserve
 --parser-config <name-or-json-path>
@@ -128,7 +130,7 @@ Explicit files and glob patterns can be mixed. Expanded paths are deduplicated a
 
 `--diagnostics-json` writes one JSON object per input to stderr. Each object includes `file`, `changed`, `warning`, table counters, footer counters (`behaviorSwitchesMoved`, `behaviorSwitchesFormatted`, `defaultsortMoved`, `categoriesMoved`, `interlanguageLinksMoved`, and `interlanguageLinksFormatted`), redirect counters (`redirectsFormatted`), file-link counters (`fileLinksFormatted`), external-link counters, reference counters, section-spacing counters, template-parameter counters, canonicalization counters (`localizedCategoryAliasesCanonicalized`, `localizedDefaultsortAliasesCanonicalized`, `localizedBehaviorSwitchesCanonicalized`, `localizedRedirectAliasesCanonicalized`, `localizedFileNamespaceAliasesCanonicalized`, and `localizedImageOptionsCanonicalized`), and complete table diagnostics. Formatted text or diffs remain on stdout. JSON diagnostics cannot be combined with the text-oriented `--debug` mode.
 
-`--safe` enables parse-before, parse-after, and idempotency verification. If verification fails, the original input is returned and a warning is written to stderr. `--debug` writes the selected mode, rule level, and result status to stderr without contaminating formatted stdout.
+`--safe` enables parse-before, parse-after, structural-equivalence, and idempotency verification. Template fingerprints compare names, nesting, parameter order, anonymous/named state, keys, and opaque values. Table fingerprints compare nesting, attributes, captions, rows, cell counts/types/attributes, and opaque contents. If verification fails, the original input is returned and a precise warning is written to stderr. `--debug` writes the selected mode, rule level, and result status to stderr without contaminating formatted stdout.
 
 `--fail-on-warning` changes warning handling only: if any input falls back with a formatter warning, the CLI exits non-zero. This is useful with `--safe --check`; warnings do not affect the exit code by default.
 
@@ -141,14 +143,15 @@ Formatting levels are cumulative:
 | Level          | Enabled rules                                                                                                               |
 | -------------- | --------------------------------------------------------------------------------------------------------------------------- |
 | `safe`         | Heading spacing, blank-line normalization, and ordinary HTML void-tag normalization                                         |
-| `normal`       | Safe rules, simple templates, redirects, file links, page-footer metadata, behavior switches, and conservative list spacing |
+| `normal`       | Safe rules, complex parser-assisted templates and tables, redirects, file links, page-footer metadata, behavior switches, and list spacing |
 | `experimental` | Safe and normal rules plus explicitly enabled experimental rules                                                            |
 
-The default is `normal`. `formatTemplateParameters`, `formatExternalLinks`,
-`formatReferences`, `formatInterlanguageLinks`, `formatSectionSpacing`, and
-`formatTables` are all disabled by default. Interlanguage footer movement is
-therefore also disabled by default. Each experimental rule runs only when the
-level is `experimental` and its corresponding option is explicitly enabled.
+The default is `normal`. Unified template formatting and aggressive `auto`
+table splitting are normal-level rules and tables are enabled by default.
+`formatTemplateParameters` remains as a deprecated pre-1.0 compatibility alias
+that routes to the same template engine. External links, references,
+interlanguage links, and section spacing remain explicit experimental rules;
+the production profile enables the relevant set together.
 
 The default parser configuration name is `mediawiki`, which maps to `wikiparser-node`'s generic `default` configuration. Names shipped by the parser, such as `enwiki` or `zhwiki`, and paths to custom JSON configurations are also accepted.
 
@@ -172,6 +175,7 @@ Configuration keys match `FormatOptions`:
 
 ```json
 {
+  "profile": "default",
   "parserConfig": "mediawiki",
   "lineWidth": 120,
   "level": "normal",
@@ -206,7 +210,7 @@ Configuration keys match `FormatOptions`:
       "notoc": ["__PROJECTNOTOC__"]
     }
   },
-  "formatTables": false,
+  "formatTables": true,
   "tableCellSeparatorStyle": "auto",
   "normalizeBlankLines": true
 }
@@ -245,9 +249,10 @@ Supported settings are:
   "wikitextFmt.safe": true,
   "wikitextFmt.config.enabled": true,
   "wikitextFmt.config.path": null,
+  "wikitextFmt.profile": "default",
   "wikitextFmt.level": "normal",
   "wikitextFmt.htmlVoidTagStyle": "html5",
-  "wikitextFmt.formatTables": false,
+  "wikitextFmt.formatTables": true,
   "wikitextFmt.formatReferences": false,
   "wikitextFmt.formatExternalLinks": false,
   "wikitextFmt.formatSectionSpacing": false,
@@ -282,6 +287,7 @@ import {
 } from "wikitext-fmt";
 
 const output = formatWikitext(source, {
+  profile: "default",
   parserConfig: "mediawiki",
   lineWidth: 120,
   formatHeadings: true,
@@ -301,7 +307,7 @@ const output = formatWikitext(source, {
   behaviorSwitchPlacement: "preserve",
   localizationSource: "builtin",
   localizedSyntaxStyle: "preserve",
-  formatTables: false,
+  formatTables: true,
   tableCellSeparatorStyle: "auto",
   normalizeBlankLines: true,
   level: "normal",
@@ -348,11 +354,27 @@ Every current rule has an exported reliability level in `ruleLevels`:
 - `redirects`: `normal`
 - `behaviorSwitches`: `normal`
 - `htmlVoidTags`: `safe`
-- `tables`: `experimental`
+- `tables`: `normal`
 
 `htmlVoidTagStyle` controls only simple, attribute-free `br`, `hr`, and `wbr` tags. Its default, `html5`, changes `<br />` to `<br>`. Use `xhtml` for `<br />` output or `preserve` to leave existing syntax unchanged. MediaWiki extension tags such as `<ref />` and `<references />` are never handled by this rule.
 
-The levels describe formatter confidence, not a proof of semantic equivalence for arbitrary site-specific wikitext. Use an appropriate parser configuration and `formatWikitextSafe()` for automation over unfamiliar pages.
+The levels describe formatter confidence. Template and table transformations additionally require structural fingerprints to match. Use an appropriate parser configuration and `formatWikitextSafe()` for automation over unfamiliar pages.
+
+## Production corpus runner
+
+Run every committed real-page fixture through both production profiles and
+write profile-specific JSON reports:
+
+```sh
+pnpm corpus
+node scripts/run-corpus.mjs path/to/pages --profile production \
+  --parser-config zhwiki --siteinfo siteinfo-aliases.json --output report.json
+```
+
+The report includes pages processed/changed, warnings, parse, idempotency, and
+equivalence failures, template/table inspection and formatting counts, precise
+skip-reason frequencies, and formatting coverage. The command exits non-zero
+for any warning or validation failure.
 
 ## List formatting
 
@@ -473,15 +495,10 @@ wikitext-fmt page.wiki --level experimental --format-section-spacing
 
 The rule is parser-assisted for heading detection, then only inserts a single blank line before or after headings when the adjacent line is ordinary paragraph text. It avoids headings at the start of the file and does not alter spacing next to templates, tables, lists, comments, behavior switches, categories, redirects, file links, HTML or extension tags, or protected blocks. It does not change heading marker spacing; that remains the heading rule's job.
 
-## Experimental multiline template parameter formatting
+## Structural template formatting
 
-Template parameter formatting is experimental and disabled by default:
-
-```sh
-wikitext-fmt page.wiki --level experimental --format-template-parameters
-```
-
-It only handles templates that are already multiline and structurally simple:
+Template formatting is a normal-level default. The unified parser-assisted
+engine handles both compact and existing multiline templates:
 
 ```wikitext
 {{Template
@@ -499,13 +516,18 @@ becomes:
 }}
 ```
 
-The rule does not split single-line templates, join multiline templates, reorder parameters, rename parameters, remove blank parameters, or change the template name. When this experimental rule is enabled, the normal simple one-line template splitter is skipped so `{{Template|a=b}}` remains single-line.
+The engine uses parser argument nodes for order, named/anonymous state, keys,
+values, and source ranges. It formats nested templates deepest-first and supports
+numeric, anonymous, empty, and Unicode parameters; parser functions; multiline
+values; comments; links; refs; HTML; multiple templates; and templates inside
+table cells. Multiple parameters, existing multiline layout, long templates,
+and structured values select multiline layout. A single short parameter may
+remain compact. Parameters and values are never reordered, renamed, or
+semantically rewritten.
 
-Only simple named parameter lines are normalized. Parameter names may contain Unicode letters, numbers, marks, spaces, underscores, and hyphens; empty names, numeric-only positional names, and names containing braces, pipes, brackets, angle brackets, or newlines are skipped. Indentation before `|` is preserved, empty values are preserved, and trailing horizontal whitespace on safe template structural lines is removed.
-
-The current multiline-value policy is conservative but not whole-block fatal: continuation lines are preserved unchanged, and later safe parameter lines in the same simple template may still be formatted. Lines with comments, unnamed or numeric positional parameters, multiline values, nested templates, parser functions, tables, lists, HTML or extension tags, or unsafe piped wikilinks are preserved. Blocks containing nested templates are skipped entirely. Protected blocks (`nowiki`, `pre`, `syntaxhighlight`, comments, and tables protected by the core formatter pipeline) are not scanned by this experimental rule.
-
-Run experimental template, interlanguage, section-spacing, and table rules with `--safe` on real pages. The test suite runs real page-shaped fixtures through option matrices to guard parseability and idempotency, but site-specific wikitext can still require parser and localization configuration.
+`formatTemplateParameters` and `--format-template-parameters` remain as pre-1.0
+compatibility aliases and route to this same engine; there is no second scanner.
+Disable template formatting with `--no-format-templates`.
 
 ### Localization data
 
@@ -532,48 +554,45 @@ wikitext-fmt --print-localization-aliases
 wikitext-fmt --print-localization-aliases --localization-source siteinfo --site-api https://wiki.example/w/api.php
 ```
 
-## Experimental table formatting
+## Structural table formatting
 
-Enable the table pass explicitly:
+Tables are a normal-level rule enabled by default:
 
 ```sh
-wikitext-fmt page.wiki --safe --level experimental --format-tables
+wikitext-fmt page.wiki --safe
 ```
 
-It currently trims trailing whitespace on recognized structural lines and handles only safely recognized same-line `!!` and `||` cells. Table formatting is parser-assisted: `wikiparser-node` identifies standalone table ranges, and a narrow fallback tokenizer is used only for top-level table-cell separator detection where parser cell ranges are not sufficient. Balanced templates, simple wikilinks, piped wikilinks, external links, and straightforward cell/header attributes inside cells are supported. Dedicated fixtures cover supported tables, separator styles, best-effort splitting, and preserved unsafe cases.
+Parser table and cell syntax nodes are the first authority. A narrow balanced
+separator fallback is used only when the upstream parser is known to tokenize
+`||` inside a link label as a cell. Another parser-confirmed reparse at an exact
+`{|` opener handles tables hidden by the parser's template-stage order. Both
+fallbacks are reported precisely.
 
 `tableCellSeparatorStyle` controls safe inline cell separators per table:
 
-- `auto` (default) preserves simple compact inline tables, but otherwise uses table-local heuristics to prefer useful safe formatting. It may choose split lines for cell attributes, four or more columns, safe inline lines exceeding `lineWidth`, balanced template cells, already split or mixed layouts, skipped unsafe rows when other safe rows can still improve, and tables with 12 or more recognized cell lines.
-- `split` always splits safely recognized `!!` and `||` separators onto separate structural lines, while still preserving unsafe rows unchanged.
-- `preserve` keeps safe inline separators and only performs conservative trailing-whitespace and structural cleanup.
+- `auto` (default) splits every parser-confirmed multi-cell row.
+- `split` explicitly requests the same strongest structural layout.
+- `preserve` leaves inline `!!` and `||` layout unchanged.
 
-Auto detection is table-local rather than file-wide. Auto sits between `preserve` and explicit `split`: it may split safely recognized rows even when unsafe rows are preserved byte-for-byte. Use explicit `preserve` when you want no inline separator splitting, and explicit `split` when you want the strongest best-effort splitting mode. Explicit `split` and `preserve` settings override every auto heuristic.
-
-Debug diagnostics include both the selected style and reason, for example `formatted using split style: many columns`. These diagnostics are only written when `--debug` is enabled.
-
-Within a structurally safe table, safe rows may be formatted while unsafe rows remain byte-for-byte unchanged. The fallback tokenizer is not a general wikitext parser; it only decides whether a candidate `!!` or `||` is a top-level table separator inside parser-confirmed table text. It splits separators only when they are outside balanced templates, wikilinks, external links, quoted attribute values, and the active row structure. Balanced templates such as `{{N/a}}` or `{{Icon|A}}` are allowed inside cells, and separators inside template arguments or link labels are not split. Lines with HTML or extension tags, unbalanced templates or links, unsafe quoted separators, or uncertain attribute prefixes remain unchanged. Complete single-line HTML comments are recognized and preserved byte-for-byte without inspecting comment content; unclosed or multiline comments remain unsafe.
-
-Multiline cell continuation lines are also preserved conservatively. The cell line immediately preceding a continuation is not split, while later independent safe rows can still format when the selected separator style is `split`. Nested or unbalanced tables, tables inside templates, tables containing other protected placeholders, and genuinely unclear line structures remain preserved entirely.
-
-Cell/header attribute analysis supports multiple quoted or unquoted ordinary attributes such as `colspan`, `rowspan`, `scope`, `class`, and `style`. Attributes stay on the first emitted cell and are never copied, reordered, or normalized. Separators inside quoted attribute values and uncertain attribute prefixes remain unsafe and prevent that line from being split. Row separator attributes such as `|- class="sortbottom"` are preserved exactly apart from trailing-whitespace cleanup.
-
-Internal table analysis records meaningful skip reasons. They are never printed during normal operation; add `--debug` to an experimental table run to report which table start lines were formatted or skipped and why. Use `--safe` when enabling experimental table formatting on real pages so parsing and idempotency are verified before accepting output:
+Nested tables run deepest-first. Tables inside template text, attributes,
+captions, header/data cells, empty cells, continuation lines, comments,
+rowspan/colspan, templates, parser functions, links, HTML, extension tags, refs,
+and localized contents are supported as opaque parser-confirmed cell content.
+Rows, cells, attributes, and contents are never reordered or visually padded.
+Use `--debug` for per-table boundary and fallback diagnostics:
 
 ```sh
-wikitext-fmt page.wiki --safe --debug --level experimental --format-tables
+wikitext-fmt page.wiki --safe --debug
 ```
 
 ## Current limitations
 
 The formatter intentionally does not provide site-specific template layouts,
-sort categories, reorder template parameters, rewrite arbitrary inline
-wikilinks, align table columns with padding, or enable experimental rules by
-default. These are product boundaries, not missing implicit transformations.
+sort categories, reorder template parameters, rewrite arbitrary prose, or
+align table columns with padding. These are product boundaries.
 
-- Only simple, one-line templates are expanded.
 - Template parameters are not reordered.
-- Multiline template parameter formatting is experimental, disabled by default, and limited to simple already-multiline templates.
+- Template names, parameter names, anonymous/named state, and values are not rewritten.
 - Only standalone category namespace aliases backed by the selected localization data are moved; categories are never sorted.
 - List formatting is limited to safe spacing and trailing-whitespace cleanup on ordinary single-line items.
 - File/image link formatting is limited to one safe standalone file link per line; captions and values are preserved.
@@ -582,9 +601,8 @@ default. These are product boundaries, not missing implicit transformations.
 - Interlanguage link movement is experimental, disabled by default, and limited to standalone unlabelled links with configured prefixes.
 - Section spacing is experimental, disabled by default, and only applies around headings adjacent to ordinary paragraph text.
 - Only aliases backed by built-in MediaWiki data, siteinfo, or explicit custom configuration participate in footer formatting.
-- Experimental table formatting is disabled by default and only handles simple standalone wikitables.
-- Unsafe template- or HTML-containing table lines are preserved even when other safe rows are formatted.
-- Nested, unbalanced, template-contained, placeholder-containing, and structurally unclear tables are preserved entirely.
+- A template whose parser argument boundaries overlap an embedded table is left unchanged, while the embedded table itself is formatted through a parser-confirmed fallback range.
+- Unclosed tables and genuinely unbalanced parser boundaries are preserved with precise diagnostics.
 - Table columns are not aligned or padded, and rows, cells, and attributes are never reordered.
 - Single-block ignore handling is deliberately line/paragraph oriented. Range ignores are preferred for complex content.
 - Site-specific parser grammar still requires an appropriate parser configuration in addition to localization aliases.
@@ -606,13 +624,14 @@ pnpm test
 pnpm test:run
 pnpm build
 pnpm check
+pnpm corpus
 pnpm smoke
 pnpm localization:update /path/to/mediawiki/languages/messages
 ```
 
 `pnpm smoke` expects `pnpm build` to have run. It imports `dist/index.js`, runs `dist/cli.js --help`, checks that `loadSiteInfoAliases` is exported, verifies generated MediaWiki alias data is available from `dist`, and exercises `--print-localization-aliases --localization-source builtin` without network access.
 
-GitHub Actions runs frozen pnpm installs, builds, and the complete test suite on Node.js 22 and 24 for every push and pull request.
+GitHub Actions runs frozen installs, `pnpm check`, and both production corpus profiles on Node.js 22 and 24. A separate Node.js 24 release job runs extension-host, VSIX, and complete VS Code release checks.
 
 Use [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md) before publishing the npm
 package or VS Code extension.
@@ -632,9 +651,10 @@ tests/table-samples/<case>/expected.wiki
 tests/real-pages/*.wiki
 ```
 
-Table testing is intentionally layered:
+Structural testing is intentionally layered:
 
-- `tests/tables.test.ts` uses table-driven unit cases for heuristic decisions, diagnostics, and structural safety.
+- `tests/tables.test.ts` uses table-driven cases for parser boundaries, diagnostics, and structural safety.
+- `tests/structural-matrix.test.ts` generates template/table combinations and requires parsing, a real change, equivalence, and idempotency for every case.
 - Six compact fixtures cover exact user-visible formatter output without duplicating every internal decision reason.
 - `tests/table-samples` contains realistic expected-diff calibrations for compact, sortable, mixed-style, template-containing, commented, and multiline-cell tables.
 - Files under `real-pages` cover article, template-heavy, table-heavy,
@@ -644,9 +664,11 @@ Table testing is intentionally layered:
   combined experimental, and canonical footer option matrices with safe parse,
   diagnostics-consistency, and idempotency assertions.
 
-Fixtures with table formatting opt in through `options.json`. Table samples verify exact calibrated output, while real-page tests do not require every table to change; preserving a complex table can be the correct conservative result.
+Table samples verify exact calibrated output. The corpus runner aggregates rule
+coverage and exact skip frequencies across committed or external page sets.
 
-Planned work includes a Prettier plugin, broader conservative table coverage, and improved site-specific parser configuration.
+Planned work includes a Prettier plugin and improved site-specific parser
+configuration.
 
 ## License
 

@@ -1,8 +1,10 @@
 == Data ==
 {| class="wikitable"
-! A !! B   
+! A
+! B
 |-
-| 1 || 2   
+| 1
+| 2
 |}
 
 [[Category:Tables]]

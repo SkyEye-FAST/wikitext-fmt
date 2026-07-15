@@ -5,3 +5,5 @@ coverage/
 *.log
 *.vsix
 .vscode-test/
+corpus-report.json
+corpus-*-report.json

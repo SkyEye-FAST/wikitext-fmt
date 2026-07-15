@@ -1,0 +1,5 @@
+== Nested transclusion example ==
+
+{{Outer|name={{Middle|value={{Inner|label=Nested value|lang=zh}}|fallback=none}}|mode=expanded}}
+
+The surrounding prose remains stable.

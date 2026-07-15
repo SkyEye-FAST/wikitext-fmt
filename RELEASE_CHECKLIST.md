@@ -22,6 +22,8 @@ on a clean worktree unless noted otherwise.
 - [ ] Run `pnpm check:extension`.
 - [ ] Run `pnpm check:vsix`.
 - [ ] Run `pnpm check:vscode-release`.
+- [ ] Run `pnpm corpus` and confirm zero warnings, parse failures,
+      idempotency failures, and structural-equivalence failures.
 - [ ] Confirm real-page matrix tests report no safe fallbacks and remain
       idempotent.
 

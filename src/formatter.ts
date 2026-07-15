@@ -14,7 +14,7 @@ import {
 import { normalizeBlankLines } from "./rules/blankLines.js";
 import { formatPageFooter } from "./rules/categories.js";
 import { formatHeadings } from "./rules/headings.js";
-import { formatTemplates } from "./rules/templates.js";
+import { formatTemplatesWithDiagnostics } from "./rules/templates.js";
 import { isRuleEnabled } from "./rules/index.js";
 import { formatHtmlVoidTags } from "./rules/htmlVoidTags.js";
 import { formatLists } from "./rules/lists.js";
@@ -23,13 +23,13 @@ import { formatExternalLinks } from "./rules/externalLinks.js";
 import { formatReferences } from "./rules/references.js";
 import { formatRedirects } from "./rules/redirects.js";
 import { formatSectionSpacing } from "./rules/sectionSpacing.js";
-import { formatTemplateParameters } from "./rules/templateParameters.js";
 import {
   formatTablesWithDiagnostics,
   lineNumberAt,
   type TableDiagnostic,
 } from "./rules/tables.js";
 import { protectBlocks } from "./utils/protectBlocks.js";
+import { verifyStructuralEquivalence } from "./equivalence.js";
 
 export interface FormatResult {
   formatted: string;
@@ -45,6 +45,7 @@ export interface FormatDetailedResult extends FormatResult {
   referenceDiagnostics: DetailedDiagnostics["referenceDiagnostics"];
   sectionSpacingDiagnostics: DetailedDiagnostics["sectionSpacingDiagnostics"];
   templateParameterDiagnostics: DetailedDiagnostics["templateParameterDiagnostics"];
+  equivalenceDiagnostics: DetailedDiagnostics["equivalenceDiagnostics"];
 }
 
 export function formatWikitextDetailedResult(
@@ -81,6 +82,7 @@ export function formatWikitextDetailedResult(
 
     let tableOutput = source;
     if (resolved.formatTables && isRuleEnabled("tables", resolved.level)) {
+      const beforeTables = tableOutput;
       const tableBlocks = protectBlocks(tableOutput, {
         protectTables: false,
         protectComments: false,
@@ -116,6 +118,20 @@ export function formatWikitextDetailedResult(
         },
       );
       tableOutput = tableBlocks.restore(tableOutput);
+      const equivalence = verifyStructuralEquivalence(
+        beforeTables,
+        tableOutput,
+        config,
+        "tables",
+      );
+      diagnostics.equivalenceDiagnostics.push(equivalence);
+      if (!equivalence.equivalent) {
+        return fallbackDetailedResult(
+          source,
+          `Structural equivalence failed for tables: ${equivalence.reason}; left the input unchanged.`,
+          diagnostics,
+        );
+      }
     }
 
     if (
@@ -137,38 +153,51 @@ export function formatWikitextDetailedResult(
       diagnostics.referenceDiagnostics = references.diagnostics;
     }
 
-    // Re-protect tables before running non-table rules so enabling the
-    // experimental table pass cannot make stable rules more aggressive.
-    const protectedText = protectBlocks(tableOutput, { protectTables: true });
-    let output = protectedText.text;
-    if (
-      resolved.formatTemplates &&
-      isRuleEnabled("templates", resolved.level) &&
-      !(
-        resolved.formatTemplateParameters &&
-        isRuleEnabled("templateParameters", resolved.level)
-      )
-    ) {
-      const templateContext = contextFor(output);
-      const previous = output;
-      output = formatTemplates(
-        output,
+    const templateLayoutEnabled =
+      resolved.formatTemplates && isRuleEnabled("templates", resolved.level);
+    const templateSpacingCompatibilityEnabled =
+      resolved.formatTemplateParameters &&
+      isRuleEnabled("templateParameters", resolved.level);
+    if (templateLayoutEnabled || templateSpacingCompatibilityEnabled) {
+      const templateBlocks = protectBlocks(tableOutput, {
+        protectTables: false,
+      });
+      const templateContext = createParserContext(templateBlocks.text, config);
+      const templates = formatTemplatesWithDiagnostics(
+        templateBlocks.text,
         config,
-        resolved.lineWidth,
+        {
+          lineWidth: resolved.lineWidth,
+          layout: templateLayoutEnabled ? "auto" : "preserve",
+          parameterSpacing: true,
+        },
         templateContext,
       );
-      if (output !== previous) invalidateContext();
+      const previous = tableOutput;
+      tableOutput = templateBlocks.restore(templates.formatted);
+      diagnostics.templateParameterDiagnostics = templates.diagnostics;
+      const equivalence = verifyStructuralEquivalence(
+        previous,
+        tableOutput,
+        config,
+        "templates",
+      );
+      diagnostics.equivalenceDiagnostics.push(equivalence);
+      if (!equivalence.equivalent) {
+        return fallbackDetailedResult(
+          source,
+          `Structural equivalence failed for templates: ${equivalence.reason}; left the input unchanged.`,
+          diagnostics,
+        );
+      }
+      if (tableOutput !== previous) invalidateContext();
     }
-    if (
-      resolved.formatTemplateParameters &&
-      isRuleEnabled("templateParameters", resolved.level)
-    ) {
-      const previous = output;
-      const templateParameters = formatTemplateParameters(output);
-      output = templateParameters.formatted;
-      diagnostics.templateParameterDiagnostics = templateParameters.diagnostics;
-      if (output !== previous) invalidateContext();
-    }
+
+    // Re-protect tables before running rules that do not own table-internal
+    // structure. Templates have already run against parser-confirmed nodes so
+    // templates inside cells and tables inside templates remain supported.
+    const protectedText = protectBlocks(tableOutput, { protectTables: true });
+    let output = protectedText.text;
     if (resolved.formatHeadings && isRuleEnabled("headings", resolved.level)) {
       const previous = output;
       output = formatHeadings(output);
@@ -353,6 +382,7 @@ export function formatWikitextSafeDetailed(
       referenceDiagnostics: first.referenceDiagnostics,
       sectionSpacingDiagnostics: first.sectionSpacingDiagnostics,
       templateParameterDiagnostics: first.templateParameterDiagnostics,
+      equivalenceDiagnostics: first.equivalenceDiagnostics,
     };
     if (first.warning)
       return fallbackDetailedResult(source, first.warning, diagnostics);

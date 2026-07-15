@@ -30,4 +30,18 @@ describe("CLI argument parsing", () => {
       /--write and --check/u,
     );
   });
+
+  it("parses production formatter profiles", () => {
+    expect(parseArgs(["--profile", "production", "page.wiki"])).toMatchObject({
+      profile: "production",
+      files: ["page.wiki"],
+    });
+    expect(parseArgs(["--profile", "aggressive", "page.wiki"])).toMatchObject({
+      profile: "aggressive",
+      files: ["page.wiki"],
+    });
+    expect(() => parseArgs(["--profile", "unsafe", "page.wiki"])).toThrow(
+      /default, production, or aggressive/u,
+    );
+  });
 });

@@ -5,6 +5,7 @@ export type BehaviorSwitchPlacement = "preserve" | "footer";
 export type InterlanguagePlacement = "preserve" | "footer";
 export type LocalizationSource = "builtin" | "siteinfo" | "custom";
 export type LocalizedSyntaxStyle = "preserve" | "canonical-english";
+export type FormatProfile = "default" | "production" | "aggressive";
 
 export interface LocalizationAliases {
   categoryNamespaces?: string[];
@@ -16,6 +17,7 @@ export interface LocalizationAliases {
 }
 
 export interface FormatOptions {
+  profile?: FormatProfile;
   parserConfig?: string;
   lineWidth?: number;
   formatHeadings?: boolean;
@@ -44,6 +46,7 @@ export interface FormatOptions {
 }
 
 export interface ResolvedFormatOptions {
+  profile: FormatProfile;
   parserConfig: string;
   lineWidth: number;
   formatHeadings: boolean;
@@ -72,6 +75,7 @@ export interface ResolvedFormatOptions {
 }
 
 export const defaultOptions: Readonly<ResolvedFormatOptions> = {
+  profile: "default",
   parserConfig: "mediawiki",
   lineWidth: 120,
   formatHeadings: true,
@@ -108,7 +112,7 @@ export const defaultOptions: Readonly<ResolvedFormatOptions> = {
   localizationSource: "builtin",
   localizedSyntaxStyle: "preserve",
   localizationAliases: {},
-  formatTables: false,
+  formatTables: true,
   tableCellSeparatorStyle: "auto",
   normalizeBlankLines: true,
   level: "normal",
@@ -118,5 +122,19 @@ export const defaultOptions: Readonly<ResolvedFormatOptions> = {
 export function resolveOptions(
   options: FormatOptions = {},
 ): ResolvedFormatOptions {
-  return { ...defaultOptions, ...options };
+  const profile = options.profile ?? "default";
+  const profileOptions: FormatOptions =
+    profile === "production" || profile === "aggressive"
+      ? {
+          level: "experimental",
+          formatTemplates: true,
+          formatTemplateParameters: true,
+          formatTables: true,
+          tableCellSeparatorStyle: "auto",
+          formatReferences: true,
+          formatExternalLinks: true,
+          formatSectionSpacing: true,
+        }
+      : {};
+  return { ...defaultOptions, ...profileOptions, ...options, profile };
 }

@@ -7,6 +7,7 @@ import type { RedirectDiagnostics } from "./rules/redirects.js";
 import type { SectionSpacingDiagnostics } from "./rules/sectionSpacing.js";
 import type { TableDiagnostic } from "./rules/tables.js";
 import type { TemplateParameterDiagnostics } from "./rules/templateParameters.js";
+import type { StructuralEquivalenceResult } from "./equivalence.js";
 
 export interface DetailedDiagnostics {
   tableDiagnostics: TableDiagnostic[];
@@ -17,6 +18,7 @@ export interface DetailedDiagnostics {
   referenceDiagnostics: ReferenceDiagnostics;
   sectionSpacingDiagnostics: SectionSpacingDiagnostics;
   templateParameterDiagnostics: TemplateParameterDiagnostics;
+  equivalenceDiagnostics: StructuralEquivalenceResult[];
 }
 
 export function emptyDetailedDiagnostics(): DetailedDiagnostics {
@@ -56,10 +58,19 @@ export function emptyDetailedDiagnostics(): DetailedDiagnostics {
       sectionSpacingAfterHeadingsInserted: 0,
     },
     templateParameterDiagnostics: {
+      templatesInspected: 0,
+      templatesFormatted: 0,
+      templatesExpandedToMultiline: 0,
+      existingMultilineTemplatesNormalized: 0,
+      templatesSkipped: 0,
+      skipReasons: {},
+      formattingPassesUsed: 0,
+      convergenceLimitReached: false,
       templateParametersFormatted: 0,
       templateParameterLinesFormatted: 0,
       templateParameterLinesSkippedUnsafe: 0,
     },
+    equivalenceDiagnostics: [],
   };
 }
 
@@ -73,6 +84,7 @@ export function stripDiagnostics(result: FormatDetailedResult): FormatResult {
     referenceDiagnostics: _referenceDiagnostics,
     sectionSpacingDiagnostics: _sectionSpacingDiagnostics,
     templateParameterDiagnostics: _templateParameterDiagnostics,
+    equivalenceDiagnostics: _equivalenceDiagnostics,
     ...stripped
   } = result;
   return stripped;

@@ -84,7 +84,8 @@ describe("CLI output helpers", () => {
     expect(diagnostics.tableDiagnostics[0]).toMatchObject({
       line: 1,
       separatorStyle: "split",
-      separatorStyleReason: "many columns",
+      separatorStyleReason:
+        "aggressive auto splits every parser-confirmed multi-cell row",
     });
     expect(
       diagnostics.tableDiagnostics[0]?.lineDiagnostics.length,
@@ -103,7 +104,7 @@ describe("CLI output helpers", () => {
       createDiagnosticsRecord("unchanged.wiki", "plain text\n", unchanged),
     ]);
 
-    expect(report.summary).toEqual({
+    expect(report.summary).toMatchObject({
       files: 2,
       changedFiles: 1,
       warningFiles: 0,

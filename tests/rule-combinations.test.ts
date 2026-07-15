@@ -45,6 +45,7 @@ describe("rule interaction hardening", () => {
       formatWikitext(input, {
         level: "experimental",
         formatTemplateParameters: true,
+        tableCellSeparatorStyle: "preserve",
       }),
     ).toBe(
       '{{Infobox\n| name = value\n}}\n{| class="wikitable"\n! A !! B   \n|}\n',
@@ -183,6 +184,7 @@ describe("rule interaction hardening", () => {
       formatReferences: true,
       formatExternalLinks: true,
       formatTables: true,
+      tableCellSeparatorStyle: "preserve",
       formatInterlanguageLinks: true,
       interlanguagePlacement: "footer",
       localizedSyntaxStyle: "canonical-english",
@@ -190,9 +192,12 @@ describe("rule interaction hardening", () => {
     });
 
     expect(result.warning).toBeUndefined();
-    for (const fragment of protectedFragments) {
+    for (const fragment of protectedFragments.slice(0, -1)) {
       expect(result.formatted).toContain(fragment);
     }
+    expect(result.formatted).toContain(
+      '{| class="wikitable"\n| <ref name="table"/> || {{T| a = b}}\n|}',
+    );
     expect(result.formatted).toContain("== Outer ==");
     expect(result.formatted).toContain("[https://example.test Label]");
     expect(result.formatted).toContain("<references />");

@@ -20,7 +20,7 @@ export interface CliOptions extends FormatOptions {
 }
 
 export function usage(): string {
-  return "Usage: wikitext-fmt [--write | --check | --diff] [--stdin] [--safe] [--fail-on-warning] [--report <path>] [--debug | --diagnostics-json] [--config <path> | --no-config] [--level safe|normal|experimental] [options] <file-or-glob...>";
+  return "Usage: wikitext-fmt [--write | --check | --diff] [--stdin] [--safe] [--profile default|production|aggressive] [--fail-on-warning] [--report <path>] [--debug | --diagnostics-json] [--config <path> | --no-config] [--level safe|normal|experimental] [options] <file-or-glob...>";
 }
 
 export function parseArgs(args: string[]): CliOptions {
@@ -98,6 +98,18 @@ export function parseArgs(args: string[]): CliOptions {
           throw new Error("--level must be safe, normal, or experimental");
         }
         options.level = value;
+        break;
+      }
+      case "--profile": {
+        const value = args[++index];
+        if (
+          value !== "default" &&
+          value !== "production" &&
+          value !== "aggressive"
+        ) {
+          throw new Error("--profile must be default, production, or aggressive");
+        }
+        options.profile = value;
         break;
       }
       case "--html-void-tag-style": {

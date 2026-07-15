@@ -1,5 +1,5 @@
-{| class="wikitable"   
-! A !! B !! C !! D   
+{| class="wikitable"
+! A !! B !! C !! D
 |-
-| 1 || 2 || 3 || 4   
+| 1 || 2 || 3 || 4
 |}

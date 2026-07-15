@@ -30,6 +30,12 @@ export interface DiagnosticsSummary {
   templateParametersFormatted: number;
   templateParameterLinesFormatted: number;
   templateParameterLinesSkippedUnsafe: number;
+  templatesInspected: number;
+  templatesFormatted: number;
+  templatesExpandedToMultiline: number;
+  existingMultilineTemplatesNormalized: number;
+  templatesSkipped: number;
+  formattingPassesUsed: number;
 }
 
 export interface FileDiagnostics {
@@ -71,6 +77,12 @@ export function emptyDiagnosticsSummary(): DiagnosticsSummary {
     templateParametersFormatted: 0,
     templateParameterLinesFormatted: 0,
     templateParameterLinesSkippedUnsafe: 0,
+    templatesInspected: 0,
+    templatesFormatted: 0,
+    templatesExpandedToMultiline: 0,
+    existingMultilineTemplatesNormalized: 0,
+    templatesSkipped: 0,
+    formattingPassesUsed: 0,
   };
 }
 
@@ -116,7 +128,23 @@ export function createDiagnosticsSummary(
     ...result.externalLinkDiagnostics,
     ...result.referenceDiagnostics,
     ...result.sectionSpacingDiagnostics,
-    ...result.templateParameterDiagnostics,
+    templateParametersFormatted:
+      result.templateParameterDiagnostics.templateParametersFormatted,
+    templateParameterLinesFormatted:
+      result.templateParameterDiagnostics.templateParameterLinesFormatted,
+    templateParameterLinesSkippedUnsafe:
+      result.templateParameterDiagnostics.templateParameterLinesSkippedUnsafe,
+    templatesInspected:
+      result.templateParameterDiagnostics.templatesInspected,
+    templatesFormatted:
+      result.templateParameterDiagnostics.templatesFormatted,
+    templatesExpandedToMultiline:
+      result.templateParameterDiagnostics.templatesExpandedToMultiline,
+    existingMultilineTemplatesNormalized:
+      result.templateParameterDiagnostics.existingMultilineTemplatesNormalized,
+    templatesSkipped: result.templateParameterDiagnostics.templatesSkipped,
+    formattingPassesUsed:
+      result.templateParameterDiagnostics.formattingPassesUsed,
   };
 }
 

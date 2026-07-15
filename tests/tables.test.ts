@@ -21,7 +21,6 @@ describe("experimental table analysis diagnostics", () => {
       "{|\n| {{N\/a\n|}",
       /uncertain cell attribute prefix|unsafe data cell separator/u,
     ],
-    ["HTML tag", "{|\n| <span>value<\/span>\n|}", /HTML|tag/u],
     ["nested table", "{|\n|\n{|\n| nested\n|}\n|}", /nested/u],
     ["unbalanced table", "{|\n| value", /unbalanced/u],
     [
@@ -46,44 +45,44 @@ describe("experimental table analysis diagnostics", () => {
       "simple compact inline table",
       "{|\n! Name !! Value\n|-\n| [[Alpha]] || 1\n|}",
       120,
-      "preserve",
-      "simple compact inline table",
+      "split",
+      "aggressive auto splits every parser-confirmed multi-cell row",
     ],
     [
       "many columns",
       "{|\n! A !! B !! C !! D\n|}",
       120,
       "split",
-      "many columns",
+      "aggressive auto splits every parser-confirmed multi-cell row",
     ],
     [
       "cell attributes",
       '{|\n| style="text-align:center" | A || B\n|}',
       120,
       "split",
-      "cell attributes",
+      "aggressive auto splits every parser-confirmed multi-cell row",
     ],
     [
       "line width",
       "{|\n| Alpha || Beta\n|}",
       10,
       "split",
-      "line exceeds lineWidth",
+      "aggressive auto splits every parser-confirmed multi-cell row",
     ],
-    ["mostly split", "{|\n! A\n! B\n|}", 120, "split", "already mostly split"],
+    ["mostly split", "{|\n! A\n! B\n|}", 120, "split", "aggressive auto splits every parser-confirmed multi-cell row"],
     [
       "mixed style",
       "{|\n! A\n! B\n|-\n| 1 || 2\n|}",
       120,
       "split",
-      "mixed inline and split style",
+      "aggressive auto splits every parser-confirmed multi-cell row",
     ],
     [
       "unsafe row",
       "{|\n! A !! B\n|-\n| <span>N/a</span> || 1\n|}",
       120,
       "split",
-      "contains skipped unsafe rows",
+      "aggressive auto splits every parser-confirmed multi-cell row",
     ],
     [
       "many rows",
@@ -94,7 +93,7 @@ describe("experimental table analysis diagnostics", () => {
       ].join("\n"),
       120,
       "split",
-      "many table rows",
+      "aggressive auto splits every parser-confirmed multi-cell row",
     ],
   ] as const)(
     "selects a style for %s",
@@ -200,11 +199,12 @@ describe("experimental table analysis diagnostics", () => {
       changed: true,
       value: "{|\n! A\n! B\n|-\n| C\n| D\n|}",
       separatorStyle: "split",
-      separatorStyleReason: "mixed inline and split style",
+      separatorStyleReason:
+        "aggressive auto splits every parser-confirmed multi-cell row",
     });
   });
 
-  it("auto preserves a small compact inline table", () => {
+  it("auto splits a small compact inline table", () => {
     expect(
       analyzeSimpleTableForTesting(
         "{|\n! Name !! Value\n|-\n| [[Alpha]] || 1\n|}",
@@ -214,9 +214,11 @@ describe("experimental table analysis diagnostics", () => {
         },
       ),
     ).toMatchObject({
-      changed: false,
-      separatorStyle: "preserve",
-      separatorStyleReason: "simple compact inline table",
+      changed: true,
+      value: "{|\n! Name\n! Value\n|-\n| [[Alpha]]\n| 1\n|}",
+      separatorStyle: "split",
+      separatorStyleReason:
+        "aggressive auto splits every parser-confirmed multi-cell row",
     });
   });
 
@@ -230,7 +232,8 @@ describe("experimental table analysis diagnostics", () => {
       changed: true,
       value: "{|\n| {{N/a}}\n| 1\n|}",
       separatorStyle: "split",
-      separatorStyleReason: "balanced template cells",
+      separatorStyleReason:
+        "aggressive auto splits every parser-confirmed multi-cell row",
     });
   });
 
@@ -333,12 +336,12 @@ describe("experimental table analysis diagnostics", () => {
     expect(
       formatWikitextDetailedResult("{|\n! A !! B\n|}\n", {
         level: "normal",
-        formatTables: true,
+        formatTables: false,
       }).tableDiagnostics,
     ).toEqual([]);
   });
 
-  it("auto can split safe rows while preserving unsafe rows", () => {
+  it("auto splits rows containing opaque HTML", () => {
     const result = formatWikitextDetailedResult(
       "{|\n! A !! B\n|-\n| <span>N/a</span> || 1\n|-\n| C || D\n|}\n",
       {
@@ -348,19 +351,19 @@ describe("experimental table analysis diagnostics", () => {
       },
     );
     expect(result.formatted).toContain("! A\n! B");
-    expect(result.formatted).toContain("| <span>N/a</span> || 1");
+    expect(result.formatted).toContain("| <span>N/a</span>\n| 1");
     expect(result.formatted).toContain("| C\n| D");
     expect(result.tableDiagnostics).toEqual([
       expect.objectContaining({
         changed: true,
-        reason: "formatted with skipped unsafe lines",
         separatorStyle: "split",
-        separatorStyleReason: "contains skipped unsafe rows",
+        separatorStyleReason:
+          "aggressive auto splits every parser-confirmed multi-cell row",
       }),
     ]);
   });
 
-  it("explicit split still formats safe rows while preserving unsafe rows", () => {
+  it("explicit split formats rows containing opaque HTML", () => {
     const result = formatWikitextDetailedResult(
       "{|\n! A !! B\n|-\n| <span>N/a</span> || 1\n|-\n| C || D\n|}\n",
       {
@@ -370,12 +373,11 @@ describe("experimental table analysis diagnostics", () => {
       },
     );
     expect(result.formatted).toContain("! A\n! B");
-    expect(result.formatted).toContain("| <span>N/a</span> || 1");
+    expect(result.formatted).toContain("| <span>N/a</span>\n| 1");
     expect(result.formatted).toContain("| C\n| D");
     expect(result.tableDiagnostics).toEqual([
       expect.objectContaining({
         changed: true,
-        reason: "formatted with skipped unsafe lines",
         separatorStyle: "split",
         separatorStyleReason: "explicit split option",
       }),
@@ -403,7 +405,7 @@ describe("experimental table analysis diagnostics", () => {
     });
     expect(
       result.tableDiagnostics.map(({ separatorStyle }) => separatorStyle),
-    ).toEqual(["preserve", "split"]);
+    ).toEqual(["split", "split"]);
   });
 
   it.each([
@@ -478,7 +480,8 @@ describe("experimental table analysis diagnostics", () => {
         "|}",
       ].join("\n"),
       separatorStyle: "split",
-      separatorStyleReason: "contains skipped unsafe rows",
+      separatorStyleReason:
+        "aggressive auto splits every parser-confirmed multi-cell row",
     });
   });
 

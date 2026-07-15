@@ -1,0 +1,5 @@
+== Parser round-trip tolerance ==
+
+This page intentionally ends with an unclosed transclusion that the parser must preserve.
+
+{{Unclosed|value=kept exactly

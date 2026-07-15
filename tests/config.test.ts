@@ -114,6 +114,18 @@ describe("CLI configuration", () => {
     expect(() => validateConfig({ level: "unsafe" })).toThrow(
       /must be one of/u,
     );
+    expect(() => validateConfig({ profile: "unsafe" })).toThrow(
+      /must be one of/u,
+    );
+  });
+
+  it("accepts production formatter profiles", () => {
+    expect(validateConfig({ profile: "production" })).toEqual({
+      profile: "production",
+    });
+    expect(validateConfig({ profile: "aggressive" })).toEqual({
+      profile: "aggressive",
+    });
   });
 
   it("accepts experimental table configuration", () => {

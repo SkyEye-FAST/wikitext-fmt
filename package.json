@@ -1,7 +1,7 @@
 {
   "name": "wikitext-fmt",
   "version": "0.1.0",
-  "description": "A conservative standalone formatter for MediaWiki wikitext",
+  "description": "A parser-assisted structural formatter for MediaWiki wikitext",
   "license": "GPL-3.0-or-later",
   "type": "module",
   "main": "./dist/index.js",
@@ -33,7 +33,10 @@
     "check:vscode-release": "pnpm --filter wikitext-formatter check:release",
     "smoke": "node dist/cli.js --help > /dev/null && node dist/cli.js --print-localization-aliases --localization-source builtin > /dev/null && node scripts/release-smoke.mjs",
     "release:smoke": "pnpm build && pnpm smoke",
-    "localization:update": "node --experimental-strip-types scripts/update-mediawiki-aliases.ts"
+    "localization:update": "node --experimental-strip-types scripts/update-mediawiki-aliases.ts",
+    "corpus": "pnpm corpus:production && pnpm corpus:aggressive",
+    "corpus:production": "pnpm build && node scripts/run-corpus.mjs tests/real-pages --profile production --output corpus-production-report.json",
+    "corpus:aggressive": "node scripts/run-corpus.mjs tests/real-pages --profile aggressive --output corpus-aggressive-report.json"
   },
   "engines": {
     "node": "^22.13.0 || >=24.11.0"

@@ -3,19 +3,22 @@
 |-
 |
 {| class="wikitable"
-| Nested || Value
+| Nested
+| Value
 |}
 |}
 
 {{Box
 | content =
 {| class="wikitable"
-! Inside !! Template
+! Inside
+! Template
 |}
 }}
 
   {| class="wikitable"
-| Indented || Table
+| Indented
+| Table
 |}
 
 {| class="wikitable"

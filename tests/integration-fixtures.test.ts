@@ -35,8 +35,8 @@ const cases: IntegrationCase[] = [
     expectedSummary: {
       fileLinksFormatted: 1,
       templateParametersFormatted: 1,
-      templateParameterLinesFormatted: 1,
-      templateParameterLinesSkippedUnsafe: 1,
+      templateParameterLinesFormatted: 3,
+      templateParameterLinesSkippedUnsafe: 0,
     },
   },
   {
@@ -49,7 +49,8 @@ const cases: IntegrationCase[] = [
   {
     name: "integration-table-heavy",
     expectedSummary: {
-      tables: 0,
+      tables: 1,
+      formattedTables: 1,
       categoriesMoved: 0,
     },
   },

@@ -1,98 +1,124 @@
 import { describe, expect, it } from "vitest";
-import { formatWikitext, formatWikitextDetailedResult } from "../src/index.js";
+import {
+  formatWikitext,
+  formatWikitextDetailedResult,
+  formatWikitextSafeDetailed,
+} from "../src/index.js";
 
-const options = {
-  level: "experimental" as const,
-  formatTemplateParameters: true,
-};
-
-describe("experimental multiline template parameter formatting", () => {
-  it("is disabled by default", () => {
-    const input = "{{Template\n| a=b\n| c = d\n}}\n";
-    expect(formatWikitext(input)).toBe(input);
+describe("unified parser-assisted template formatting", () => {
+  it("normalizes existing multiline templates at normal level", () => {
+    const input = "{{Template   \n| a=b   \n| c =d\n| empty=   \n}}\n";
+    expect(formatWikitext(input)).toBe(
+      "{{Template\n| a = b\n| c = d\n| empty =\n}}\n",
+    );
   });
 
-  it("requires experimental level and explicit option", () => {
+  it("retains the old option as a compatibility route to the same engine", () => {
     const input = "{{Template\n| a=b\n}}\n";
-    expect(formatWikitext(input, { formatTemplateParameters: true })).toBe(
-      input,
-    );
-    expect(formatWikitext(input, { level: "experimental" })).toBe(input);
+    expect(
+      formatWikitext(input, {
+        level: "experimental",
+        formatTemplates: false,
+        formatTemplateParameters: true,
+      }),
+    ).toBe("{{Template\n| a = b\n}}\n");
   });
 
-  it("normalizes simple named parameter spacing", () => {
-    const input =
-      "{{Template   \n| a=b   \n| c =d\n| d= value\n| empty=   \n}}\n";
-    expect(formatWikitext(input, options)).toBe(
-      "{{Template\n| a = b\n| c = d\n| d = value\n| empty = \n}}\n",
+  it("can disable both compatibility entry points", () => {
+    const input = "{{Template\n| a=b\n}}\n";
+    expect(
+      formatWikitext(input, {
+        formatTemplates: false,
+        formatTemplateParameters: false,
+      }),
+    ).toBe(input);
+  });
+
+  it("keeps a clearly compact single parameter inline", () => {
+    expect(formatWikitext("{{Template|a=b}}\n")).toBe(
+      "{{Template| a = b}}\n",
     );
   });
 
-  it("preserves single-line templates", () => {
-    const input = "{{Template|a=b}}\n";
-    expect(formatWikitext(input, options)).toBe(input);
+  it("preserves meaningful trailing whitespace in anonymous values", () => {
+    const result = formatWikitextSafeDetailed("{{Template|one |named=value}}\n");
+    expect(result.warning).toBeUndefined();
+    expect(result.formatted).toContain("| one \n| named = value");
   });
 
   it.each([
-    "{{Template\n| a = {{Nested|x=1}}\n}}\n",
-    "{{Template\n| a = {{#if:x|y|z}}\n}}\n",
-    '{{Template\n| a = {| class="wikitable"\n}}\n',
-    "{{Template\n| a = * item\n}}\n",
-    "{{Template\n| a = <ref>source</ref>\n}}\n",
-    "{{Template\n| a = [[Page|label]]\n}}\n",
-    "{{Template\n| a = value <!-- comment -->\n}}\n",
-    "{{Template\n| 1 = positional\n}}\n",
-  ])("preserves unsafe template parameter line %s", (input) => {
-    expect(formatWikitext(input, options)).toBe(input);
+    ["nested template", "{{Nested|x=1|y=2}}"],
+    ["parser function", "{{#if:x|y|z}}"],
+    ["link", "[[Page|label]]"],
+    ["reference", "<ref>source</ref>"],
+    ["HTML", "<span>value</span>"],
+    ["comment", "value<!-- comment -->"],
+  ])("formats a template containing %s", (_name, value) => {
+    const input = `{{Template|before=one|value=${value}|after=two}}\n`;
+    const result = formatWikitextSafeDetailed(input);
+    expect(result.warning).toBeUndefined();
+    expect(result.formatted).not.toBe(input);
+    expect(result.formatted).toContain("| before = one");
+    expect(result.formatted).toContain("| after = two");
+    expect(result.equivalenceDiagnostics).toContainEqual({
+      equivalent: true,
+      structure: "templates",
+    });
   });
 
-  it("preserves multiline value content while formatting later safe parameters", () => {
-    const input = "{{Template\n| a = first line\nsecond line\n| b=c\n}}\n";
-    expect(formatWikitext(input, options)).toBe(
-      "{{Template\n| a = first line\nsecond line\n| b = c\n}}\n",
-    );
-  });
-
-  it("formats later safe parameters after multiline values", () => {
+  it("preserves multiline value content while formatting every parameter", () => {
     const input =
       "{{Template\n| first = line one\nline two\n| 中文 =值\n| 日本語= 値\n}}\n";
-    expect(formatWikitext(input, options)).toBe(
+    expect(formatWikitext(input)).toBe(
       "{{Template\n| first = line one\nline two\n| 中文 = 值\n| 日本語 = 値\n}}\n",
     );
   });
 
-  it("preserves protected blocks and comments containing template braces", () => {
+  it("preserves protected blocks and explicit ignore ranges", () => {
     const input =
-      '<nowiki>{{Template\n| a=b\n}}</nowiki>\n<pre>{{Template\n| c=d\n}}</pre>\n<syntaxhighlight lang="wikitext">{{Template\n| e=f\n}}</syntaxhighlight>\n<!-- {{Template\n| g=h\n}} -->\n';
-    expect(formatWikitext(input, options)).toBe(input);
+      '<nowiki>{{Template\n| a=b\n}}</nowiki>\n<!-- wikitext-fmt-ignore-start -->\n{{Template\n| c=d\n}}\n<!-- wikitext-fmt-ignore-end -->\n';
+    expect(formatWikitext(input)).toBe(input);
   });
 
-  it("preserves table content containing template braces", () => {
+  it("formats templates inside table cells", () => {
     const input = "{|\n| {{Template\n| a=b\n}}\n|}\n";
-    expect(formatWikitext(input, options)).toBe(input);
+    expect(formatWikitext(input)).toContain("| a = b");
   });
 
-  it.each([
-    "{{Template\n| safe=value\n| nested = {{Nested|x=1}}\n| later = value\n}}\n",
-    "{{Template\n| safe=value\n| parser = {{#if:x|y|z}}\n| later = value\n}}\n",
-  ])("skips blocks containing nested template syntax %s", (input) => {
-    expect(formatWikitext(input, options)).toBe(input);
+  it("formats nested templates deepest-first", () => {
+    const input =
+      "{{Outer|safe=value|nested={{Nested|x=1|y=2}}|parser={{#if:x|y|z}}}}\n";
+    const result = formatWikitextDetailedResult(input);
+    expect(result.formatted).toContain("{{Nested\n| x = 1\n| y = 2\n}}");
+    expect(result.formatted).toContain("{{#if: x\n| y\n| z\n}}");
+    expect(result.templateParameterDiagnostics.templatesFormatted).toBe(3);
+    expect(result.templateParameterDiagnostics.formattingPassesUsed).toBeGreaterThan(1);
+  });
+
+  it("fails closed on a table opener the parser cannot balance", () => {
+    const input = '{{Template\n| a = {| class="wikitable"\n}}\n';
+    const result = formatWikitextDetailedResult(input);
+    expect(result.formatted).toBe(input);
+    expect(result.templateParameterDiagnostics.skipReasons).toMatchObject({
+      "table opener is not represented by a balanced parser table node": 1,
+    });
+  });
+
+  it("reports production template diagnostics", () => {
+    const result = formatWikitextDetailedResult(
+      "{{Template|a=1|nested={{Nested|x=1}}}}\n",
+    );
+    expect(result.templateParameterDiagnostics).toMatchObject({
+      templatesInspected: 2,
+      templatesFormatted: 2,
+      templatesExpandedToMultiline: 1,
+      templatesSkipped: 0,
+      convergenceLimitReached: false,
+    });
   });
 
   it("is idempotent", () => {
-    const once = formatWikitext("{{Template\n| a=b\n| c = d\n}}\n", options);
-    expect(formatWikitext(once, options)).toBe(once);
-  });
-
-  it("reports template parameter diagnostics", () => {
-    const result = formatWikitextDetailedResult(
-      "{{Template\n| a=b\n| unsafe = [[Page|label]]\n}}\n",
-      options,
-    );
-    expect(result.templateParameterDiagnostics).toEqual({
-      templateParametersFormatted: 1,
-      templateParameterLinesFormatted: 1,
-      templateParameterLinesSkippedUnsafe: 1,
-    });
+    const once = formatWikitext("{{Template|a=1|c={{Nested|x=1|y=2}}}}\n");
+    expect(formatWikitext(once)).toBe(once);
   });
 });

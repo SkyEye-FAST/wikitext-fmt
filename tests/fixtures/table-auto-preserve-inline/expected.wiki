@@ -1,8 +1,11 @@
 {| class="wikitable"
 |+ Current entries
-! Name !! Value
+! Name
+! Value
 |-
-| [[Alpha]] || 1
+| [[Alpha]]
+| 1
 |-
-| [[Beta]] || 2
+| [[Beta]]
+| 2
 |}
