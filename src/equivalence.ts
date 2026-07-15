@@ -101,9 +101,7 @@ function templateNodeFingerprint(
           arg.lastChild as unknown as GenericNode,
           node,
         );
-        return arg.anon
-          ? value.replace(/^[\t ]+/u, "").replace(/\n$/u, "")
-          : value.trim();
+        return arg.anon ? value : value.trim();
       })(),
     })),
   };
@@ -200,7 +198,7 @@ function semanticTableCellContent(
       `\u0000${replacement.kind}:${replacement.value}\u0000` +
       output.slice(replacement.end);
   }
-  return output.trim();
+  return output;
 }
 
 function cellFingerprint(
@@ -209,7 +207,7 @@ function cellFingerprint(
 ): TableCellFingerprint {
   return {
     subtype: cell.subtype ?? "td",
-    attributes: cell.childNodes[1]?.toString().trim() ?? "",
+    attributes: cell.childNodes[1]?.toString() ?? "",
     content: semanticTableCellContent(cell, owner),
   };
 }
@@ -241,14 +239,14 @@ function tableNodeFingerprint(
   }
   for (const row of table.childNodes.filter((node) => node.type === "tr")) {
     rows.push({
-      attributes: row.childNodes[1]?.toString().trim() ?? "",
+      attributes: row.childNodes[1]?.toString() ?? "",
       cells: directCells(row, table).map((cell) =>
         cellFingerprint(cell, table),
       ),
     });
   }
   return {
-    attributes: table.childNodes[1]?.toString().trim() ?? "",
+    attributes: table.childNodes[1]?.toString() ?? "",
     captions,
     rows,
   };

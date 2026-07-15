@@ -38,6 +38,7 @@ export interface FormatResult {
 
 export interface FormatDetailedResult extends FormatResult {
   tableDiagnostics: DetailedDiagnostics["tableDiagnostics"];
+  tableFormatDiagnostics: DetailedDiagnostics["tableFormatDiagnostics"];
   footerDiagnostics: DetailedDiagnostics["footerDiagnostics"];
   redirectDiagnostics: DetailedDiagnostics["redirectDiagnostics"];
   fileLinkDiagnostics: DetailedDiagnostics["fileLinkDiagnostics"];
@@ -117,6 +118,7 @@ export function formatWikitextDetailedResult(
           };
         },
       );
+      diagnostics.tableFormatDiagnostics = tableResult.summary;
       tableOutput = tableBlocks.restore(tableOutput);
       const equivalence = verifyStructuralEquivalence(
         beforeTables,
@@ -375,6 +377,7 @@ export function formatWikitextSafeDetailed(
     const first = formatWikitextDetailedResult(source, options);
     diagnostics = {
       tableDiagnostics: first.tableDiagnostics,
+      tableFormatDiagnostics: first.tableFormatDiagnostics,
       footerDiagnostics: first.footerDiagnostics,
       redirectDiagnostics: first.redirectDiagnostics,
       fileLinkDiagnostics: first.fileLinkDiagnostics,

@@ -59,6 +59,11 @@ describe("CLI output helpers", () => {
         tables: number;
         formattedTables: number;
         skippedTables: number;
+        tablesInspected: number;
+        tablesEligible: number;
+        tablesChanged: number;
+        tablesAlreadyCanonical: number;
+        tablesSkippedAmbiguous: number;
         formattedLines: number;
         skippedUnsafeLines: number;
       };
@@ -77,6 +82,11 @@ describe("CLI output helpers", () => {
         tables: 1,
         formattedTables: 1,
         skippedTables: 0,
+        tablesInspected: 1,
+        tablesEligible: 1,
+        tablesChanged: 1,
+        tablesAlreadyCanonical: 0,
+        tablesSkippedAmbiguous: 0,
         formattedLines: 1,
         skippedUnsafeLines: 0,
       },

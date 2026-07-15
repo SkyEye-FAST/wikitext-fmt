@@ -5,12 +5,16 @@ import type { FileLinkDiagnostics } from "./rules/fileLinks.js";
 import type { ReferenceDiagnostics } from "./rules/references.js";
 import type { RedirectDiagnostics } from "./rules/redirects.js";
 import type { SectionSpacingDiagnostics } from "./rules/sectionSpacing.js";
-import type { TableDiagnostic } from "./rules/tables.js";
+import type {
+  TableDiagnostic,
+  TableFormatDiagnostics,
+} from "./rules/tables.js";
 import type { TemplateParameterDiagnostics } from "./rules/templateParameters.js";
 import type { StructuralEquivalenceResult } from "./equivalence.js";
 
 export interface DetailedDiagnostics {
   tableDiagnostics: TableDiagnostic[];
+  tableFormatDiagnostics: TableFormatDiagnostics;
   footerDiagnostics: FooterDiagnostics;
   redirectDiagnostics: RedirectDiagnostics;
   fileLinkDiagnostics: FileLinkDiagnostics;
@@ -24,6 +28,15 @@ export interface DetailedDiagnostics {
 export function emptyDetailedDiagnostics(): DetailedDiagnostics {
   return {
     tableDiagnostics: [],
+    tableFormatDiagnostics: {
+      tablesInspected: 0,
+      tablesEligible: 0,
+      tablesChanged: 0,
+      tablesAlreadyCanonical: 0,
+      tablesSkippedAmbiguous: 0,
+      formattingPassesUsed: 0,
+      convergenceLimitReached: false,
+    },
     footerDiagnostics: {
       behaviorSwitchesMoved: 0,
       behaviorSwitchesFormatted: 0,
@@ -59,6 +72,11 @@ export function emptyDetailedDiagnostics(): DetailedDiagnostics {
     },
     templateParameterDiagnostics: {
       templatesInspected: 0,
+      templatesEligible: 0,
+      templatesChanged: 0,
+      templatesAlreadyCanonical: 0,
+      templatesSkippedAmbiguous: 0,
+      uniqueTemplatesFormatted: 0,
       templatesFormatted: 0,
       templatesExpandedToMultiline: 0,
       existingMultilineTemplatesNormalized: 0,
@@ -77,6 +95,7 @@ export function emptyDetailedDiagnostics(): DetailedDiagnostics {
 export function stripDiagnostics(result: FormatDetailedResult): FormatResult {
   const {
     tableDiagnostics: _tableDiagnostics,
+    tableFormatDiagnostics: _tableFormatDiagnostics,
     footerDiagnostics: _footerDiagnostics,
     redirectDiagnostics: _redirectDiagnostics,
     fileLinkDiagnostics: _fileLinkDiagnostics,

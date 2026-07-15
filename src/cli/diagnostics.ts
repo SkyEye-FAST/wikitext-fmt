@@ -4,6 +4,12 @@ export interface DiagnosticsSummary {
   tables: number;
   formattedTables: number;
   skippedTables: number;
+  tablesInspected: number;
+  tablesEligible: number;
+  tablesChanged: number;
+  tablesAlreadyCanonical: number;
+  tablesSkippedAmbiguous: number;
+  tableFormattingPassesUsed: number;
   formattedLines: number;
   skippedUnsafeLines: number;
   behaviorSwitchesMoved: number;
@@ -31,6 +37,11 @@ export interface DiagnosticsSummary {
   templateParameterLinesFormatted: number;
   templateParameterLinesSkippedUnsafe: number;
   templatesInspected: number;
+  templatesEligible: number;
+  templatesChanged: number;
+  templatesAlreadyCanonical: number;
+  templatesSkippedAmbiguous: number;
+  uniqueTemplatesFormatted: number;
   templatesFormatted: number;
   templatesExpandedToMultiline: number;
   existingMultilineTemplatesNormalized: number;
@@ -51,6 +62,12 @@ export function emptyDiagnosticsSummary(): DiagnosticsSummary {
     tables: 0,
     formattedTables: 0,
     skippedTables: 0,
+    tablesInspected: 0,
+    tablesEligible: 0,
+    tablesChanged: 0,
+    tablesAlreadyCanonical: 0,
+    tablesSkippedAmbiguous: 0,
+    tableFormattingPassesUsed: 0,
     formattedLines: 0,
     skippedUnsafeLines: 0,
     behaviorSwitchesMoved: 0,
@@ -78,6 +95,11 @@ export function emptyDiagnosticsSummary(): DiagnosticsSummary {
     templateParameterLinesFormatted: 0,
     templateParameterLinesSkippedUnsafe: 0,
     templatesInspected: 0,
+    templatesEligible: 0,
+    templatesChanged: 0,
+    templatesAlreadyCanonical: 0,
+    templatesSkippedAmbiguous: 0,
+    uniqueTemplatesFormatted: 0,
     templatesFormatted: 0,
     templatesExpandedToMultiline: 0,
     existingMultilineTemplatesNormalized: 0,
@@ -102,13 +124,18 @@ export function createDiagnosticsSummary(
 ): DiagnosticsSummary {
   return {
     ...emptyDiagnosticsSummary(),
-    tables: result.tableDiagnostics.length,
-    formattedTables: result.tableDiagnostics.filter(
-      (diagnostic) => diagnostic.changed,
-    ).length,
-    skippedTables: result.tableDiagnostics.filter(
-      (diagnostic) => !diagnostic.changed,
-    ).length,
+    tables: result.tableFormatDiagnostics.tablesInspected,
+    formattedTables: result.tableFormatDiagnostics.tablesChanged,
+    skippedTables: result.tableFormatDiagnostics.tablesSkippedAmbiguous,
+    tablesInspected: result.tableFormatDiagnostics.tablesInspected,
+    tablesEligible: result.tableFormatDiagnostics.tablesEligible,
+    tablesChanged: result.tableFormatDiagnostics.tablesChanged,
+    tablesAlreadyCanonical:
+      result.tableFormatDiagnostics.tablesAlreadyCanonical,
+    tablesSkippedAmbiguous:
+      result.tableFormatDiagnostics.tablesSkippedAmbiguous,
+    tableFormattingPassesUsed:
+      result.tableFormatDiagnostics.formattingPassesUsed,
     formattedLines: result.tableDiagnostics.reduce(
       (count, diagnostic) =>
         count +
@@ -136,6 +163,16 @@ export function createDiagnosticsSummary(
       result.templateParameterDiagnostics.templateParameterLinesSkippedUnsafe,
     templatesInspected:
       result.templateParameterDiagnostics.templatesInspected,
+    templatesEligible:
+      result.templateParameterDiagnostics.templatesEligible,
+    templatesChanged:
+      result.templateParameterDiagnostics.templatesChanged,
+    templatesAlreadyCanonical:
+      result.templateParameterDiagnostics.templatesAlreadyCanonical,
+    templatesSkippedAmbiguous:
+      result.templateParameterDiagnostics.templatesSkippedAmbiguous,
+    uniqueTemplatesFormatted:
+      result.templateParameterDiagnostics.uniqueTemplatesFormatted,
     templatesFormatted:
       result.templateParameterDiagnostics.templatesFormatted,
     templatesExpandedToMultiline:

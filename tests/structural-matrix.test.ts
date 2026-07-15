@@ -66,6 +66,20 @@ describe("generated graduated template matrix", () => {
       templateStructuralFingerprint,
     );
   });
+
+  it("formats multiple templates adjacent to ordinary prose", () => {
+    expectGraduatedCase(
+      "Lead {{First|a=1|b=2}} middle {{Second|x=3|y=4}} tail\n",
+      templateStructuralFingerprint,
+    );
+  });
+
+  it("formats multiple nested template depths", () => {
+    expectGraduatedCase(
+      "{{Outer|a=1|nested={{Middle|b=2|nested={{Inner|c=3|d=4}}}}}}\n",
+      templateStructuralFingerprint,
+    );
+  });
 });
 
 describe("generated graduated table matrix", () => {
@@ -144,5 +158,57 @@ describe("structural equivalence rejection", () => {
         "tables",
       ),
     ).toMatchObject({ equivalent: false, structure: "tables" });
+  });
+
+  it.each([
+    ["cell leading whitespace", "{|\n|  A\n|}", "{|\n| A\n|}"],
+    ["cell trailing whitespace", "{|\n| A  \n|}", "{|\n| A\n|}"],
+    [
+      "preformatted content",
+      "{|\n| <pre>  A  </pre>\n|}",
+      "{|\n| <pre>A</pre>\n|}",
+    ],
+    ["comment", "{|\n| A<!--keep-->\n|}", "{|\n| A\n|}"],
+    ["table attributes", '{| class="x"\n| A\n|}', "{|\n| A\n|}"],
+    ["row attributes", "{|\n|- class=x\n| A\n|}", "{|\n|-\n| A\n|}"],
+    [
+      "cell attributes",
+      "{|\n| class=x | A\n|}",
+      "{|\n| class=y | A\n|}",
+    ],
+    ["caption", "{|\n|+ First\n| A\n|}", "{|\n|+ Second\n| A\n|}"],
+    [
+      "anonymous template whitespace in a cell",
+      "{|\n| {{T| foo }}\n|}",
+      "{|\n| {{T|foo}}\n|}",
+    ],
+  ])("detects changed %s", (_name, before, after) => {
+    expect(
+      verifyStructuralEquivalence(before, after, config, "tables"),
+    ).toMatchObject({ equivalent: false, structure: "tables" });
+  });
+
+  it.each([
+    ["anonymous leading space", "{{T| foo}}", "{{T|foo}}"],
+    ["anonymous trailing space", "{{T|foo }}", "{{T|foo}}"],
+    ["anonymous empty value", "{{T||foo}}", "{{T|foo}}"],
+    ["anonymous order", "{{T|one|two}}", "{{T|two|one}}"],
+    ["comment", "{{T|one<!--keep-->|two}}", "{{T|one|two}}"],
+    ["parser-function value", "{{#if:x|yes|no}}", "{{#if: x|yes|no}}"],
+  ])("detects a changed %s", (_name, before, after) => {
+    expect(
+      verifyStructuralEquivalence(before, after, config, "templates"),
+    ).toMatchObject({ equivalent: false, structure: "templates" });
+  });
+
+  it("accepts syntax-only named parameter spacing", () => {
+    expect(
+      verifyStructuralEquivalence(
+        "{{T| name = value }}",
+        "{{T|name=value}}",
+        config,
+        "templates",
+      ),
+    ).toEqual({ equivalent: true, structure: "templates" });
   });
 });

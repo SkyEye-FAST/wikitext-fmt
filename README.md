@@ -2,7 +2,7 @@
 
 `wikitext-fmt` is a production-oriented, standalone structural formatter for MediaWiki wikitext. It uses [`wikiparser-node`](https://github.com/bhsd-harry/wikiparser-node) to discover and validate structure, but it is not a MediaWiki extension and does not require a running MediaWiki installation.
 
-Parser-confirmed templates and tables are formatted aggressively by default. Nested templates, parser functions, structured parameter values, nested tables, tables embedded in template text, attributes, captions, continuation lines, HTML, refs, comments, and links are supported without reordering semantic content. Protected extension blocks and explicit ignore regions remain unchanged. A structure is preserved only when parser boundaries are demonstrably ambiguous, and diagnostics report the exact limitation.
+Eligible parser-confirmed templates and tables are formatted aggressively by default. Nested templates, parser functions, structured parameter values, nested tables, tables embedded in template text, attributes, captions, continuation lines, HTML, refs, comments, and links are supported without reordering semantic content. Protected extension blocks and explicit ignore regions remain unchanged. A structure is preserved when parser boundaries are demonstrably ambiguous or when changing its layout would alter whitespace-sensitive anonymous arguments; diagnostics report parser limitations precisely.
 
 It does not perform site-specific semantic rewrites: parameters, rows, cells, attributes, categories, titles, and values are never reordered or translated. HTML5-style `<br>` remains the default rather than XHTML-style `<br />`.
 
@@ -52,10 +52,11 @@ batch report:
 wikitext-fmt "pages/**/*.wiki" --profile production --safe --write --report report.json
 ```
 
-`production` and `aggressive` are equivalent presets before 1.0. They enable
-references, external links, section spacing, unified template normalization,
-aggressive table splitting, and structural-equivalence verification. Individual
-options can still override a preset:
+`production` enables the graduated normal-level rules, including unified
+template normalization and aggressive table splitting. `aggressive` extends it
+with the still-validating reference, external-link, and section-spacing rules.
+Both profiles use template/table structural-equivalence verification in safe
+mode. Individual options can still override either preset:
 
 ```sh
 wikitext-fmt "pages/**/*.wiki" --profile production --safe \
@@ -151,7 +152,7 @@ table splitting are normal-level rules and tables are enabled by default.
 `formatTemplateParameters` remains as a deprecated pre-1.0 compatibility alias
 that routes to the same template engine. External links, references,
 interlanguage links, and section spacing remain explicit experimental rules;
-the production profile enables the relevant set together.
+the aggressive profile enables the relevant set together.
 
 The default parser configuration name is `mediawiki`, which maps to `wikiparser-node`'s generic `default` configuration. Names shipped by the parser, such as `enwiki` or `zhwiki`, and paths to custom JSON configurations are also accepted.
 
@@ -371,10 +372,17 @@ node scripts/run-corpus.mjs path/to/pages --profile production \
   --parser-config zhwiki --siteinfo siteinfo-aliases.json --output report.json
 ```
 
-The report includes pages processed/changed, warnings, parse, idempotency, and
-equivalence failures, template/table inspection and formatting counts, precise
-skip-reason frequencies, and formatting coverage. The command exits non-zero
-for any warning or validation failure.
+The report includes pages processed/changed, warnings, parse, idempotency,
+equivalence and convergence failures, unique template/table node counts,
+separate coverage, and precise skip-reason frequencies. Coverage is
+`(changed + alreadyCanonical) / eligible`. Use `--min-template-coverage` and
+`--min-table-coverage` to enforce a measured baseline. Ambiguous skips fail by
+default; a reviewed exact limitation can be admitted with
+`--allow-skip-reason`. The measured committed-corpus thresholds are 96.9% for
+eligible template nodes and 100% for eligible table nodes; the template
+baseline admits only the documented embedded-table parser-boundary limitation.
+Coverage is reported as `null`, and a positive threshold fails, when a corpus
+contains no eligible nodes of that structure.
 
 ## List formatting
 
@@ -520,10 +528,14 @@ The engine uses parser argument nodes for order, named/anonymous state, keys,
 values, and source ranges. It formats nested templates deepest-first and supports
 numeric, anonymous, empty, and Unicode parameters; parser functions; multiline
 values; comments; links; refs; HTML; multiple templates; and templates inside
-table cells. Multiple parameters, existing multiline layout, long templates,
-and structured values select multiline layout. A single short parameter may
-remain compact. Parameters and values are never reordered, renamed, or
-semantically rewritten.
+table cells. Multiple named parameters, existing multiline layout, long
+templates, and structured values select multiline layout. Anonymous argument
+values—including leading/trailing spaces, tabs, newlines, empty values, and
+parser-function arguments—are preserved byte-for-byte, so their surrounding
+template shell is not expanded when doing so would introduce semantic
+whitespace. Nested supported structures still format deepest-first. A single
+short named parameter may remain compact. Parameters and values are never
+reordered, renamed, or semantically rewritten.
 
 `formatTemplateParameters` and `--format-template-parameters` remain as pre-1.0
 compatibility aliases and route to this same engine; there is no second scanner.
@@ -579,6 +591,7 @@ captions, header/data cells, empty cells, continuation lines, comments,
 rowspan/colspan, templates, parser functions, links, HTML, extension tags, refs,
 and localized contents are supported as opaque parser-confirmed cell content.
 Rows, cells, attributes, and contents are never reordered or visually padded.
+Cell content whitespace is preserved exactly when inline separators are split.
 Use `--debug` for per-table boundary and fallback diagnostics:
 
 ```sh

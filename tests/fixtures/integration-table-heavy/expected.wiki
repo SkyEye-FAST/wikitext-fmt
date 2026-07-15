@@ -1,9 +1,9 @@
 == Data ==
 {| class="wikitable"
-! A
+! A 
 ! B
 |-
-| 1
+| 1 
 | 2
 |}
 

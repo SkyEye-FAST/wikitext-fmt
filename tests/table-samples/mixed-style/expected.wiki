@@ -4,8 +4,8 @@
 ! Value
 |-
 <!-- reviewed row -->
-| Sample A
-| Primary
+| Sample A 
+| Primary 
 | 42
 |-
 | Sample B

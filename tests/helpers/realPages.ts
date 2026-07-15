@@ -44,7 +44,11 @@ export async function expectRealPageRegression(
     expect(value).toBeGreaterThanOrEqual(0);
   }
   expect(summary.tables).toBe(once.tableDiagnostics.length);
-  expect(summary.formattedTables + summary.skippedTables).toBe(summary.tables);
+  expect(
+    summary.tablesChanged +
+      summary.tablesAlreadyCanonical +
+      summary.tablesSkippedAmbiguous,
+  ).toBe(summary.tablesInspected);
   expect(summary.formattedLines).toBe(
     once.tableDiagnostics.reduce(
       (count, diagnostic) =>

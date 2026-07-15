@@ -19,6 +19,12 @@ interface Replacement {
 
 export interface TemplateDiagnostics {
   templatesInspected: number;
+  templatesEligible: number;
+  templatesChanged: number;
+  templatesAlreadyCanonical: number;
+  templatesSkippedAmbiguous: number;
+  uniqueTemplatesFormatted: number;
+  /** @deprecated Use uniqueTemplatesFormatted. */
   templatesFormatted: number;
   templatesExpandedToMultiline: number;
   existingMultilineTemplatesNormalized: number;
@@ -55,6 +61,11 @@ type TemplateNode = TranscludeToken & {
 function emptyDiagnostics(): TemplateDiagnostics {
   return {
     templatesInspected: 0,
+    templatesEligible: 0,
+    templatesChanged: 0,
+    templatesAlreadyCanonical: 0,
+    templatesSkippedAmbiguous: 0,
+    uniqueTemplatesFormatted: 0,
     templatesFormatted: 0,
     templatesExpandedToMultiline: 0,
     existingMultilineTemplatesNormalized: 0,
@@ -87,11 +98,43 @@ function collectTemplateNodes(
 
 function renderArgument(arg: ParameterToken): string | undefined {
   const rawValue = arg.lastChild.toString();
-  const value = arg.anon ? rawValue.replace(/^[\t ]+/u, "") : rawValue.trim();
-  if (arg.anon) return `| ${value}`;
+  if (arg.anon) return `|${rawValue}`;
+  const value = rawValue.trim();
   const key = arg.firstChild.toString().trim();
   if (!key) return undefined;
   return `| ${key} = ${value}`;
+}
+
+function normalizeNamedArgumentsInPlace(
+  raw: string,
+  nodeStart: number,
+  args: readonly ParameterToken[],
+): { value?: string; reason?: string } {
+  const replacements = args
+    .filter((arg) => !arg.anon)
+    .map((arg) => {
+      const key = arg.firstChild.toString().trim();
+      if (!key) return undefined;
+      const start = arg.getAbsoluteIndex() - nodeStart;
+      return {
+        start,
+        end: start + arg.toString().length,
+        value: `${key} = ${arg.lastChild.toString().trim()}`,
+      };
+    });
+  if (replacements.some((replacement) => replacement === undefined)) {
+    return { reason: "parser exposed an empty named-parameter key" };
+  }
+  let value = raw;
+  for (const replacement of replacements
+    .filter((item): item is NonNullable<typeof item> => item !== undefined)
+    .sort((a, b) => b.start - a.start)) {
+    value =
+      value.slice(0, replacement.start) +
+      replacement.value +
+      value.slice(replacement.end);
+  }
+  return { value };
 }
 
 function containsNestedStructure(arg: ParameterToken): boolean {
@@ -146,8 +189,19 @@ function renderTemplate(
   }
   const head = raw.slice(2, firstArgStart - 1).trim();
   if (!head) return { reason: "template name is empty" };
-  if (node.type === "magic-word" && !head.startsWith("#")) {
+  if (node.type === "magic-word") {
     return { value: raw, multiline: raw.includes("\n") };
+  }
+
+  if (args.some((arg) => arg.anon)) {
+    if (options.layout === "preserve" || !options.parameterSpacing) {
+      return { value: raw, multiline: raw.includes("\n") };
+    }
+    const normalized = normalizeNamedArgumentsInPlace(raw, start, args);
+    return {
+      ...normalized,
+      multiline: raw.includes("\n"),
+    };
   }
 
   const renderedArgs = args.map(renderArgument);
@@ -157,11 +211,7 @@ function renderTemplate(
 
   const wasMultiline = raw.includes("\n");
   const nestedStructure = args.some(containsNestedStructure);
-  const compactArgs = renderedArgs.map((arg) => arg!.slice(1).trimStart());
-  const compact =
-    firstDelimiter === ":"
-      ? `{{${head}: ${compactArgs.join(" | ")}}}`
-      : `{{${head}| ${compactArgs.join(" | ")}}}`;
+  const compact = `{{${head}${renderedArgs.join("")}}}`;
   const autoMultiline =
     options.layout === "auto" &&
     (args.length > 1 ||
@@ -180,12 +230,7 @@ function renderTemplate(
   let output = `{{${head}`;
   for (let index = 0; index < renderedArgs.length; index++) {
     const rendered = renderedArgs[index]!;
-    if (index === 0 && firstDelimiter === ":") {
-      const value = rendered.slice(1).trimStart();
-      output += `: ${value}`;
-    } else {
-      output = appendLine(output, rendered);
-    }
+    output = appendLine(output, rendered);
   }
   output = appendLine(output.replace(/[\t ]+$/u, ""), "}}");
   return { value: output, multiline: true };
@@ -214,6 +259,31 @@ export function formatTemplatesWithDiagnostics(
   let output = source;
   let firstContext = context?.source === source ? context : undefined;
   let originalMultiline: boolean[] = [];
+  const changedNodeIndices = new Set<number>();
+  const expandedNodeIndices = new Set<number>();
+  const normalizedNodeIndices = new Set<number>();
+
+  const finalize = (formatted: string): TemplateFormatResult => {
+    diagnostics.templatesChanged = changedNodeIndices.size;
+    diagnostics.uniqueTemplatesFormatted = changedNodeIndices.size;
+    diagnostics.templatesFormatted = changedNodeIndices.size;
+    diagnostics.templatesExpandedToMultiline = expandedNodeIndices.size;
+    diagnostics.existingMultilineTemplatesNormalized =
+      normalizedNodeIndices.size;
+    diagnostics.templatesSkippedAmbiguous = Object.values(
+      diagnostics.skipReasons,
+    ).reduce((sum, count) => sum + count, 0);
+    diagnostics.templatesSkipped = diagnostics.templatesSkippedAmbiguous;
+    diagnostics.templatesEligible = diagnostics.templatesInspected;
+    diagnostics.templatesAlreadyCanonical = Math.max(
+      0,
+      diagnostics.templatesEligible -
+        diagnostics.templatesChanged -
+        diagnostics.templatesSkippedAmbiguous,
+    );
+    diagnostics.templateParametersFormatted = changedNodeIndices.size;
+    return { formatted, diagnostics };
+  };
 
   for (let pass = 0; pass < maxPasses; pass++) {
     const currentContext =
@@ -247,10 +317,7 @@ export function formatTemplatesWithDiagnostics(
 
     if (changed.length === 0) {
       diagnostics.formattingPassesUsed = pass;
-      diagnostics.templatesSkipped = Object.values(
-        diagnostics.skipReasons,
-      ).reduce((sum, count) => sum + count, 0);
-      return { formatted: output, diagnostics };
+      return finalize(output);
     }
 
     const deepest = changed.filter(
@@ -261,25 +328,27 @@ export function formatTemplatesWithDiagnostics(
         output.slice(0, replacement.start) +
         replacement.value +
         output.slice(replacement.end);
-      diagnostics.templatesFormatted++;
-      diagnostics.templateParametersFormatted++;
+      const semanticNodeIndex = nodes.findIndex(
+        (node) => node.getAbsoluteIndex() === replacement.start,
+      );
+      if (semanticNodeIndex >= 0) changedNodeIndices.add(semanticNodeIndex);
       diagnostics.templateParameterLinesFormatted +=
         replacement.value.split("\n").filter((line) => /^\|/u.test(line))
           .length;
-      if (replacement.expanded) diagnostics.templatesExpandedToMultiline++;
-      if (replacement.normalizedMultiline)
-        diagnostics.existingMultilineTemplatesNormalized++;
+      if (replacement.expanded && semanticNodeIndex >= 0)
+        expandedNodeIndices.add(semanticNodeIndex);
+      if (replacement.normalizedMultiline && semanticNodeIndex >= 0)
+        normalizedNodeIndices.add(semanticNodeIndex);
     }
     diagnostics.formattingPassesUsed = pass + 1;
   }
 
   diagnostics.convergenceLimitReached = true;
   incrementReason(diagnostics, `did not converge within ${maxPasses} passes`);
-  diagnostics.templatesSkipped = Object.values(diagnostics.skipReasons).reduce(
-    (sum, count) => sum + count,
-    0,
-  );
-  return { formatted: source, diagnostics };
+  changedNodeIndices.clear();
+  expandedNodeIndices.clear();
+  normalizedNodeIndices.clear();
+  return finalize(source);
 }
 
 export function formatTemplates(

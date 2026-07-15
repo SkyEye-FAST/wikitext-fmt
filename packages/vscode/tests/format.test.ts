@@ -70,6 +70,12 @@ describe("VS Code formatter wrapper options", () => {
       formatTemplateParameters: true,
     });
   });
+
+  it("does not let unconfigured editor defaults override a selected profile", () => {
+    expect(buildFormatOptions(config({ profile: "aggressive" }, true))).toEqual({
+      profile: "aggressive",
+    });
+  });
 });
 
 describe("VS Code formatter wrapper behavior", () => {

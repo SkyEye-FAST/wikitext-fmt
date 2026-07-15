@@ -2,10 +2,13 @@
 
 ## Unreleased
 
-- Expose the production/aggressive formatter profile.
+- Expose distinct production and aggressive profiles: production contains
+  graduated structural rules, while aggressive adds still-validating rules.
 - Enable graduated parser-assisted table formatting by default.
 - Use unified complex-template formatting and structural-equivalence safety from
   the core package.
+- Preserve anonymous template arguments and table cell whitespace exactly via
+  the strengthened core structural safety checks.
 
 ## 0.1.0
 

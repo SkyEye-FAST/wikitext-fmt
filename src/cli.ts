@@ -6,7 +6,7 @@ import {
   formatWikitextSafeDetailed,
   type FormatDetailedResult,
 } from "./formatter.js";
-import type { FormatOptions } from "./options.js";
+import { resolveOptions, type FormatOptions } from "./options.js";
 import { resolveCliConfig } from "./cli/config.js";
 import {
   formatterOptions,
@@ -74,7 +74,7 @@ function debugResult(
   configPath?: string,
 ): void {
   if (!options.debug) return;
-  const level = formatOptions.level ?? "normal";
+  const level = resolveOptions(formatOptions).level;
   const mode = options.safe ? "safe" : "normal";
   const status = result.warning
     ? "fallback"
@@ -94,7 +94,9 @@ function debugResult(
       : "";
     const outcome = diagnostic.changed
       ? `formatted${style}${styleReason}`
-      : `skipped: ${diagnostic.reason ?? "unknown reason"}`;
+      : diagnostic.ambiguous
+        ? `skipped as ambiguous: ${diagnostic.reason ?? "unknown reason"}`
+        : `unchanged${style}: ${diagnostic.reason ?? "already canonical"}`;
     stderr.write(`${label}: table at line ${diagnostic.line} ${outcome}\n`);
   }
 }

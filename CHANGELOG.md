@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+- Preserve anonymous template and parser-function argument values byte-for-byte,
+  including leading/trailing and whitespace-only values.
+- Compare anonymous arguments and table cell content exactly in structural
+  equivalence checks.
+- Remove the obsolete line-based table analyzer and exercise the parser-based
+  production path throughout the table matrix.
+- Report unique eligible/changed/canonical/ambiguous structural-node counts and
+  enforce separate corpus coverage thresholds.
+- Separate the graduated `production` profile from the extended `aggressive`
+  profile.
+
 - Replaced the separate simple-template and brace-count parameter passes with
   one convergent parser-assisted engine. Nested templates, parser functions,
   Unicode/numeric/anonymous/empty parameters, multiline values, links, refs,

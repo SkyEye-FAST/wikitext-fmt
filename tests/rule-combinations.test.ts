@@ -150,7 +150,7 @@ describe("rule interaction hardening", () => {
         },
       ),
     ).toBe(
-      '== Data ==\n{| class="wikitable"\n! A\n! B\n|}\n\n[[Category:A]]\n',
+      '== Data ==\n{| class="wikitable"\n! A \n! B\n|}\n\n[[Category:A]]\n',
     );
   });
 

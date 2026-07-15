@@ -4,6 +4,7 @@ import {
   formatWikitextSafe,
   ruleLevels,
 } from "../src/index.js";
+import { resolveOptions } from "../src/options.js";
 
 describe("formatter API", () => {
   it("is idempotent", () => {
@@ -57,16 +58,46 @@ describe("formatter API", () => {
   it("enables aggressive tables by default and supports an explicit opt-out", () => {
     const input = '{| class="wikitable"\n! A !! B\n|}\n';
     expect(formatWikitext(input)).toBe(
-      '{| class="wikitable"\n! A\n! B\n|}\n',
+      '{| class="wikitable"\n! A \n! B\n|}\n',
     );
     expect(formatWikitext(input, { formatTables: false })).toBe(input);
+  });
+
+  it("keeps production and aggressive profiles distinct with explicit overrides", () => {
+    expect(resolveOptions({ profile: "production" })).toMatchObject({
+      level: "normal",
+      formatTemplates: true,
+      formatTables: true,
+      formatReferences: false,
+      formatExternalLinks: false,
+      formatSectionSpacing: false,
+    });
+    expect(resolveOptions({ profile: "aggressive" })).toMatchObject({
+      level: "experimental",
+      formatTemplates: true,
+      formatTables: true,
+      formatReferences: true,
+      formatExternalLinks: true,
+      formatSectionSpacing: true,
+    });
+    expect(
+      resolveOptions({ profile: "aggressive", formatReferences: false }),
+    ).toMatchObject({ profile: "aggressive", formatReferences: false });
+
+    const input = '<ref name="x"/>\nParagraph\n==Title==\nNext\n';
+    expect(formatWikitext(input, { profile: "production" })).toBe(
+      '<ref name="x"/>\nParagraph\n== Title ==\nNext\n',
+    );
+    expect(formatWikitext(input, { profile: "aggressive" })).toBe(
+      '<ref name="x" />\nParagraph\n\n== Title ==\n\nNext\n',
+    );
   });
 
   it("formats parser-confirmed indented tables", () => {
     const input = '  {| class="wikitable"\n| A || B\n|}\n';
     expect(
       formatWikitext(input, { formatTables: true, level: "experimental" }),
-    ).toBe('  {| class="wikitable"\n| A\n| B\n|}\n');
+    ).toBe('  {| class="wikitable"\n| A \n| B\n|}\n');
   });
 
   it("preserves HTML void tag syntax in preserve mode", () => {

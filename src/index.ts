@@ -29,7 +29,10 @@ export type { RedirectDiagnostics } from "./rules/redirects.js";
 export type { SectionSpacingDiagnostics } from "./rules/sectionSpacing.js";
 export type { TemplateParameterDiagnostics } from "./rules/templateParameters.js";
 export type { TemplateDiagnostics } from "./rules/templates.js";
-export type { TableDiagnostic } from "./rules/tables.js";
+export type {
+  TableDiagnostic,
+  TableFormatDiagnostics,
+} from "./rules/tables.js";
 export {
   verifyStructuralEquivalence,
   type StructuralEquivalenceKind,

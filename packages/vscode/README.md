@@ -57,6 +57,11 @@ If you use another extension that contributes the `mediawiki` language id:
 
 When `wikitextFmt.safe` is enabled, formatting uses `formatWikitextSafe()` and returns no edit if the core formatter reports a warning.
 
+The `production` profile enables graduated normal-level structural rules.
+`aggressive` additionally enables still-validating reference, external-link,
+and section-spacing formatting. Explicit VS Code settings continue to override
+the selected profile.
+
 ## Configuration files
 
 By default, the extension reuses the same JSON configuration files as the CLI:

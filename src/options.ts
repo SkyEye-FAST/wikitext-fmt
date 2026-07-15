@@ -124,7 +124,18 @@ export function resolveOptions(
 ): ResolvedFormatOptions {
   const profile = options.profile ?? "default";
   const profileOptions: FormatOptions =
-    profile === "production" || profile === "aggressive"
+    profile === "production"
+      ? {
+          level: "normal",
+          formatTemplates: true,
+          formatTemplateParameters: false,
+          formatTables: true,
+          tableCellSeparatorStyle: "auto",
+          formatReferences: false,
+          formatExternalLinks: false,
+          formatSectionSpacing: false,
+        }
+      : profile === "aggressive"
       ? {
           level: "experimental",
           formatTemplates: true,

@@ -50,12 +50,12 @@
         },
         "wikitextFmt.formatTemplateParameters": {
           "default": false,
-          "description": "Enable experimental multiline template parameter formatting.",
+          "description": "Deprecated compatibility alias for the unified template engine.",
           "type": "boolean"
         },
         "wikitextFmt.profile": {
           "default": "default",
-          "description": "Formatter profile. Production and aggressive enable the full safe structural formatter.",
+          "description": "Formatter profile. Production enables graduated structural rules; aggressive also enables still-validating extensions.",
           "enum": [
             "default",
             "production",
