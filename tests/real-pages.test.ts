@@ -15,12 +15,16 @@ const pages = await listRealPages();
 const matrix: Array<{ name: string; options: FormatOptions }> = [
   { name: "default normal", options: {} },
   {
-    name: "experimental structure",
+    name: "canonical localization",
+    options: {
+      localizedSyntaxStyle: "canonical-english",
+    },
+  },
+  {
+    name: "experimental section spacing",
     options: {
       level: "experimental",
       formatSectionSpacing: true,
-      formatInterlanguageLinks: true,
-      interlanguagePlacement: "footer",
     },
   },
   {
@@ -39,15 +43,6 @@ const matrix: Array<{ name: string; options: FormatOptions }> = [
     },
   },
   {
-    name: "experimental tables and section spacing",
-    options: {
-      level: "experimental",
-      formatTables: true,
-      tableCellSeparatorStyle: "auto",
-      formatSectionSpacing: true,
-    },
-  },
-  {
     name: "experimental references",
     options: {
       level: "experimental",
@@ -55,18 +50,54 @@ const matrix: Array<{ name: string; options: FormatOptions }> = [
     },
   },
   {
-    name: "canonical localization",
+    name: "experimental external links",
     options: {
-      localizedSyntaxStyle: "canonical-english",
-      behaviorSwitchPlacement: "footer",
+      level: "experimental",
+      formatExternalLinks: true,
     },
   },
   {
-    name: "combined experimental safe run",
+    name: "experimental references and external links",
+    options: {
+      level: "experimental",
+      formatReferences: true,
+      formatExternalLinks: true,
+    },
+  },
+  {
+    name: "experimental tables, references, and external links",
+    options: {
+      level: "experimental",
+      formatTables: true,
+      tableCellSeparatorStyle: "auto",
+      formatReferences: true,
+      formatExternalLinks: true,
+    },
+  },
+  {
+    name: "all experimental opt-ins",
     options: {
       level: "experimental",
       formatTemplateParameters: true,
       formatSectionSpacing: true,
+      formatReferences: true,
+      formatExternalLinks: true,
+      formatTables: true,
+      tableCellSeparatorStyle: "auto",
+      formatInterlanguageLinks: true,
+      interlanguagePlacement: "footer",
+    },
+  },
+  {
+    name: "all experimental opt-ins with canonical footer localization",
+    options: {
+      level: "experimental",
+      formatTemplateParameters: true,
+      formatSectionSpacing: true,
+      formatReferences: true,
+      formatExternalLinks: true,
+      formatTables: true,
+      tableCellSeparatorStyle: "auto",
       formatInterlanguageLinks: true,
       interlanguagePlacement: "footer",
       localizedSyntaxStyle: "canonical-english",

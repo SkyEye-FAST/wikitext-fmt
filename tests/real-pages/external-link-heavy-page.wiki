@@ -1,0 +1,12 @@
+==External resources==
+[https://example.test  Main project]
+[https://docs.example.test/path?q=value%20one  Documentation]
+[//status.example.test  Service status]
+[mailto:team@example.test  Contact the team]
+
+Inline links such as [https://example.test/about About us] remain part of prose.
+An unlabelled URL is https://example.test/archive.
+* [https://example.test/list A link in a list]
+
+<ref>[https://example.test/source Source inside a reference]</ref>
+[[Category:External link test pages]]

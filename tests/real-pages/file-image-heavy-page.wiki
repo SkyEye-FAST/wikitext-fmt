@@ -1,0 +1,12 @@
+==Gallery==
+[[File:Example landscape.jpg|thumb|right|300px|alt=Landscape|A landscape caption]]   
+[[Image:Diagram.svg|frameless|left|upright=1.2|alt=Diagram|Diagram caption]]
+[[ファイル:Japanese example.png|サムネイル|右|代替文=日本語|日本語の説明]]
+[[文件:Chinese example.png|缩略图|左|替代=示例|中文说明]]
+
+<gallery mode="packed" heights="120">
+Example one.jpg|First example
+Example two.jpg|Second example
+</gallery>
+
+[[Category:File test pages]]

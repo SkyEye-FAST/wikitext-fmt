@@ -1,0 +1,15 @@
+__NOTOC__
+[[Category:Initially misplaced]]
+[[en:Footer regression page]]
+Lead text for the footer-heavy page.
+
+==Details==
+The page deliberately mixes footer metadata with article content.
+
+{{DEFAULTSORT:Regression, Footer}}
+[[Category:Formatter tests|Footer]]
+[[分類:回帰テスト]]
+[[分类:格式化测试]]
+[[ja:フッター回帰ページ]]
+[[zh-hant:頁尾回歸頁面]]
+__NOEDITSECTION__

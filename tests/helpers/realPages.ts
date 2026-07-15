@@ -6,6 +6,7 @@ import {
   formatWikitextSafeDetailed,
   type FormatOptions,
 } from "../../src/index.js";
+import { createDiagnosticsSummary } from "../../src/cli/diagnostics.js";
 import { getParserConfig, parseWikitext } from "../../src/parser.js";
 
 export const realPagesRoot = resolve(
@@ -36,6 +37,32 @@ export async function expectRealPageRegression(
   const once = formatWikitextSafeDetailed(input, options);
   expect(once.warning).toBeUndefined();
   expect(() => parseWikitext(once.formatted, parserConfig)).not.toThrow();
+
+  const summary = createDiagnosticsSummary(once);
+  for (const value of Object.values(summary)) {
+    expect(Number.isSafeInteger(value)).toBe(true);
+    expect(value).toBeGreaterThanOrEqual(0);
+  }
+  expect(summary.tables).toBe(once.tableDiagnostics.length);
+  expect(summary.formattedTables + summary.skippedTables).toBe(summary.tables);
+  expect(summary.formattedLines).toBe(
+    once.tableDiagnostics.reduce(
+      (count, diagnostic) =>
+        count +
+        (diagnostic.lineDiagnostics?.filter((line) => line.changed).length ??
+          0),
+      0,
+    ),
+  );
+  expect(summary.skippedUnsafeLines).toBe(
+    once.tableDiagnostics.reduce(
+      (count, diagnostic) =>
+        count +
+        (diagnostic.lineDiagnostics?.filter((line) => line.reason).length ??
+          0),
+      0,
+    ),
+  );
 
   const twice = formatWikitextSafeDetailed(once.formatted, options);
   expect(twice.warning).toBeUndefined();

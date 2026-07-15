@@ -1,0 +1,25 @@
+==Results==
+{| class="wikitable sortable"
+|+ Annual results
+! scope="col" | Year !! scope="col" | Name !! scope="col" | Score !! scope="col" | Notes
+|-
+! scope="row" | 2023
+| Alpha || 10 || {{N/a}} || Stable
+|-
+! scope="row" | 2024
+| Beta || 12 || <ref name="results">Published results</ref> || Improved
+|}
+
+{| class="wikitable"
+! Region
+! Details
+|-
+| East
+| A multiline cell containing [[Example|a link]], a comma, and plain text.
+|-
+| West
+| style="text-align:right" | 42
+|}
+
+<references />
+[[Category:Table test pages]]

@@ -35,6 +35,46 @@ wikitext-fmt page.wiki --localization-source siteinfo --site-api https://wiki.ex
 wikitext-fmt --print-localization-aliases --localization-source builtin
 ```
 
+### Production usage profiles
+
+For CI, first run the conservative defaults with the full safety gate. A file
+that would change or any file that falls back with a warning makes the command
+fail:
+
+```sh
+wikitext-fmt "pages/**/*.wiki" --safe --check --fail-on-warning
+```
+
+After that check is clean, apply the same profile and retain a machine-readable
+batch report:
+
+```sh
+wikitext-fmt "pages/**/*.wiki" --safe --write --report report.json
+```
+
+Experimental rules require both the experimental level and an explicit opt-in.
+Enable only the rules evaluated for the target wiki, while retaining the safety
+gate:
+
+```sh
+wikitext-fmt "pages/**/*.wiki" --safe --level experimental \
+  --format-references --format-external-links --check --fail-on-warning
+```
+
+For a site with custom namespace, magic-word, or image-option aliases, load
+them from MediaWiki siteinfo:
+
+```sh
+wikitext-fmt "pages/**/*.wiki" --safe --check --fail-on-warning \
+  --localization-source siteinfo --site-api https://wiki.example/w/api.php
+```
+
+Warnings mean the formatter rejected its candidate output (or could not safely
+parse the input) and returned the original source unchanged. In CI, use
+`--fail-on-warning`; use `--diagnostics-json` for one JSON record per input on
+stderr, or `--report` for one aggregate JSON file. Formatted text and diffs stay
+on stdout, so diagnostic output does not corrupt either stream.
+
 Without `--write`, formatted wikitext is written to stdout. `--check` writes nothing and exits with status 1 when a file would change. Available switches are:
 
 ```text
@@ -104,7 +144,11 @@ Formatting levels are cumulative:
 | `normal`       | Safe rules, simple templates, redirects, file links, page-footer metadata, behavior switches, and conservative list spacing |
 | `experimental` | Safe and normal rules plus explicitly enabled experimental rules                                                            |
 
-The default is `normal`. Table formatting is experimental and disabled by default; it runs only when both `--level experimental` and `--format-tables` are provided.
+The default is `normal`. `formatTemplateParameters`, `formatExternalLinks`,
+`formatReferences`, `formatInterlanguageLinks`, `formatSectionSpacing`, and
+`formatTables` are all disabled by default. Interlanguage footer movement is
+therefore also disabled by default. Each experimental rule runs only when the
+level is `experimental` and its corresponding option is explicitly enabled.
 
 The default parser configuration name is `mediawiki`, which maps to `wikiparser-node`'s generic `default` configuration. Names shipped by the parser, such as `enwiki` or `zhwiki`, and paths to custom JSON configurations are also accepted.
 
@@ -279,7 +323,12 @@ const siteOutput = formatWikitext(source, {
 
 For API use, `localizationSource: "siteinfo"` means “use aliases that were loaded from siteinfo.” The formatter core does not fetch network data; call `loadSiteInfoAliases()` first and pass the result as `localizationAliases`. If `siteinfo` is selected without aliases, formatting fails closed with a warning. The CLI performs this loading when `--localization-source siteinfo --site-api <url>` is used.
 
-`formatWikitext()` remains the compact string-returning API. `formatWikitextResult()` exposes warnings without running the additional idempotency pass.
+`formatWikitext()` remains the compact string-returning API.
+`formatWikitextResult()` exposes warnings without running the additional
+idempotency pass. `formatWikitextSafeDetailed()` performs the same input parse,
+output parse, and second-pass idempotency verification as
+`formatWikitextSafe()`, while also returning rule diagnostics. Every safe-mode
+failure returns the original source with a warning.
 
 ## Rule reliability
 
@@ -292,6 +341,7 @@ Every current rule has an exported reliability level in `ruleLevels`:
 - `categories`: `normal`
 - `lists`: `normal`
 - `fileLinks`: `normal`
+- `externalLinks`: `experimental`
 - `references`: `experimental`
 - `interlanguageLinks`: `experimental`
 - `sectionSpacing`: `experimental`
@@ -516,6 +566,11 @@ wikitext-fmt page.wiki --safe --debug --level experimental --format-tables
 
 ## Current limitations
 
+The formatter intentionally does not provide site-specific template layouts,
+sort categories, reorder template parameters, rewrite arbitrary inline
+wikilinks, align table columns with padding, or enable experimental rules by
+default. These are product boundaries, not missing implicit transformations.
+
 - Only simple, one-line templates are expanded.
 - Template parameters are not reordered.
 - Multiline template parameter formatting is experimental, disabled by default, and limited to simple already-multiline templates.
@@ -559,6 +614,9 @@ pnpm localization:update /path/to/mediawiki/languages/messages
 
 GitHub Actions runs frozen pnpm installs, builds, and the complete test suite on Node.js 22 and 24 for every push and pull request.
 
+Use [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md) before publishing the npm
+package or VS Code extension.
+
 The repository is a pnpm workspace. The root package contains the formatter core and CLI; `packages/vscode` is a thin VS Code wrapper that depends on the root package and does not duplicate formatter rules. Core modules do not import the CLI or the editor wrapper.
 
 Parser-assisted rules share an internal parser context for a single source snapshot where practical. That context is deliberately not part of the public API: once any rule changes text, later parser-assisted rules must parse the new source snapshot instead of reusing stale node ranges.
@@ -579,7 +637,12 @@ Table testing is intentionally layered:
 - `tests/tables.test.ts` uses table-driven unit cases for heuristic decisions, diagnostics, and structural safety.
 - Six compact fixtures cover exact user-visible formatter output without duplicating every internal decision reason.
 - `tests/table-samples` contains realistic expected-diff calibrations for compact, sortable, mixed-style, template-containing, commented, and multiline-cell tables.
-- Files under `real-pages` run in both default and experimental-table modes as broad regression guards.
+- Files under `real-pages` cover article, template-heavy, table-heavy,
+  reference-heavy, file/image-heavy, external-link-heavy, footer-heavy,
+  localized, redirect, protected/ignored, and list/heading page shapes. Every
+  page runs through default, canonical-localization, individual experimental,
+  combined experimental, and canonical footer option matrices with safe parse,
+  diagnostics-consistency, and idempotency assertions.
 
 Fixtures with table formatting opt in through `options.json`. Table samples verify exact calibrated output, while real-page tests do not require every table to change; preserving a complex table can be the correct conservative result.
 

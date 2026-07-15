@@ -1,0 +1,15 @@
+==History==
+The first claim has a named citation.<ref name="alpha">{{Cite web|url=https://example.test/alpha|title=Alpha source|access-date=2026-01-01}}</ref>
+The second claim reuses it.<ref name="alpha"/>
+Another claim uses a note.<ref group="note">Explanatory note with [[Context]].</ref>
+
+<ref name="standalone"/>
+<ref name="spaced" />   
+
+==Notes==
+<references group="note"/>
+
+==References==
+<references/>
+
+[[Category:Reference test pages]]

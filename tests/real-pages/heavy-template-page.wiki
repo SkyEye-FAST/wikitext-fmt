@@ -1,0 +1,31 @@
+{{Short description|Template-heavy regression page}}
+{{Infobox person
+| name=Example Person
+| image=Portrait.jpg
+| caption=Portrait of [[Example Person]]
+| birth_date={{Birth date|2000|1|2}}
+| occupation=[[Engineer]]
+| website=[https://example.test Official site]
+}}
+{{Multiple image
+| direction=vertical
+| image1=First.png
+| caption1=First caption
+| image2=Second.png
+| caption2=A caption with {{Lang|ja|例}}
+}}
+
+==Career==
+{{Quote
+| text=A quotation with an = sign and [[Target|display text]].
+| author=Example Author
+| source={{Cite web|url=https://example.test/source|title=Source title}}
+}}
+
+{{Navbox
+| name=Example
+| title=Example topics
+| list1=[[Alpha]] · [[Beta]] · [[Gamma]]
+}}
+
+[[Category:Template test pages]]

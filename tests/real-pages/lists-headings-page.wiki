@@ -1,0 +1,15 @@
+==Main section==
+Introductory text.
+===Mixed lists===
+* First bullet
+** Nested bullet
+*# Numbered child
+# First numbered item
+## Nested numbered item
+; Term : Definition
+: Continued definition
+
+====Later heading====
+Paragraph after the later heading.
+
+[[Category:List test pages]]

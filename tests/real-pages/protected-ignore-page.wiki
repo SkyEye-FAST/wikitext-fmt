@@ -1,0 +1,30 @@
+==Protected content==
+<!-- ==A comment heading== {{Template| a = b }} -->
+<nowiki>==Not a heading== {{Not|a=template}} [[Category:Not real]]</nowiki>
+
+<pre>
+==Preformatted==
+{{Example|a=1|b=2}}
+</pre>
+
+<syntaxhighlight lang="javascript">
+const template = "{{Example|a=1}}";
+</syntaxhighlight>
+
+<source lang="css">
+.example { content: "[[File:not-real.png]]"; }
+</source>
+
+<!-- wikitext-fmt-ignore-start -->
+==Ignored heading==
+{{Ignored| a = 1 | b = 2 }}
+[[Category:Ignored category]]
+<!-- wikitext-fmt-ignore-end -->
+
+<!-- wikitext-fmt-ignore -->
+==Single ignored heading==
+
+==Formatted heading==
+Ordinary text after protected and ignored regions.
+
+[[Category:Protection test pages]]

@@ -177,12 +177,16 @@ describe("VS Code formatter wrapper config loading", () => {
     });
   });
 
-  it("uses discovered config options", async () => {
+  it.each([
+    ".wikitextfmtrc",
+    ".wikitextfmtrc.json",
+    "wikitext-fmt.config.json",
+  ])("uses discovered config options from %s", async (configFilename) => {
     const root = await mkdtemp(join(tmpdir(), "wikitext-formatter-"));
     const nested = join(root, "pages", "nested");
     await mkdir(nested, { recursive: true });
     await writeFile(
-      join(root, ".wikitextfmtrc"),
+      join(root, configFilename),
       JSON.stringify({ level: "experimental", formatReferences: true }),
     );
 
