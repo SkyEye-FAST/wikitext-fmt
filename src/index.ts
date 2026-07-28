@@ -42,6 +42,11 @@ export type { ResolvedLocalizationAliases } from "./localization/aliases.js";
 export type { DiagnosticsSummary } from "./cli/diagnostics.js";
 export { loadSiteInfoAliases } from "./localization/siteinfo.js";
 export {
+  classifyParserFunction,
+  type ParserFunctionFormattingClass,
+  type ParserFunctionPolicy,
+} from "./parserFunctionPolicy.js";
+export {
   CONFIG_FILENAMES,
   discoverConfig,
   loadConfig,

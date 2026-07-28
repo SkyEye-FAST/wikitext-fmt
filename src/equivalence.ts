@@ -37,9 +37,13 @@ interface TemplateFingerprint {
   parameters: Array<{
     anon: boolean;
     name: string;
-    value: string;
+    value: string | TemplateValuePart[];
   }>;
 }
+
+type TemplateValuePart =
+  | string
+  | { kind: "template"; value: Omit<TemplateFingerprint, "parent"> };
 
 function collectTransclusions(source: string, config: Config): TransclusionNode[] {
   const root = createParserContext(source, config).root;
@@ -60,12 +64,16 @@ function nearestTransclusion(node: GenericNode | undefined): TransclusionNode | 
   return undefined;
 }
 
-function replaceNestedTransclusions(
+function semanticTransclusionValue(
   valueNode: GenericNode,
   owner: TransclusionNode,
-): string {
+  trim: boolean,
+): string | TemplateValuePart[] {
   const base = valueNode.getAbsoluteIndex();
   const raw = valueNode.toString();
+  const content = trim ? raw.trim() : raw;
+  const contentStart = trim ? raw.indexOf(content) : 0;
+  const contentEnd = contentStart + content.length;
   const nested = [
     ...valueNode.querySelectorAll<TransclusionNode>("template"),
     ...valueNode.querySelectorAll<TransclusionNode>("magic-word"),
@@ -74,17 +82,28 @@ function replaceNestedTransclusions(
     .map((node) => ({
       start: node.getAbsoluteIndex() - base,
       end: node.getAbsoluteIndex() - base + node.toString().length,
-      value: JSON.stringify(templateNodeFingerprint(node)),
+      part: {
+        kind: "template" as const,
+        value: templateNodeFingerprint(node),
+      },
     }))
-    .sort((a, b) => b.start - a.start);
-  let output = raw;
+    .filter(
+      (replacement) =>
+        replacement.start >= contentStart && replacement.end <= contentEnd,
+    )
+    .sort((a, b) => a.start - b.start);
+  if (nested.length === 0) return content;
+  const parts: TemplateValuePart[] = [];
+  let cursor = contentStart;
   for (const replacement of nested) {
-    output =
-      output.slice(0, replacement.start) +
-      `\u0000template:${replacement.value}\u0000` +
-      output.slice(replacement.end);
+    if (replacement.start > cursor) {
+      parts.push(raw.slice(cursor, replacement.start));
+    }
+    parts.push(replacement.part);
+    cursor = replacement.end;
   }
-  return output;
+  if (cursor < contentEnd) parts.push(raw.slice(cursor, contentEnd));
+  return parts;
 }
 
 function templateNodeFingerprint(
@@ -95,23 +114,77 @@ function templateNodeFingerprint(
     name: node.name,
     parameters: node.getAllArgs().map((arg: ParameterToken) => ({
       anon: arg.anon,
-      name: arg.name,
-      value: (() => {
-        const value = replaceNestedTransclusions(
-          arg.lastChild as unknown as GenericNode,
-          node,
-        );
-        return arg.anon ? value : value.trim();
-      })(),
+      name: arg.anon ? arg.name : arg.name.trim(),
+      value: semanticTransclusionValue(
+        arg.lastChild as unknown as GenericNode,
+        node,
+        !arg.anon,
+      ),
     })),
   };
+}
+
+function outermostParserConfirmedTables(source: string, config: Config) {
+  const context = createParserContext(source, config);
+  return collectParserTableCandidates(source, context, config)
+    .sort((a, b) => a.start - b.start || b.end - a.end)
+    .filter(
+      (candidate, index, all) =>
+        !all
+          .slice(0, index)
+          .some(
+            (outer) =>
+              outer.start <= candidate.start && outer.end >= candidate.end,
+          ),
+    );
+}
+
+function maskParserConfirmedTables(
+  source: string,
+  candidates: ReturnType<typeof outermostParserConfirmedTables>,
+): string {
+  let masked = source;
+  for (let index = candidates.length - 1; index >= 0; index--) {
+    const candidate = candidates[index]!;
+    masked =
+      masked.slice(0, candidate.start) +
+      `\uE200wikitext-fmt-table-${index}\uE201` +
+      masked.slice(candidate.end);
+  }
+  return masked;
+}
+
+function templatesInsideParserConfirmedTables(
+  candidates: ReturnType<typeof outermostParserConfirmedTables>,
+): TemplateFingerprint[][] {
+  return candidates.map((candidate) => {
+    const nodes = [
+      ...candidate.node.querySelectorAll<TransclusionNode>("template"),
+      ...candidate.node.querySelectorAll<TransclusionNode>("magic-word"),
+    ].sort((a, b) => a.getAbsoluteIndex() - b.getAbsoluteIndex());
+    const indices = new Map(nodes.map((node, index) => [node, index]));
+    return nodes.map((node) => {
+      const parent = nearestTransclusion(node.parentNode);
+      return {
+        ...templateNodeFingerprint(node),
+        parent: parent ? (indices.get(parent) ?? null) : null,
+      };
+    });
+  });
 }
 
 export function templateStructuralFingerprint(
   source: string,
   config: Config,
 ): string {
-  const nodes = collectTransclusions(source, config);
+  const hasTableOpener = source.includes("{|");
+  const tables = hasTableOpener
+    ? outermostParserConfirmedTables(source, config)
+    : [];
+  const nodes = collectTransclusions(
+    hasTableOpener ? maskParserConfirmedTables(source, tables) : source,
+    config,
+  );
   const indices = new Map(nodes.map((node, index) => [node, index]));
   const fingerprint: TemplateFingerprint[] = nodes.map((node) => {
     const parent = nearestTransclusion(node.parentNode);
@@ -120,14 +193,22 @@ export function templateStructuralFingerprint(
       parent: parent ? (indices.get(parent) ?? null) : null,
     };
   });
-  return JSON.stringify(fingerprint);
+  return JSON.stringify({
+    templates: fingerprint,
+    templatesInsideTables: templatesInsideParserConfirmedTables(tables),
+  });
 }
 
 interface TableCellFingerprint {
   subtype: string;
   attributes: string;
-  content: string;
+  content: string | TableContentPart[];
 }
+
+type TableContentPart =
+  | string
+  | { kind: "table"; value: Omit<TableFingerprint, "parent"> }
+  | { kind: "template"; value: Omit<TemplateFingerprint, "parent"> };
 
 interface TableFingerprint {
   parent: number | null;
@@ -148,57 +229,83 @@ function closestTable(node: ParserTableNode | undefined): ParserTableNode | unde
 function semanticTableCellContent(
   cell: ParserTableNode,
   owner: ParserTableNode,
-): string {
+): string | TableContentPart[] {
   const inner = cell.childNodes[2];
   if (!inner) return "";
-  const base = inner.getAbsoluteIndex();
   let output = inner.toString();
-  const nestedTables = inner
+  const directNestedTables = inner
     .querySelectorAll<ParserTableNode>("table")
-    .filter((table) => closestTable(table.parentNode) === owner)
-    .map((table) => ({
-      start: table.getAbsoluteIndex() - base,
-      end: table.getAbsoluteIndex() - base + table.toString().length,
-      value: JSON.stringify(tableNodeFingerprint(table)),
-    }))
-    .map((replacement) => ({ ...replacement, kind: "table" as const }));
-  const innerStart = base;
-  const innerEnd = base + inner.toString().length;
-  const nestedTransclusions = [
+    .filter((table) => closestTable(table.parentNode) === owner);
+  const directNestedTransclusions = [
     ...inner.querySelectorAll<TransclusionNode>("template"),
     ...inner.querySelectorAll<TransclusionNode>("magic-word"),
-  ]
-    .filter((node) => {
-      const parent = nearestTransclusion(node.parentNode);
-      if (
-        parent &&
-        parent.getAbsoluteIndex() >= innerStart &&
-        parent.getAbsoluteIndex() + parent.toString().length <= innerEnd
-      ) {
-        return false;
-      }
-      const start = node.getAbsoluteIndex() - base;
-      const end = start + node.toString().length;
-      return !nestedTables.some(
-        (table) => table.start <= start && table.end >= end,
-      );
-    })
-    .map((node) => ({
-      start: node.getAbsoluteIndex() - base,
-      end: node.getAbsoluteIndex() - base + node.toString().length,
-      value: JSON.stringify(templateNodeFingerprint(node)),
-      kind: "template" as const,
-    }));
-  const nested = [...nestedTables, ...nestedTransclusions].sort(
-    (a, b) => b.start - a.start,
-  );
-  for (const replacement of nested) {
-    output =
-      output.slice(0, replacement.start) +
-      `\u0000${replacement.kind}:${replacement.value}\u0000` +
-      output.slice(replacement.end);
+  ].filter((node) => nearestTransclusion(node.parentNode) === undefined);
+  if (
+    directNestedTables.length === 0 &&
+    directNestedTransclusions.length === 0
+  ) {
+    return output;
   }
-  return output;
+  let tableCursor = 0;
+  const nestedTables = directNestedTables
+    .map((table) => {
+      const raw = table.toString();
+      const start = output.indexOf(raw, tableCursor);
+      if (start < 0) return undefined;
+      tableCursor = start + raw.length;
+      return {
+        start,
+        end: start + raw.length,
+        value: tableNodeFingerprint(table),
+      };
+    })
+    .filter((replacement): replacement is NonNullable<typeof replacement> =>
+      replacement !== undefined
+    )
+    .map((replacement) => ({ ...replacement, kind: "table" as const }));
+  let templateCursor = 0;
+  const nestedTransclusions = directNestedTransclusions
+    .map((node) => {
+      const raw = node.toString();
+      const start = output.indexOf(raw, templateCursor);
+      if (start < 0) return undefined;
+      templateCursor = start + raw.length;
+      return {
+        start,
+        end: start + raw.length,
+        value: templateNodeFingerprint(node),
+        kind: "template" as const,
+      };
+    })
+    .filter((replacement): replacement is NonNullable<typeof replacement> =>
+      replacement !== undefined
+    )
+    .filter(
+      (replacement) =>
+        !nestedTables.some(
+          (table) =>
+            table.start <= replacement.start && table.end >= replacement.end,
+        ),
+    );
+  const nested = [...nestedTables, ...nestedTransclusions].sort(
+    (a, b) => a.start - b.start,
+  );
+  if (nested.length === 0) return output;
+  const parts: TableContentPart[] = [];
+  let cursor = 0;
+  for (const replacement of nested) {
+    if (replacement.start > cursor) {
+      parts.push(output.slice(cursor, replacement.start));
+    }
+    if (replacement.kind === "table") {
+      parts.push({ kind: "table", value: replacement.value });
+    } else {
+      parts.push({ kind: "template", value: replacement.value });
+    }
+    cursor = replacement.end;
+  }
+  if (cursor < output.length) parts.push(output.slice(cursor));
+  return parts;
 }
 
 function cellFingerprint(

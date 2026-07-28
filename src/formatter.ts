@@ -6,7 +6,7 @@ import {
   stripDiagnostics,
   type DetailedDiagnostics,
 } from "./diagnostics.js";
-import { getParserConfig, isRoundTripSafe, parseWikitext } from "./parser.js";
+import { getParserConfig, isRoundTripSafe } from "./parser.js";
 import {
   createParserContext,
   type ParsedDocumentContext,
@@ -57,7 +57,8 @@ export function formatWikitextDetailedResult(
   const diagnostics = emptyDetailedDiagnostics();
   try {
     const config = getParserConfig(resolved.parserConfig);
-    if (!isRoundTripSafe(source, config)) {
+    const initialContext = createParserContext(source, config);
+    if (initialContext.root.toString() !== source) {
       return fallbackDetailedResult(
         source,
         "The parser could not round-trip the input exactly; left it unchanged.",
@@ -65,10 +66,8 @@ export function formatWikitextDetailedResult(
       );
     }
 
-    // Parse once before transformations so malformed input fails closed.
-    parseWikitext(source, config);
-    let contextSource: string | undefined;
-    let context: ParsedDocumentContext | undefined;
+    let contextSource: string | undefined = source;
+    let context: ParsedDocumentContext | undefined = initialContext;
     const contextFor = (snapshot: string): ParsedDocumentContext => {
       if (!context || contextSource !== snapshot) {
         context = createParserContext(snapshot, config);
@@ -88,7 +87,7 @@ export function formatWikitextDetailedResult(
         protectTables: false,
         protectComments: false,
       });
-      const tableContext = createParserContext(tableBlocks.text, config);
+      const tableContext = contextFor(tableBlocks.text);
       const tableResult = formatTablesWithDiagnostics(
         tableBlocks.text,
         config,
@@ -120,12 +119,15 @@ export function formatWikitextDetailedResult(
       );
       diagnostics.tableFormatDiagnostics = tableResult.summary;
       tableOutput = tableBlocks.restore(tableOutput);
-      const equivalence = verifyStructuralEquivalence(
-        beforeTables,
-        tableOutput,
-        config,
-        "tables",
-      );
+      const equivalence =
+        beforeTables === tableOutput
+          ? { equivalent: true as const, structure: "tables" as const }
+          : verifyStructuralEquivalence(
+              beforeTables,
+              tableOutput,
+              config,
+              "tables",
+            );
       diagnostics.equivalenceDiagnostics.push(equivalence);
       if (!equivalence.equivalent) {
         return fallbackDetailedResult(
@@ -178,12 +180,15 @@ export function formatWikitextDetailedResult(
       const previous = tableOutput;
       tableOutput = templateBlocks.restore(templates.formatted);
       diagnostics.templateParameterDiagnostics = templates.diagnostics;
-      const equivalence = verifyStructuralEquivalence(
-        previous,
-        tableOutput,
-        config,
-        "templates",
-      );
+      const equivalence =
+        previous === tableOutput
+          ? { equivalent: true as const, structure: "templates" as const }
+          : verifyStructuralEquivalence(
+              previous,
+              tableOutput,
+              config,
+              "templates",
+            );
       diagnostics.equivalenceDiagnostics.push(equivalence);
       if (!equivalence.equivalent) {
         return fallbackDetailedResult(
@@ -371,9 +376,7 @@ export function formatWikitextSafeDetailed(
   let diagnostics = emptyDetailedDiagnostics();
   try {
     const resolved = resolveOptions(options);
-    const config = getParserConfig(resolved.parserConfig);
-    parseWikitext(source, config);
-
+    getParserConfig(resolved.parserConfig);
     const first = formatWikitextDetailedResult(source, options);
     diagnostics = {
       tableDiagnostics: first.tableDiagnostics,
@@ -389,8 +392,6 @@ export function formatWikitextSafeDetailed(
     };
     if (first.warning)
       return fallbackDetailedResult(source, first.warning, diagnostics);
-    parseWikitext(first.formatted, config);
-
     const second = formatWikitextDetailedResult(first.formatted, options);
     if (second.warning) {
       return fallbackDetailedResult(
@@ -399,7 +400,6 @@ export function formatWikitextSafeDetailed(
         diagnostics,
       );
     }
-    parseWikitext(second.formatted, config);
     if (second.formatted !== first.formatted) {
       return fallbackDetailedResult(
         source,

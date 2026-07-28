@@ -23,6 +23,26 @@ export interface ParserNodeLike {
   toString(): string;
 }
 
+export interface ParserContextMetrics {
+  contextsCreated: number;
+  sourceBytesParsed: number;
+}
+
+const activeMetrics: ParserContextMetrics[] = [];
+
+export function measureParserContexts<T>(operation: () => T): {
+  result: T;
+  metrics: ParserContextMetrics;
+} {
+  const metrics = { contextsCreated: 0, sourceBytesParsed: 0 };
+  activeMetrics.push(metrics);
+  try {
+    return { result: operation(), metrics };
+  } finally {
+    activeMetrics.pop();
+  }
+}
+
 export function getLineStarts(source: string): number[] {
   const starts = [0];
   for (let index = 0; index < source.length; index++) {
@@ -35,6 +55,11 @@ export function createParserContext(
   source: string,
   config: Config,
 ): ParsedDocumentContext {
+  const metrics = activeMetrics.at(-1);
+  if (metrics) {
+    metrics.contextsCreated++;
+    metrics.sourceBytesParsed += source.length;
+  }
   return {
     source,
     root: parseWikitext(source, config),

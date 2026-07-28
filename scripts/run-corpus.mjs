@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { readFile, writeFile } from "node:fs/promises";
-import { resolve } from "node:path";
+import { relative, resolve } from "node:path";
+import { performance } from "node:perf_hooks";
 import fg from "fast-glob";
 import { formatWikitextSafeDetailed } from "../dist/index.js";
 import { getParserConfig, parseWikitext } from "../dist/parser.js";
@@ -33,6 +34,7 @@ function parseArgs(argv) {
     minTemplateCoverage: 0,
     minTableCoverage: 0,
     allowedSkipReasons: [],
+    progress: false,
   };
   for (let index = 0; index < argv.length; index++) {
     const arg = argv[index];
@@ -46,6 +48,8 @@ function parseArgs(argv) {
       options.minTableCoverage = threshold(argv[++index], arg);
     } else if (arg === "--allow-skip-reason") {
       options.allowedSkipReasons.push(argv[++index]);
+    } else if (arg === "--progress") {
+      options.progress = true;
     } else if (arg?.startsWith("-")) throw new Error(`Unknown option: ${arg}`);
     else if (!options.directory) options.directory = arg;
     else throw new Error(`Unexpected argument: ${arg}`);
@@ -68,6 +72,33 @@ function increment(record, key, amount = 1) {
   record[key] = (record[key] ?? 0) + amount;
 }
 
+function percentile(values, fraction) {
+  if (values.length === 0) return null;
+  const sorted = [...values].sort((a, b) => a - b);
+  return Number(
+    sorted[Math.min(sorted.length - 1, Math.ceil(sorted.length * fraction) - 1)].toFixed(
+      3,
+    ),
+  );
+}
+
+async function corpusMetadata(directory) {
+  try {
+    const pages = JSON.parse(
+      await readFile(resolve(directory, "metadata/pages.json"), "utf8"),
+    );
+    return new Map(
+      pages.map((page) => [
+        resolve(directory, page.sourceFile),
+        page,
+      ]),
+    );
+  } catch (error) {
+    if (error?.code === "ENOENT") return new Map();
+    throw error;
+  }
+}
+
 async function localizationOptions(siteinfoPath) {
   if (!siteinfoPath) return {};
   const parsed = JSON.parse(await readFile(resolve(siteinfoPath), "utf8"));
@@ -82,6 +113,8 @@ async function main() {
   files.sort();
   const parser = getParserConfig(args.parserConfig);
   const localization = await localizationOptions(args.siteinfo);
+  const metadata = await corpusMetadata(directory);
+  const pageTimings = [];
   const report = {
     directory,
     parserConfig: args.parserConfig,
@@ -93,6 +126,10 @@ async function main() {
     },
     pagesProcessed: 0,
     pagesChanged: 0,
+    pagesStructurallyCovered: 0,
+    pageCoveragePercentage: null,
+    totalBytes: 0,
+    namespaceDistribution: {},
     warnings: 0,
     parseFailures: 0,
     idempotencyFailures: 0,
@@ -115,11 +152,44 @@ async function main() {
     tableCoveragePercentage: null,
     skipReasons: {},
     unexplainedSkipReasons: {},
+    skipDetails: [],
+    timingMilliseconds: {
+      total: 0,
+      p50: null,
+      p95: null,
+      p99: null,
+      maximum: null,
+    },
+    largestPages: [],
+    slowestPages: [],
     failures: [],
   };
 
-  for (const file of files) {
+  for (const [fileIndex, file] of files.entries()) {
+    if (args.progress) {
+      process.stderr.write(
+        `corpus: ${fileIndex + 1}/${files.length} ${relative(directory, file)}\n`,
+      );
+    }
     const source = await readFile(file, "utf8");
+    const bytes = Buffer.byteLength(source);
+    const pageMetadata = metadata.get(file);
+    const pageIdentity = {
+      file: relative(directory, file),
+      ...(pageMetadata?.title ? { title: pageMetadata.title } : {}),
+      ...(Number.isSafeInteger(pageMetadata?.namespace)
+        ? { namespace: pageMetadata.namespace }
+        : {}),
+      bytes,
+    };
+    report.totalBytes += bytes;
+    increment(
+      report.namespaceDistribution,
+      Number.isSafeInteger(pageMetadata?.namespace)
+        ? String(pageMetadata.namespace)
+        : "unknown",
+    );
+    report.largestPages.push(pageIdentity);
     report.pagesProcessed++;
     try {
       parseWikitext(source, parser);
@@ -133,7 +203,14 @@ async function main() {
       parserConfig: args.parserConfig,
       ...localization,
     };
+    const formattingStarted = performance.now();
     const result = formatWikitextSafeDetailed(source, options);
+    const formattingMilliseconds = performance.now() - formattingStarted;
+    pageTimings.push(formattingMilliseconds);
+    report.slowestPages.push({
+      ...pageIdentity,
+      milliseconds: Number(formattingMilliseconds.toFixed(3)),
+    });
     if (result.formatted !== source) report.pagesChanged++;
     if (result.warning) {
       report.warnings++;
@@ -166,6 +243,13 @@ async function main() {
     report.tablesFormatted += tables.tablesChanged;
     report.tablesAlreadyCanonical += tables.tablesAlreadyCanonical;
     report.tablesSkippedAmbiguous += tables.tablesSkippedAmbiguous;
+    if (
+      templates.templatesSkippedAmbiguous === 0 &&
+      tables.tablesSkippedAmbiguous === 0 &&
+      !result.warning
+    ) {
+      report.pagesStructurallyCovered++;
+    }
     if (templates.convergenceLimitReached || tables.convergenceLimitReached) {
       report.convergenceLimitReached++;
       report.failures.push({
@@ -179,11 +263,29 @@ async function main() {
     for (const [reason, count] of Object.entries(templates.skipReasons)) {
       increment(report.skipReasons, reason, count);
       pageSkipReasons.push([reason, count]);
+      report.skipDetails.push({
+        ...pageIdentity,
+        kind: "template",
+        reason,
+        count,
+      });
     }
     for (const diagnostic of result.tableDiagnostics) {
       if (diagnostic.ambiguous && diagnostic.reason) {
         increment(report.skipReasons, diagnostic.reason);
         pageSkipReasons.push([diagnostic.reason, 1]);
+        report.skipDetails.push({
+          ...pageIdentity,
+          kind: "table",
+          reason: diagnostic.reason,
+          count: 1,
+          ...(diagnostic.semanticId
+            ? { semanticId: diagnostic.semanticId }
+            : {}),
+          line: diagnostic.line,
+          start: diagnostic.start,
+          end: diagnostic.end,
+        });
       }
     }
     for (const [reason, count] of pageSkipReasons) {
@@ -192,13 +294,12 @@ async function main() {
       }
     }
 
-    const second = formatWikitextSafeDetailed(result.formatted, options);
-    if (second.warning || second.formatted !== result.formatted) {
+    if (result.warning?.startsWith("Safe formatting verification failed:")) {
       report.idempotencyFailures++;
       report.failures.push({
         file,
         kind: "idempotency",
-        message: second.warning ?? "second pass changed output",
+        message: result.warning,
       });
     }
   }
@@ -211,6 +312,28 @@ async function main() {
     report.tablesChanged + report.tablesAlreadyCanonical,
     report.tablesEligible,
   );
+  report.pageCoveragePercentage = percentage(
+    report.pagesStructurallyCovered,
+    report.pagesProcessed,
+  );
+  report.timingMilliseconds = {
+    total: Number(
+      pageTimings.reduce((sum, value) => sum + value, 0).toFixed(3),
+    ),
+    p50: percentile(pageTimings, 0.5),
+    p95: percentile(pageTimings, 0.95),
+    p99: percentile(pageTimings, 0.99),
+    maximum: percentile(pageTimings, 1),
+  };
+  report.largestPages = report.largestPages
+    .sort((a, b) => b.bytes - a.bytes || a.file.localeCompare(b.file))
+    .slice(0, 10);
+  report.slowestPages = report.slowestPages
+    .sort(
+      (a, b) =>
+        b.milliseconds - a.milliseconds || a.file.localeCompare(b.file),
+    )
+    .slice(0, 10);
   if (
     belowThreshold(
       report.templateCoveragePercentage,

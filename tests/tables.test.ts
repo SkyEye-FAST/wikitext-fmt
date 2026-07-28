@@ -51,6 +51,18 @@ describe("production parser table formatter", () => {
     ],
     ["caption", "{|\n|+ Representative caption\n! A !! B\n|}"],
     ["comments", "{|\n<!--keep-->\n| A || B\n|}"],
+    [
+      "apostrophes in ordinary cell content",
+      "{|\n| [[Viyella's Tears]] || [[Dreamin' Attraction!!]] || C\n|}",
+    ],
+    [
+      "quoted cell attributes containing separators",
+      '{|\n| data-note="A || B" | C || D\n|}',
+    ],
+    [
+      "single brackets inside wikilink labels",
+      "{|\n| [[［X］|[X]]] || C\n|}",
+    ],
     ["continuation lines", "{|\n| first\ncontinued text\n|-\n| A || B\n|}"],
     ["empty cells", "{|\n| A || || C\n|}"],
     ["HTML", "{|\n| <span class=x>A</span> || B\n|}"],
@@ -80,6 +92,19 @@ describe("production parser table formatter", () => {
       tablesChanged: 2,
       tablesSkippedAmbiguous: 0,
     });
+    expect(new Set(result.tableFormatDiagnostics.tableSemanticIds).size).toBe(2);
+    expect(
+      new Set(result.tableFormatDiagnostics.changedTableSemanticIds),
+    ).toEqual(new Set(result.tableFormatDiagnostics.tableSemanticIds));
+    expect(
+      result.tableDiagnostics.every(
+        (diagnostic) =>
+          diagnostic.semanticId !== undefined &&
+          result.tableFormatDiagnostics.tableSemanticIds.includes(
+            diagnostic.semanticId,
+          ),
+      ),
+    ).toBe(true);
     expect(result.tableFormatDiagnostics.formattingPassesUsed).toBeGreaterThan(1);
   });
 
@@ -140,7 +165,7 @@ describe("production parser table formatter", () => {
     );
     expect(result.summary).toMatchObject({
       tablesInspected: 1,
-      tablesEligible: 1,
+      tablesEligible: 0,
       tablesChanged: 0,
       tablesAlreadyCanonical: 0,
       tablesSkippedAmbiguous: 1,
@@ -168,6 +193,16 @@ describe("production parser table formatter", () => {
     const input = "{|\n|  A  ||  B  \n|}\n";
     const result = expectProductionTable(input);
     expect(result.formatted).toContain("|  A  \n|  B  ");
+  });
+
+  it("keeps inline separators when a split would create row syntax", () => {
+    const input = "{|\n|1||--||--\n|-\n|2||50||50\n|}\n";
+    const result = formatWikitextSafeDetailed(input, production);
+    expect(result.warning).toBeUndefined();
+    expect(result.formatted).toBe("{|\n|1||--||--\n|-\n|2\n|50\n|50\n|}\n");
+    expect(tableStructuralFingerprint(result.formatted, config)).toBe(
+      tableStructuralFingerprint(input, config),
+    );
   });
 
   it("produces identical output with an explicit current parser context", () => {

@@ -36,6 +36,8 @@ export function emptyDetailedDiagnostics(): DetailedDiagnostics {
       tablesSkippedAmbiguous: 0,
       formattingPassesUsed: 0,
       convergenceLimitReached: false,
+      tableSemanticIds: [],
+      changedTableSemanticIds: [],
     },
     footerDiagnostics: {
       behaviorSwitchesMoved: 0,
@@ -87,6 +89,8 @@ export function emptyDetailedDiagnostics(): DetailedDiagnostics {
       templateParametersFormatted: 0,
       templateParameterLinesFormatted: 0,
       templateParameterLinesSkippedUnsafe: 0,
+      templateSemanticIds: [],
+      changedTemplateSemanticIds: [],
     },
     equivalenceDiagnostics: [],
   };

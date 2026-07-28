@@ -49,6 +49,17 @@ export async function expectRealPageRegression(
       summary.tablesAlreadyCanonical +
       summary.tablesSkippedAmbiguous,
   ).toBe(summary.tablesInspected);
+  expect(
+    summary.tablesChanged + summary.tablesAlreadyCanonical,
+  ).toBe(summary.tablesEligible);
+  expect(
+    summary.templatesChanged +
+      summary.templatesAlreadyCanonical +
+      summary.templatesSkippedAmbiguous,
+  ).toBe(summary.templatesInspected);
+  expect(
+    summary.templatesChanged + summary.templatesAlreadyCanonical,
+  ).toBe(summary.templatesEligible);
   expect(summary.formattedLines).toBe(
     once.tableDiagnostics.reduce(
       (count, diagnostic) =>

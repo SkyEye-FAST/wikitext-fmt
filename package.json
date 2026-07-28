@@ -33,10 +33,12 @@
     "check:vscode-release": "pnpm --filter wikitext-formatter check:release",
     "smoke": "node dist/cli.js --help > /dev/null && node dist/cli.js --print-localization-aliases --localization-source builtin > /dev/null && node scripts/release-smoke.mjs",
     "release:smoke": "pnpm build && pnpm smoke",
+    "benchmark": "pnpm build && node scripts/benchmark-structural.mjs",
+    "corpus:build": "node scripts/build-target-corpus.mjs",
     "localization:update": "node --experimental-strip-types scripts/update-mediawiki-aliases.ts",
     "corpus": "pnpm corpus:production && pnpm corpus:aggressive",
-    "corpus:production": "pnpm build && node scripts/run-corpus.mjs tests/real-pages --profile production --min-template-coverage 96.9 --min-table-coverage 100 --allow-skip-reason \"template parameter boundaries overlap an embedded table parser node\" --output corpus-production-report.json",
-    "corpus:aggressive": "node scripts/run-corpus.mjs tests/real-pages --profile aggressive --min-template-coverage 96.9 --min-table-coverage 100 --allow-skip-reason \"template parameter boundaries overlap an embedded table parser node\" --output corpus-aggressive-report.json"
+    "corpus:production": "pnpm build && node scripts/run-corpus.mjs tests/real-pages --profile production --min-template-coverage 100 --min-table-coverage 100 --output corpus-production-report.json",
+    "corpus:aggressive": "node scripts/run-corpus.mjs tests/real-pages --profile aggressive --min-template-coverage 100 --min-table-coverage 100 --output corpus-aggressive-report.json"
   },
   "engines": {
     "node": "^22.13.0 || >=24.11.0"

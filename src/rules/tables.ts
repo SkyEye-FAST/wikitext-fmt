@@ -7,6 +7,7 @@ import {
   createParserContext,
   type ParsedDocumentContext,
 } from "../parserContext.js";
+import { semanticRangeIdentities } from "../semanticIdentity.js";
 
 export interface TableLineDiagnostic {
   tableLine: number;
@@ -16,6 +17,7 @@ export interface TableLineDiagnostic {
 }
 
 export interface TableDiagnostic {
+  semanticId?: string;
   start: number;
   end: number;
   line: number;
@@ -35,6 +37,8 @@ export interface TableFormatDiagnostics {
   tablesSkippedAmbiguous: number;
   formattingPassesUsed: number;
   convergenceLimitReached: boolean;
+  tableSemanticIds: string[];
+  changedTableSemanticIds: string[];
 }
 
 export interface TableFormatWithDiagnosticsResult {
@@ -62,6 +66,23 @@ export interface ParserTableCandidate {
   end: number;
 }
 
+export interface ParserTableCandidateStats {
+  openerCount: number;
+  rootCandidates: number;
+  fallbackParses: number;
+  fallbackSourceBytes: number;
+  coveredOpeners: number;
+}
+
+export interface ParserTableAnalysisProfile {
+  index: number;
+  start: number;
+  bytes: number;
+  milliseconds: number;
+  changed: boolean;
+  eligible: boolean;
+}
+
 interface ParserTableAnalysis {
   start: number;
   end: number;
@@ -87,6 +108,7 @@ interface InlineScanPosition {
 interface LexicalSeparators {
   positions: number[];
   balanced: boolean;
+  unbalancedLines: number[];
 }
 
 function emptySummary(): TableFormatDiagnostics {
@@ -98,6 +120,8 @@ function emptySummary(): TableFormatDiagnostics {
     tablesSkippedAmbiguous: 0,
     formattingPassesUsed: 0,
     convergenceLimitReached: false,
+    tableSemanticIds: [],
+    changedTableSemanticIds: [],
   };
 }
 
@@ -119,9 +143,11 @@ function scanTopLevelTableCellText(
   onTopLevel: (position: InlineScanPosition) => boolean,
   onInsideQuote?: (position: InlineScanPosition) => boolean,
   isProtected?: (index: number) => boolean,
+  quotedAttributeEnd = -1,
 ): boolean {
   let templateDepth = 0;
   let wikilinkDepth = 0;
+  let wikilinkBracketDepth = 0;
   let externalLinkDepth = 0;
   let quote: '"' | "'" | undefined;
 
@@ -144,7 +170,10 @@ function scanTopLevelTableCellText(
       if (character === quote) quote = undefined;
       continue;
     }
-    if (character === '"' || character === "'") {
+    if (
+      index < quotedAttributeEnd &&
+      (character === '"' || character === "'")
+    ) {
       quote = character;
       continue;
     }
@@ -162,6 +191,18 @@ function scanTopLevelTableCellText(
     if (content.startsWith("[[", index)) {
       wikilinkDepth++;
       index++;
+      continue;
+    }
+    if (character === "[" && wikilinkDepth > 0) {
+      wikilinkBracketDepth++;
+      continue;
+    }
+    if (
+      character === "]" &&
+      wikilinkDepth > 0 &&
+      wikilinkBracketDepth > 0
+    ) {
+      wikilinkBracketDepth--;
       continue;
     }
     if (content.startsWith("]]", index)) {
@@ -198,8 +239,75 @@ function scanTopLevelTableCellText(
     !quote &&
     templateDepth === 0 &&
     wikilinkDepth === 0 &&
+    wikilinkBracketDepth === 0 &&
     externalLinkDepth === 0
   );
+}
+
+function topLevelAttributeDelimiter(
+  content: string,
+  isProtected?: (index: number) => boolean,
+): number {
+  let templateDepth = 0;
+  let wikilinkDepth = 0;
+  let wikilinkBracketDepth = 0;
+  let externalLinkDepth = 0;
+  let delimiter = -1;
+  for (let index = 0; index < content.length; index++) {
+    if (isProtected?.(index)) continue;
+    if (content.startsWith("{{", index)) {
+      templateDepth++;
+      index++;
+      continue;
+    }
+    if (content.startsWith("}}", index)) {
+      templateDepth = Math.max(0, templateDepth - 1);
+      index++;
+      continue;
+    }
+    if (content.startsWith("[[", index)) {
+      wikilinkDepth++;
+      index++;
+      continue;
+    }
+    const character = content[index]!;
+    if (character === "[" && wikilinkDepth > 0) {
+      wikilinkBracketDepth++;
+      continue;
+    }
+    if (
+      character === "]" &&
+      wikilinkDepth > 0 &&
+      wikilinkBracketDepth > 0
+    ) {
+      wikilinkBracketDepth--;
+      continue;
+    }
+    if (content.startsWith("]]", index)) {
+      wikilinkDepth = Math.max(0, wikilinkDepth - 1);
+      index++;
+      continue;
+    }
+    if (character === "[" && content[index + 1] !== "[" && wikilinkDepth === 0) {
+      externalLinkDepth++;
+      continue;
+    }
+    if (character === "]" && content[index + 1] !== "]" && wikilinkDepth === 0) {
+      externalLinkDepth = Math.max(0, externalLinkDepth - 1);
+      continue;
+    }
+    if (
+      character === "|" &&
+      content[index - 1] !== "|" &&
+      content[index + 1] !== "|" &&
+      templateDepth === 0 &&
+      wikilinkDepth === 0 &&
+      externalLinkDepth === 0
+    ) {
+      delimiter = index;
+    }
+  }
+  return delimiter;
 }
 
 function nearestTable(
@@ -212,24 +320,70 @@ function nearestTable(
 
 function protectedTableRanges(
   table: ParserTableNode,
-  tableStart: number,
+  raw: string,
 ): SourceRange[] {
   const ranges: SourceRange[] = [];
   for (const selector of ["ext", "comment", "table"]) {
+    let cursor = 0;
     for (const node of table.querySelectorAll<ParserTableNode>(selector)) {
       if (node === table) continue;
-      const start = node.getAbsoluteIndex() - tableStart;
-      ranges.push({ start, end: start + node.toString().length });
+      const nodeRaw = node.toString();
+      if (!nodeRaw) continue;
+      const start = raw.indexOf(nodeRaw, cursor);
+      if (start < 0) continue;
+      ranges.push({ start, end: start + nodeRaw.length });
+      cursor = start + nodeRaw.length;
     }
   }
-  return ranges;
+  ranges.sort((a, b) => a.start - b.start || b.end - a.end);
+  const merged: SourceRange[] = [];
+  for (const range of ranges) {
+    const previous = merged.at(-1);
+    if (previous && range.start <= previous.end) {
+      previous.end = Math.max(previous.end, range.end);
+    } else {
+      merged.push({ ...range });
+    }
+  }
+  return merged;
 }
 
 function positionIsProtected(
   position: number,
   ranges: readonly SourceRange[],
 ): boolean {
-  return ranges.some((range) => position >= range.start && position < range.end);
+  let low = 0;
+  let high = ranges.length - 1;
+  while (low <= high) {
+    const middle = Math.floor((low + high) / 2);
+    const range = ranges[middle]!;
+    if (position < range.start) high = middle - 1;
+    else if (position >= range.end) low = middle + 1;
+    else return true;
+  }
+  return false;
+}
+
+function lineNumbersAtPositions(
+  source: string,
+  positions: readonly number[],
+): number[] {
+  const lines: number[] = [];
+  let line = 1;
+  let cursor = 0;
+  for (const position of positions) {
+    while (cursor < position) {
+      const newline = source.indexOf("\n", cursor);
+      if (newline < 0 || newline >= position) {
+        cursor = position;
+        break;
+      }
+      line++;
+      cursor = newline + 1;
+    }
+    lines.push(line);
+  }
+  return lines;
 }
 
 function lexicalSeparatorPositions(
@@ -238,7 +392,9 @@ function lexicalSeparatorPositions(
 ): LexicalSeparators {
   const positions: number[] = [];
   let balanced = true;
+  const unbalancedLines: number[] = [];
   let lineStart = 0;
+  let tableLine = 1;
   while (lineStart < raw.length) {
     const newline = raw.indexOf("\n", lineStart);
     const lineEnd = newline < 0 ? raw.length : newline;
@@ -247,46 +403,62 @@ function lexicalSeparatorPositions(
     if (match) {
       const contentStart = match[0].length;
       const content = line.slice(contentStart);
-      balanced =
-        scanTopLevelTableCellText(
-          content,
-          ({ index }) => {
-            if (content.startsWith("!!", index) || content.startsWith("||", index)) {
-              positions.push(lineStart + contentStart + index);
-            }
-            return true;
-          },
-          () => true,
-          (index) =>
-            positionIsProtected(
-              lineStart + contentStart + index,
-              protectedRanges,
-            ),
-        ) && balanced;
+      const isProtected = (index: number): boolean =>
+        positionIsProtected(
+          lineStart + contentStart + index,
+          protectedRanges,
+        );
+      const lineBalanced = scanTopLevelTableCellText(
+        content,
+        ({ index }) => {
+          if (content.startsWith("!!", index) || content.startsWith("||", index)) {
+            positions.push(lineStart + contentStart + index);
+          }
+          return true;
+        },
+        () => true,
+        isProtected,
+        topLevelAttributeDelimiter(content, isProtected),
+      );
+      if (!lineBalanced) unbalancedLines.push(tableLine);
+      balanced = lineBalanced && balanced;
     }
     if (newline < 0) break;
     lineStart = newline + 1;
+    tableLine++;
   }
   return {
     positions: [...new Set(positions)].sort((a, b) => a - b),
     balanced,
+    unbalancedLines,
   };
 }
 
-function parserSeparatorPositions(table: ParserTableNode): number[] {
-  const tableStart = table.getAbsoluteIndex();
-  return table
+function parserSeparators(
+  table: ParserTableNode,
+  raw: string,
+): Array<{ position: number; marker: "!" | "|" }> {
+  let cursor = 0;
+  const separators: Array<{ position: number; marker: "!" | "|" }> = [];
+  for (const cell of table
     .querySelectorAll<ParserTableNode>("td")
-    .filter((cell) => nearestTable(cell.parentNode) === table)
-    .flatMap((cell) => {
-      const syntax = cell.firstChild;
-      if (!syntax) return [];
-      const raw = syntax.toString();
-      return raw === "!!" || raw === "||"
-        ? [syntax.getAbsoluteIndex() - tableStart]
-        : [];
-    })
-    .sort((a, b) => a - b);
+    .filter((cell) => nearestTable(cell.parentNode) === table)) {
+    const cellRaw = cell.toString();
+    const cellStart = raw.indexOf(cellRaw, cursor);
+    if (cellStart < 0) continue;
+    const syntaxRaw = cell.firstChild?.toString();
+    if (syntaxRaw === "!!" || syntaxRaw === "||") {
+      const syntaxStart = cellRaw.indexOf(syntaxRaw);
+      if (syntaxStart >= 0) {
+        separators.push({
+          position: cellStart + syntaxStart,
+          marker: cell.subtype === "th" ? "!" : "|",
+        });
+      }
+    }
+    cursor = cellStart + cellRaw.length;
+  }
+  return separators;
 }
 
 function arraysEqual(a: readonly number[], b: readonly number[]): boolean {
@@ -298,9 +470,9 @@ function analyzeParserTable(
   table: ParserTableNode,
   offset: number,
   options: ResolvedFormatOptions,
+  confirmedStart?: number,
 ): ParserTableAnalysis {
-  const localStart = table.getAbsoluteIndex();
-  const start = localStart + offset;
+  const start = confirmedStart ?? table.getAbsoluteIndex() + offset;
   const raw = table.toString();
   const end = start + raw.length;
   const line = lineNumberAt(source, start);
@@ -332,10 +504,11 @@ function analyzeParserTable(
     };
   }
 
-  const parserPositions = parserSeparatorPositions(table);
+  const parserConfirmed = parserSeparators(table, raw);
+  const parserPositions = parserConfirmed.map(({ position }) => position);
   const lexical = lexicalSeparatorPositions(
     raw,
-    protectedTableRanges(table, localStart),
+    protectedTableRanges(table, raw),
   );
   const parserBoundariesReliable = arraysEqual(
     parserPositions,
@@ -358,19 +531,52 @@ function analyzeParserTable(
           "parser cell tokenization disagreed and the balanced top-level separator fallback could not establish boundaries",
         separatorStyle: style,
         separatorStyleReason,
+        lineDiagnostics: lexical.unbalancedLines.map((tableLine) => ({
+          tableLine,
+          changed: false,
+          reason: "top-level table cell fallback did not balance this line",
+        })),
       },
     };
   }
-  const positions = parserBoundariesReliable
+  const confirmedPositions = parserBoundariesReliable
     ? parserPositions
     : lexical.positions;
-  let value = raw;
-  for (const position of [...positions].sort((a, b) => b - a)) {
-    const marker = raw[position] === "!" ? "!" : "|";
-    value = `${value.slice(0, position)}\n${marker}${value.slice(position + 2)}`;
+  const parserMarkers = new Map(
+    parserConfirmed.map(({ position, marker }) => [position, marker]),
+  );
+  const separators = confirmedPositions
+    .map((position) => ({
+      position,
+      marker: parserBoundariesReliable
+        ? (parserMarkers.get(position) ?? (raw[position] === "!" ? "!" : "|"))
+        : raw[position] === "!"
+          ? ("!" as const)
+          : ("|" as const),
+    }))
+    .filter(
+      ({ position, marker }) =>
+        !(
+          marker === "|" &&
+          (raw[position - 1] === "|" ||
+            /[-+}|]/u.test(raw[position + 2] ?? ""))
+        ) &&
+        !(
+          marker === "!" &&
+          (raw[position - 1] === "!" || raw[position + 2] === "!")
+        ),
+    );
+  const positions = separators.map(({ position }) => position);
+  const valueParts: string[] = [];
+  let cursor = 0;
+  for (const { position, marker } of separators) {
+    valueParts.push(raw.slice(cursor, position), "\n", marker);
+    cursor = position + 2;
   }
+  valueParts.push(raw.slice(cursor));
+  const value = valueParts.join("");
   const lineDiagnostics: TableLineDiagnostic[] = [
-    ...new Set(positions.map((position) => lineNumberAt(raw, position))),
+    ...new Set(lineNumbersAtPositions(raw, positions)),
   ].map((tableLine) => ({ tableLine, changed: true }));
   const changed = value !== raw;
   const fallbackReason = parserBoundariesReliable
@@ -400,11 +606,55 @@ function analyzeParserTable(
   };
 }
 
+export function profileParserTableAnalyses(
+  source: string,
+  config: Config,
+  options: ResolvedFormatOptions,
+  onProfile?: (profile: ParserTableAnalysisProfile) => void,
+): ParserTableAnalysisProfile[] {
+  const context = createParserContext(source, config);
+  const candidates = collectParserTableCandidates(source, context, config);
+  return candidates.map(({ node, offset, start }, index) => {
+    const started = performance.now();
+    const analysis = analyzeParserTable(
+      source,
+      node,
+      offset,
+      options,
+      start,
+    );
+    const profile = {
+      index,
+      start,
+      bytes: node.toString().length,
+      milliseconds: performance.now() - started,
+      changed: analysis.changed,
+      eligible: analysis.eligible,
+    };
+    onProfile?.(profile);
+    return profile;
+  });
+}
+
+export function potentialParserTableOpenerPositions(source: string): number[] {
+  return [...source.matchAll(/\{\|/gu)]
+    .map((match) => match.index)
+    .filter((opener) => source[opener - 1] !== "{");
+}
+
 export function collectParserTableCandidates(
   source: string,
   context: ParsedDocumentContext,
   config: Config,
+  stats?: ParserTableCandidateStats,
 ): ParserTableCandidate[] {
+  if (stats) {
+    stats.openerCount = 0;
+    stats.rootCandidates = 0;
+    stats.fallbackParses = 0;
+    stats.fallbackSourceBytes = 0;
+    stats.coveredOpeners = 0;
+  }
   const candidates = new Map<string, ParserTableCandidate>();
   const add = (node: ParserTableNode, offset: number): void => {
     if (node.closed === false) return;
@@ -416,17 +666,48 @@ export function collectParserTableCandidates(
   for (const node of context.root.querySelectorAll<ParserTableNode>("table")) {
     add(node, 0);
   }
+  if (stats) stats.rootCandidates = candidates.size;
 
   // Known parser-order defect: table nodes inside template parameter text are
-  // not always exposed. Reparse only at an exact opener and accept only a
-  // closed parser-confirmed table range beginning at that offset.
-  let opener = source.indexOf("{|");
-  while (opener >= 0) {
-    const reparsed = createParserContext(source.slice(opener), config);
+  // not always exposed. Reparse only uncovered openers in the smallest parser
+  // node that safely encloses them. A successful parse can confirm multiple or
+  // nested tables, so later openers covered by those cached ranges do not
+  // trigger another suffix parse.
+  const enclosingRanges = [
+    ...context.root.querySelectorAll<ParserTableNode>("template"),
+    ...context.root.querySelectorAll<ParserTableNode>("magic-word"),
+  ].map((node) => ({
+    start: node.getAbsoluteIndex(),
+    end: node.getAbsoluteIndex() + node.toString().length,
+  }));
+  const openers = potentialParserTableOpenerPositions(source);
+  if (stats) stats.openerCount = openers.length;
+  for (const opener of openers) {
+    if (
+      [...candidates.values()].some(
+        (candidate) =>
+          candidate.start <= opener && candidate.end > opener,
+      )
+    ) {
+      if (stats) stats.coveredOpeners++;
+      continue;
+    }
+    const enclosing = enclosingRanges
+      .filter((range) => range.start <= opener && range.end > opener)
+      .sort(
+        (a, b) =>
+          a.end - a.start - (b.end - b.start) || a.start - b.start,
+      )[0];
+    const parseEnd = enclosing?.end ?? source.length;
+    const fallbackSource = source.slice(opener, parseEnd);
+    if (stats) {
+      stats.fallbackParses++;
+      stats.fallbackSourceBytes += fallbackSource.length;
+    }
+    const reparsed = createParserContext(fallbackSource, config);
     for (const node of reparsed.root.querySelectorAll<ParserTableNode>("table")) {
       add(node, opener);
     }
-    opener = source.indexOf("{|", opener + 2);
   }
   return [...candidates.values()].sort((a, b) => a.start - b.start);
 }
@@ -454,20 +735,21 @@ function formatParserTables(
   let output = source;
   let firstContext = context?.source === source ? context : undefined;
   let diagnostics: TableDiagnostic[] = [];
+  let diagnosticIds: string[] = [];
   const summary = emptySummary();
-  const changedNodeIndices = new Set<number>();
+  const changedNodeIds = new Set<string>();
 
   const finalize = (formatted: string): TableFormatWithDiagnosticsResult => {
-    summary.tablesChanged = changedNodeIndices.size;
+    summary.tablesChanged = changedNodeIds.size;
     summary.tablesAlreadyCanonical = Math.max(
       0,
-      summary.tablesEligible -
-        summary.tablesChanged -
-        summary.tablesSkippedAmbiguous,
+      summary.tablesEligible - summary.tablesChanged,
     );
+    summary.changedTableSemanticIds = [...changedNodeIds];
     diagnostics = diagnostics.map((diagnostic, index) => ({
       ...diagnostic,
-      changed: changedNodeIndices.has(index),
+      semanticId: diagnosticIds[index],
+      changed: changedNodeIds.has(diagnosticIds[index]!),
     }));
     return { formatted, diagnostics, summary };
   };
@@ -476,16 +758,23 @@ function formatParserTables(
     const current = firstContext ?? createParserContext(output, config);
     firstContext = undefined;
     const tables = collectParserTableCandidates(output, current, config);
-    const analyses = tables.map(({ node, offset }) =>
-      analyzeParserTable(output, node, offset, options),
+    const semanticIds = semanticRangeIdentities(tables, "table");
+    const analyses = tables.map(({ node, offset, start }) =>
+      analyzeParserTable(output, node, offset, options, start),
     );
     if (pass === 0) {
-      diagnostics = analyses.map(({ diagnostic }) => diagnostic);
+      diagnosticIds = semanticIds;
+      summary.tableSemanticIds = semanticIds;
+      diagnostics = analyses.map(({ diagnostic }, index) => ({
+        ...diagnostic,
+        semanticId: semanticIds[index],
+      }));
       summary.tablesInspected = analyses.length;
-      summary.tablesEligible = analyses.length;
       summary.tablesSkippedAmbiguous = analyses.filter(
         ({ eligible }) => !eligible,
       ).length;
+      summary.tablesEligible =
+        summary.tablesInspected - summary.tablesSkippedAmbiguous;
     }
     const deepest = analyses
       .map((analysis, index) => ({ analysis, index }))
@@ -504,20 +793,20 @@ function formatParserTables(
         output.slice(0, analysis.start) +
         analysis.value +
         output.slice(analysis.end);
-      changedNodeIndices.add(index);
+      changedNodeIds.add(semanticIds[index]!);
     }
     summary.formattingPassesUsed = pass + 1;
   }
 
   summary.convergenceLimitReached = true;
-  changedNodeIndices.clear();
+  changedNodeIds.clear();
   diagnostics = diagnostics.map((diagnostic) => ({
     ...diagnostic,
     changed: false,
     ambiguous: true,
     reason: "table formatting did not converge within 64 parser passes",
   }));
-  summary.tablesEligible = summary.tablesInspected;
+  summary.tablesEligible = 0;
   summary.tablesSkippedAmbiguous = summary.tablesInspected;
   return finalize(source);
 }

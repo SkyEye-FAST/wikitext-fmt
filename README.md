@@ -378,11 +378,32 @@ separate coverage, and precise skip-reason frequencies. Coverage is
 `(changed + alreadyCanonical) / eligible`. Use `--min-template-coverage` and
 `--min-table-coverage` to enforce a measured baseline. Ambiguous skips fail by
 default; a reviewed exact limitation can be admitted with
-`--allow-skip-reason`. The measured committed-corpus thresholds are 96.9% for
-eligible template nodes and 100% for eligible table nodes; the template
-baseline admits only the documented embedded-table parser-boundary limitation.
+`--allow-skip-reason`. The measured committed-corpus thresholds are 100% for
+both eligible template and eligible table nodes, with no admitted skip reason.
 Coverage is reported as `null`, and a positive threshold fails, when a corpus
 contains no eligible nodes of that structure.
+
+Build a read-only target-wiki corpus from a MediaWiki XML dump or an API title
+list before running the report:
+
+```sh
+pnpm corpus:build -- --xml pages.xml --output corpus-medium --tier medium \
+  --namespaces 0,10 --seed release-1
+pnpm corpus:build -- --api https://wiki.example/w/api.php \
+  --titles titles.txt --output corpus-small --tier small
+node scripts/run-corpus.mjs corpus-medium --profile production \
+  --siteinfo corpus-medium/metadata/siteinfo.json --output report.json
+```
+
+The builder performs only local reads and MediaWiki API `GET` requests; it
+never edits pages. `small`, `medium`, and `full` tiers default to 100, 5,000,
+and all matching pages respectively. `--max-pages`, namespace filters,
+seeded deterministic sampling, repeatable title/content exclusion regexes,
+explicit parser configuration, and external siteinfo are supported. Sources,
+page metadata, hashes, and siteinfo are stored separately. Corpus reports
+include total bytes, namespace distribution when metadata is available,
+page/node coverage, skip frequencies, timing percentiles, and the largest and
+slowest pages.
 
 ## List formatting
 
@@ -531,15 +552,29 @@ values; comments; links; refs; HTML; multiple templates; and templates inside
 table cells. Multiple named parameters, existing multiline layout, long
 templates, and structured values select multiline layout. Anonymous argument
 values—including leading/trailing spaces, tabs, newlines, empty values, and
-parser-function arguments—are preserved byte-for-byte, so their surrounding
-template shell is not expanded when doing so would introduce semantic
-whitespace. Nested supported structures still format deepest-first. A single
-short named parameter may remain compact. Parameters and values are never
-reordered, renamed, or semantically rewritten.
+parser-function arguments—are preserved byte-for-byte. The engine tries a full
+multiline candidate, then progressively less aggressive boundary-safe layouts,
+and accepts only a parseable, idempotent candidate with the exact same
+structural fingerprint. It can therefore expand the template shell before the
+first positional delimiter and after named values without inserting or
+removing whitespace in an anonymous value. Nested supported structures still
+format deepest-first. Parser-confirmed tables inside template arguments are
+treated as opaque argument content after table formatting, so surrounding
+named parameters and the outer template layout can still be normalized. A
+single short parameter may remain compact. Parameters and values are never
+reordered, renamed, renumbered, or semantically rewritten.
 
 `formatTemplateParameters` and `--format-template-parameters` remain as pre-1.0
 compatibility aliases and route to this same engine; there is no second scanner.
 Disable template formatting with `--no-format-templates`.
+
+Parser functions use an explicit function-specific policy. Production currently
+classifies whitespace-sensitive core functions such as `#if`, `#ifeq`,
+`#switch`, `#expr`, `#tag`, and `#invoke` as `opaque-preserve`; an unknown
+`#` function is `unsupported-ambiguous`. The other policy classes,
+`safe-named-argument-normalization` and `safe-layout-formatting`, remain
+available only for functions whose MediaWiki whitespace behavior is established
+by dedicated semantics tests. No generic magic-word whitespace rule is applied.
 
 ### Localization data
 
@@ -614,7 +649,6 @@ align table columns with padding. These are product boundaries.
 - Interlanguage link movement is experimental, disabled by default, and limited to standalone unlabelled links with configured prefixes.
 - Section spacing is experimental, disabled by default, and only applies around headings adjacent to ordinary paragraph text.
 - Only aliases backed by built-in MediaWiki data, siteinfo, or explicit custom configuration participate in footer formatting.
-- A template whose parser argument boundaries overlap an embedded table is left unchanged, while the embedded table itself is formatted through a parser-confirmed fallback range.
 - Unclosed tables and genuinely unbalanced parser boundaries are preserved with precise diagnostics.
 - Table columns are not aligned or padded, and rows, cells, and attributes are never reordered.
 - Single-block ignore handling is deliberately line/paragraph oriented. Range ignores are preferred for complex content.
@@ -638,9 +672,18 @@ pnpm test:run
 pnpm build
 pnpm check
 pnpm corpus
+pnpm benchmark
 pnpm smoke
 pnpm localization:update /path/to/mediawiki/languages/messages
 ```
+
+The structural benchmark covers 10 KB, 100 KB, and 1 MB pages; 10, 100, and
+500-template/table matrices; deep nesting; tables inside templates; and false
+table openers in protected content. It records parser contexts and source bytes
+parsed, formatting passes, total and equivalence time, fallback candidate work,
+and process memory. CI uses deterministic complexity assertions for fallback
+parse counts and bounded source ranges instead of machine-sensitive wall-clock
+ceilings.
 
 `pnpm smoke` expects `pnpm build` to have run. It imports `dist/index.js`, runs `dist/cli.js --help`, checks that `loadSiteInfoAliases` is exported, verifies generated MediaWiki alias data is available from `dist`, and exercises `--print-localization-aliases --localization-source builtin` without network access.
 

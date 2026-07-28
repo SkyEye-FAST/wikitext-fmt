@@ -9,8 +9,7 @@
 |}
 
 {{Box
-| content =
-{| class="wikitable"
+| content = {| class="wikitable"
 ! Inside 
 ! Template
 |}

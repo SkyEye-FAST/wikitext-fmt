@@ -1,0 +1,32 @@
+<mediawiki>
+  <page>
+    <title>Alpha</title>
+    <ns>0</ns>
+    <id>1</id>
+    <revision>
+      <id>11</id>
+      <timestamp>2026-01-01T00:00:00Z</timestamp>
+      <text bytes="21">{{T|one|two}} &amp; A</text>
+    </revision>
+  </page>
+  <page>
+    <title>Template:Beta</title>
+    <ns>10</ns>
+    <id>2</id>
+    <revision>
+      <id>22</id>
+      <timestamp>2026-01-02T00:00:00Z</timestamp>
+      <text><![CDATA[{{Template|a=1|b=2}}]]></text>
+    </revision>
+  </page>
+  <page>
+    <title>User:Private</title>
+    <ns>2</ns>
+    <id>3</id>
+    <revision>
+      <id>33</id>
+      <timestamp>2026-01-03T00:00:00Z</timestamp>
+      <text>excluded</text>
+    </revision>
+  </page>
+</mediawiki>
