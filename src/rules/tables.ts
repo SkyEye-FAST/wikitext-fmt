@@ -712,17 +712,52 @@ export function collectParserTableCandidates(
   return [...candidates.values()].sort((a, b) => a.start - b.start);
 }
 
-function hasChangedNestedTable(
-  analysis: ParserTableAnalysis,
+function deepestChangedTables(
   analyses: readonly ParserTableAnalysis[],
-): boolean {
-  return analyses.some(
-    (candidate) =>
-      candidate !== analysis &&
-      candidate.changed &&
-      candidate.start > analysis.start &&
-      candidate.end < analysis.end,
+): Array<{ analysis: ParserTableAnalysis; index: number }> {
+  const changed = analyses
+    .map((analysis, index) => ({ analysis, index }))
+    .filter(({ analysis }) => analysis.changed)
+    .sort(
+      (a, b) =>
+        a.analysis.start - b.analysis.start ||
+        b.analysis.end - a.analysis.end,
+    );
+  const stack: typeof changed = [];
+  const withChangedDescendants = new Set<ParserTableAnalysis>();
+  for (const candidate of changed) {
+    while (stack.length > 0) {
+      const possibleParent = stack.at(-1)!.analysis;
+      if (
+        possibleParent.start < candidate.analysis.start &&
+        possibleParent.end > candidate.analysis.end
+      ) {
+        withChangedDescendants.add(possibleParent);
+        break;
+      }
+      stack.pop();
+    }
+    stack.push(candidate);
+  }
+  return changed.filter(
+    ({ analysis }) => !withChangedDescendants.has(analysis),
   );
+}
+
+function applyTableChanges(
+  source: string,
+  changes: ReadonlyArray<{ analysis: ParserTableAnalysis }>,
+): string {
+  const parts: string[] = [];
+  let cursor = 0;
+  for (const { analysis } of [...changes].sort(
+    (a, b) => a.analysis.start - b.analysis.start,
+  )) {
+    parts.push(source.slice(cursor, analysis.start), analysis.value);
+    cursor = analysis.end;
+  }
+  parts.push(source.slice(cursor));
+  return parts.join("");
 }
 
 function formatParserTables(
@@ -776,23 +811,13 @@ function formatParserTables(
       summary.tablesEligible =
         summary.tablesInspected - summary.tablesSkippedAmbiguous;
     }
-    const deepest = analyses
-      .map((analysis, index) => ({ analysis, index }))
-      .filter(
-        ({ analysis }) =>
-          analysis.changed && !hasChangedNestedTable(analysis, analyses),
-      );
+    const deepest = deepestChangedTables(analyses);
     if (deepest.length === 0) {
       summary.formattingPassesUsed = pass;
       return finalize(output);
     }
-    for (const { analysis, index } of deepest.sort(
-      (a, b) => b.analysis.start - a.analysis.start,
-    )) {
-      output =
-        output.slice(0, analysis.start) +
-        analysis.value +
-        output.slice(analysis.end);
+    output = applyTableChanges(output, deepest);
+    for (const { index } of deepest) {
       changedNodeIds.add(semanticIds[index]!);
     }
     summary.formattingPassesUsed = pass + 1;

@@ -1,0 +1,72 @@
+{
+  "schemaVersion": 1,
+  "version": "2026-07-28-node-24-linux-x64",
+  "description": "Release-review reference only. Ordinary CI uses deterministic parser-work assertions instead of timing or memory ratios.",
+  "cases": [
+    {
+      "name": "page-10000-bytes",
+      "totalFormattingMilliseconds": 115.572,
+      "processPeakRssBytes": 149561344
+    },
+    {
+      "name": "page-100000-bytes",
+      "totalFormattingMilliseconds": 309.523,
+      "processPeakRssBytes": 264802304
+    },
+    {
+      "name": "page-1000000-bytes",
+      "totalFormattingMilliseconds": 2708.914,
+      "processPeakRssBytes": 940974080
+    },
+    {
+      "name": "templates-10",
+      "totalFormattingMilliseconds": 118.926,
+      "processPeakRssBytes": 940974080
+    },
+    {
+      "name": "templates-100",
+      "totalFormattingMilliseconds": 2068.943,
+      "processPeakRssBytes": 940974080
+    },
+    {
+      "name": "templates-500",
+      "totalFormattingMilliseconds": 43177.58,
+      "processPeakRssBytes": 940974080
+    },
+    {
+      "name": "tables-10",
+      "totalFormattingMilliseconds": 52.266,
+      "processPeakRssBytes": 940974080
+    },
+    {
+      "name": "tables-100",
+      "totalFormattingMilliseconds": 564.616,
+      "processPeakRssBytes": 940974080
+    },
+    {
+      "name": "tables-500",
+      "totalFormattingMilliseconds": 8751.942,
+      "processPeakRssBytes": 940974080
+    },
+    {
+      "name": "deeply-nested-templates-50",
+      "totalFormattingMilliseconds": 7323.601,
+      "processPeakRssBytes": 940974080
+    },
+    {
+      "name": "deeply-nested-tables-50",
+      "totalFormattingMilliseconds": 69.162,
+      "processPeakRssBytes": 940974080
+    },
+    {
+      "name": "tables-inside-template-100",
+      "totalFormattingMilliseconds": 978.084,
+      "processPeakRssBytes": 940974080
+    },
+    {
+      "name": "protected-false-table-openers-500",
+      "totalFormattingMilliseconds": 5.111,
+      "processPeakRssBytes": 940974080
+    }
+  ]
+}

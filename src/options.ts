@@ -136,16 +136,16 @@ export function resolveOptions(
           formatSectionSpacing: false,
         }
       : profile === "aggressive"
-      ? {
-          level: "experimental",
-          formatTemplates: true,
-          formatTemplateParameters: true,
-          formatTables: true,
-          tableCellSeparatorStyle: "auto",
-          formatReferences: true,
-          formatExternalLinks: true,
-          formatSectionSpacing: true,
-        }
-      : {};
+        ? {
+            level: "experimental",
+            formatTemplates: true,
+            formatTemplateParameters: true,
+            formatTables: true,
+            tableCellSeparatorStyle: "auto",
+            formatReferences: true,
+            formatExternalLinks: true,
+            formatSectionSpacing: true,
+          }
+        : {};
   return { ...defaultOptions, ...profileOptions, ...options, profile };
 }

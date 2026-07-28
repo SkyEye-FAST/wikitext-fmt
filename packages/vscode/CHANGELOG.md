@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Inherit final full-document equivalence and structured failure reporting from
+  the core safe formatter.
 - Expose distinct production and aggressive profiles: production contains
   graduated structural rules, while aggressive adds still-validating rules.
 - Enable graduated parser-assisted table formatting by default.

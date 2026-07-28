@@ -1,4 +1,5 @@
 import { stdout } from "node:process";
+
 import type { FormatOptions } from "../options.js";
 import { booleanCliFlags } from "../options/schema.js";
 
@@ -7,6 +8,7 @@ export interface CliOptions extends FormatOptions {
   check: boolean;
   stdin: boolean;
   safe: boolean;
+  unsafe: boolean;
   debug: boolean;
   diff: boolean;
   diagnosticsJson: boolean;
@@ -20,7 +22,7 @@ export interface CliOptions extends FormatOptions {
 }
 
 export function usage(): string {
-  return "Usage: wikitext-fmt [--write | --check | --diff] [--stdin] [--safe] [--profile default|production|aggressive] [--fail-on-warning] [--report <path>] [--debug | --diagnostics-json] [--config <path> | --no-config] [--level safe|normal|experimental] [options] <file-or-glob...>";
+  return "Usage: wikitext-fmt [--write | --check | --diff] [--stdin] [--safe | --unsafe] [--profile default|production|aggressive] [--fail-on-warning] [--report <path>] [--debug | --diagnostics-json] [--config <path> | --no-config] [--level safe|normal|experimental] [options] <file-or-glob...>";
 }
 
 export function parseArgs(args: string[]): CliOptions {
@@ -29,6 +31,7 @@ export function parseArgs(args: string[]): CliOptions {
     check: false,
     stdin: false,
     safe: false,
+    unsafe: false,
     debug: false,
     diff: false,
     diagnosticsJson: false,
@@ -57,6 +60,9 @@ export function parseArgs(args: string[]): CliOptions {
         break;
       case "--safe":
         options.safe = true;
+        break;
+      case "--unsafe":
+        options.unsafe = true;
         break;
       case "--debug":
         options.debug = true;
@@ -107,7 +113,9 @@ export function parseArgs(args: string[]): CliOptions {
           value !== "production" &&
           value !== "aggressive"
         ) {
-          throw new Error("--profile must be default, production, or aggressive");
+          throw new Error(
+            "--profile must be default, production, or aggressive",
+          );
         }
         options.profile = value;
         break;
@@ -215,6 +223,8 @@ export function parseArgs(args: string[]): CliOptions {
     throw new Error("--debug and --diagnostics-json cannot be used together");
   if (options.configPath && options.noConfig)
     throw new Error("--config and --no-config cannot be used together");
+  if (options.safe && options.unsafe)
+    throw new Error("--safe and --unsafe cannot be used together");
   if (options.stdin && options.files.length > 0)
     throw new Error("--stdin cannot be combined with file paths");
   if (options.stdin && options.write)
@@ -243,6 +253,7 @@ export function formatterOptions(options: CliOptions): FormatOptions {
     check: _check,
     stdin: _stdin,
     safe: _safe,
+    unsafe: _unsafe,
     debug: _debug,
     diff: _diff,
     diagnosticsJson: _diagnosticsJson,

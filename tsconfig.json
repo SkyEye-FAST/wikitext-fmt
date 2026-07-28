@@ -2,6 +2,7 @@
   "compilerOptions": {
     "declaration": true,
     "declarationMap": true,
+    "allowJs": true,
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "module": "NodeNext",
@@ -17,5 +18,5 @@
     "types": ["node"]
   },
   "exclude": ["dist", "node_modules", "tests"],
-  "include": ["src/**/*.ts"]
+  "include": ["src/**/*.ts", "src/**/*.js"]
 }

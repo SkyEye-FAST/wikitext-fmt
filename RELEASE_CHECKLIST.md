@@ -22,10 +22,26 @@ on a clean worktree unless noted otherwise.
 - [ ] Run `pnpm check:extension`.
 - [ ] Run `pnpm check:vsix`.
 - [ ] Run `pnpm check:vscode-release`.
+- [ ] Run `pnpm benchmark` and review parser contexts, parsed source bytes,
+      formatting passes, candidate counts, semantic node counts, timing, and
+      memory.
+- [ ] Run `pnpm benchmark:release` and review the versioned timing/RSS
+      comparison; investigate material regressions before setting any optional
+      release-only ratio gate.
 - [ ] Run `pnpm corpus` and confirm zero warnings, parse failures,
       idempotency failures, structural-equivalence failures, convergence-limit
       failures, and unexplained skips; confirm both measured structural
       coverage thresholds pass.
+- [ ] Confirm the builder-generated raw siteinfo and normalized aliases work
+      through manifest discovery, and repeat one run with `--no-manifest`.
+- [ ] Confirm API/XML page metadata records `contentModel`, builder tiers
+      contain only `wikitext`, and runner reports rather than formats an
+      explicitly non-wikitext imported page.
+- [ ] Confirm the committed small corpus and the private/release-artifact
+      medium and full target corpora pass both production profiles with zero
+      structured failures, warnings, unexplained skips, or convergence limits.
+- [ ] Review p50/p95/p99 and largest per-page diff ratios; confirm there is no
+      unexplained churn.
 - [ ] Confirm real-page matrix tests report no safe fallbacks and remain
       idempotent.
 

@@ -1,10 +1,41 @@
 import { describe, expect, it } from "vitest";
 import generatedAliases from "../src/localization/generated/mediawiki-aliases.json" with { type: "json" };
-import { loadSiteInfoAliases } from "../src/localization/siteinfo.js";
+import {
+  loadSiteInfoAliases,
+  normalizeSiteInfoPayload,
+} from "../src/localization/siteinfo.js";
 import { formatWikitext, formatWikitextSafe } from "../src/index.js";
 import { formatWikitextDetailedResult } from "../src/formatter.js";
 
 describe("MediaWiki localization data", () => {
+  it("normalizes raw siteinfo without a network request", () => {
+    expect(
+      normalizeSiteInfoPayload({
+        query: {
+          namespaces: [
+            { id: 6, canonical: "File", name: "FileX" },
+            { id: 14, canonical: "Category", name: "CatX" },
+          ],
+          namespacealiases: [{ id: 14, name: "CategoryX" }],
+          magicwords: [
+            { name: "defaultsort", aliases: ["SORTX:"] },
+            { name: "redirect", aliases: ["#GO"] },
+            { name: "img_alt", aliases: ["altx=$1"] },
+            { name: "notoc", aliases: ["__NOTOCX__"] },
+          ],
+          doubleunderscores: [{ name: "notoc" }],
+        },
+      }),
+    ).toEqual({
+      categoryNamespaces: ["CatX", "Category", "CategoryX"],
+      fileNamespaces: ["FileX", "File"],
+      defaultsortMagicWords: ["SORTX:"],
+      redirectMagicWords: ["#GO"],
+      imageOptionAliases: { img_alt: ["altx=$1"] },
+      behaviorSwitches: { notoc: ["__NOTOCX__"] },
+    });
+  });
+
   it.each([
     ["[[分类:简体]]", "__无目录__", "{{默认排序:简体}}"],
     ["[[分類:繁體]]", "__無目錄__", undefined],

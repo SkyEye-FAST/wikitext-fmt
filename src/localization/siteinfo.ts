@@ -1,36 +1,7 @@
-import { behaviorSwitchIds } from "./aliases.js";
 import type { LocalizationAliases } from "../options.js";
+import { normalizeSiteInfoPayload } from "./siteinfo-normalize.js";
 
-const imageOptionIds = new Set([
-  "img_thumbnail",
-  "img_manualthumb",
-  "img_framed",
-  "img_frameless",
-  "img_border",
-  "img_left",
-  "img_right",
-  "img_center",
-  "img_none",
-  "img_width",
-  "img_alt",
-  "img_link",
-  "img_page",
-  "img_upright",
-  "img_class",
-  "img_lang",
-]);
-
-interface SiteInfoNamespace {
-  id?: number;
-  canonical?: string;
-  "*"?: string;
-  name?: string;
-}
-
-interface SiteInfoMagicWord {
-  name?: string;
-  aliases?: string[];
-}
+export { normalizeSiteInfoPayload } from "./siteinfo-normalize.js";
 
 export async function loadSiteInfoAliases(
   apiUrl: string,
@@ -64,92 +35,8 @@ export async function loadSiteInfoAliases(
       `Could not fetch MediaWiki siteinfo from ${apiUrl}: HTTP ${response.status}`,
     );
   }
-  const payload = (await response.json()) as Record<string, unknown>;
-  if (payload.error)
-    throw new Error(`MediaWiki siteinfo returned an API error for ${apiUrl}`);
-  const query = payload.query as Record<string, unknown> | undefined;
-  if (!query)
-    throw new Error(
-      `MediaWiki siteinfo response from ${apiUrl} did not contain query data`,
-    );
-
-  const namespaces = query.namespaces as
-    | Record<string, SiteInfoNamespace>
-    | SiteInfoNamespace[]
-    | undefined;
-  const namespaceValues = Array.isArray(namespaces)
-    ? namespaces
-    : Object.values(namespaces ?? {});
-  const categoryNamespaces = namespaceValues
-    .filter((namespace) => namespace.id === 14)
-    .flatMap((namespace) => [
-      namespace["*"],
-      namespace.name,
-      namespace.canonical,
-    ])
-    .filter((value): value is string => Boolean(value));
-  const fileNamespaces = namespaceValues
-    .filter((namespace) => namespace.id === 6)
-    .flatMap((namespace) => [
-      namespace["*"],
-      namespace.name,
-      namespace.canonical,
-    ])
-    .filter((value): value is string => Boolean(value));
-  const namespaceAliases =
-    (query.namespacealiases as SiteInfoNamespace[] | undefined) ?? [];
-  for (const alias of namespaceAliases) {
-    if (alias.id === 14)
-      categoryNamespaces.push(
-        ...[alias["*"], alias.name].filter((v): v is string => Boolean(v)),
-      );
-    if (alias.id === 6)
-      fileNamespaces.push(
-        ...[alias["*"], alias.name].filter((v): v is string => Boolean(v)),
-      );
-  }
-
-  const doubleUnderscores =
-    (query.doubleunderscores as
-      | Array<string | { name?: string }>
-      | undefined) ?? [];
-  const doubleUnderscoreIds = new Set(
-    doubleUnderscores
-      .map((entry) => (typeof entry === "string" ? entry : entry.name) ?? "")
-      .map((name) => name.replace(/^__|__$/gu, "").toLowerCase()),
-  );
-  const behaviorIdSet = new Set<string>(behaviorSwitchIds);
-  const behaviorSwitches: Record<string, string[]> = {};
-  const imageOptionAliases: Record<string, string[]> = {};
-  let defaultsortMagicWords: string[] = [];
-  let redirectMagicWords: string[] = [];
-  for (const magicWord of (query.magicwords as
-    | SiteInfoMagicWord[]
-    | undefined) ?? []) {
-    const name = magicWord.name?.toLowerCase();
-    if (!name || !Array.isArray(magicWord.aliases)) continue;
-    if (name === "defaultsort") defaultsortMagicWords = magicWord.aliases;
-    if (name === "redirect") redirectMagicWords = magicWord.aliases;
-    if (imageOptionIds.has(name)) imageOptionAliases[name] = magicWord.aliases;
-    if (
-      behaviorIdSet.has(name) &&
-      (doubleUnderscoreIds.size === 0 || doubleUnderscoreIds.has(name))
-    ) {
-      behaviorSwitches[name] = magicWord.aliases;
-    }
-  }
-
-  if (categoryNamespaces.length === 0) {
-    throw new Error(
-      `MediaWiki siteinfo response from ${apiUrl} did not include namespace ID 14`,
-    );
-  }
-  return {
-    categoryNamespaces,
-    fileNamespaces,
-    defaultsortMagicWords,
-    redirectMagicWords,
-    imageOptionAliases,
-    behaviorSwitches,
-  };
+  return normalizeSiteInfoPayload(
+    await response.json(),
+    `MediaWiki siteinfo response from ${apiUrl}`,
+  ) as LocalizationAliases;
 }

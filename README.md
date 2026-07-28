@@ -26,7 +26,8 @@ wikitext-fmt page.wiki --safe --level safe
 wikitext-fmt page.wiki --debug
 wikitext-fmt "pages/**/*.wiki" --check
 wikitext-fmt "pages/**/*.wiki" --write
-wikitext-fmt page.wiki --profile production --safe
+wikitext-fmt page.wiki --profile production
+wikitext-fmt page.wiki --profile production --unsafe
 wikitext-fmt page.wiki --diff
 wikitext-fmt page.wiki --diagnostics-json --check
 wikitext-fmt page.wiki --safe --check --fail-on-warning
@@ -37,29 +38,33 @@ wikitext-fmt --print-localization-aliases --localization-source builtin
 
 ### Production usage profiles
 
-For CI, run the production profile with the full safety gate. A file
+The `production` and `aggressive` CLI profiles run with the full safety gate by
+default. A file
 that would change or any file that falls back with a warning makes the command
 fail:
 
 ```sh
-wikitext-fmt "pages/**/*.wiki" --profile production --safe --check --fail-on-warning
+wikitext-fmt "pages/**/*.wiki" --profile production --check --fail-on-warning
 ```
 
 After that check is clean, apply the same profile and retain a machine-readable
 batch report:
 
 ```sh
-wikitext-fmt "pages/**/*.wiki" --profile production --safe --write --report report.json
+wikitext-fmt "pages/**/*.wiki" --profile production --write --report report.json
 ```
 
 `production` enables the graduated normal-level rules, including unified
 template normalization and aggressive table splitting. `aggressive` extends it
 with the still-validating reference, external-link, and section-spacing rules.
-Both profiles use template/table structural-equivalence verification in safe
-mode. Individual options can still override either preset:
+Both profiles use template, table, and final full-document structural
+equivalence plus idempotency verification. `--unsafe` is an explicit
+development/benchmark override; it is never selected implicitly for a
+production/aggressive `--write`. Individual formatter options can still
+override either preset:
 
 ```sh
-wikitext-fmt "pages/**/*.wiki" --profile production --safe \
+wikitext-fmt "pages/**/*.wiki" --profile production \
   --no-format-external-links --check --fail-on-warning
 ```
 
@@ -84,6 +89,7 @@ Without `--write`, formatted wikitext is written to stdout. `--check` writes not
 --check
 --stdin
 --safe
+--unsafe
 --debug
 --diff
 --diagnostics-json
@@ -129,13 +135,26 @@ Explicit files and glob patterns can be mixed. Expanded paths are deduplicated a
 
 `--diff` writes unified diffs to stdout without modifying files and exits with status 1 when formatting would change the input. Diffs use three context lines by default and separate distant changes into multiple hunks. It works with file paths, globs, and `--stdin` (labelled `stdin`), and cannot be combined with `--write`.
 
-`--diagnostics-json` writes one JSON object per input to stderr. Each object includes `file`, `changed`, `warning`, table counters, footer counters (`behaviorSwitchesMoved`, `behaviorSwitchesFormatted`, `defaultsortMoved`, `categoriesMoved`, `interlanguageLinksMoved`, and `interlanguageLinksFormatted`), redirect counters (`redirectsFormatted`), file-link counters (`fileLinksFormatted`), external-link counters, reference counters, section-spacing counters, template-parameter counters, canonicalization counters (`localizedCategoryAliasesCanonicalized`, `localizedDefaultsortAliasesCanonicalized`, `localizedBehaviorSwitchesCanonicalized`, `localizedRedirectAliasesCanonicalized`, `localizedFileNamespaceAliasesCanonicalized`, and `localizedImageOptionsCanonicalized`), and complete table diagnostics. Formatted text or diffs remain on stdout. JSON diagnostics cannot be combined with the text-oriented `--debug` mode.
+`--diagnostics-json` writes one JSON object per input to stderr. Each object includes `file`, `changed`, the structured `failure` (including `failure.code`), compatibility `warning`, table counters, footer counters (`behaviorSwitchesMoved`, `behaviorSwitchesFormatted`, `defaultsortMoved`, `categoriesMoved`, `interlanguageLinksMoved`, and `interlanguageLinksFormatted`), redirect counters (`redirectsFormatted`), file-link counters (`fileLinksFormatted`), external-link counters, reference counters, section-spacing counters, template-parameter counters, canonicalization counters (`localizedCategoryAliasesCanonicalized`, `localizedDefaultsortAliasesCanonicalized`, `localizedBehaviorSwitchesCanonicalized`, `localizedRedirectAliasesCanonicalized`, `localizedFileNamespaceAliasesCanonicalized`, and `localizedImageOptionsCanonicalized`), and complete table diagnostics. Formatted text or diffs remain on stdout. JSON diagnostics cannot be combined with the text-oriented `--debug` mode.
 
-`--safe` enables parse-before, parse-after, structural-equivalence, and idempotency verification. Template fingerprints compare names, nesting, parameter order, anonymous/named state, keys, and opaque values. Table fingerprints compare nesting, attributes, captions, rows, cell counts/types/attributes, and opaque contents. If verification fails, the original input is returned and a precise warning is written to stderr. `--debug` writes the selected mode, rule level, and result status to stderr without contaminating formatted stdout.
+`--safe` explicitly enables parse-before, parse-after, structural-equivalence,
+and idempotency verification; it is already the CLI default for the
+`production` and `aggressive` profiles. `--unsafe` selects the single-pass path
+for development and benchmarking, and cannot be combined with `--safe`.
+Template fingerprints compare names, nesting, parameter order,
+anonymous/named state, keys, and opaque values. Table fingerprints compare
+nesting, attributes, captions, rows, cell counts/types/attributes, and opaque
+contents. The final document fingerprint additionally covers links, files,
+external links, refs, categories, DEFAULTSORT, redirects, headings, behavior
+switches, interlanguage links, extension/HTML nodes, and ordinary prose. If
+verification fails, the original input is returned with a stable
+`failure.code`; `warning` remains as compatibility text. `--debug` writes the
+selected mode, rule level, and result status to stderr without contaminating
+formatted stdout.
 
 `--fail-on-warning` changes warning handling only: if any input falls back with a formatter warning, the CLI exits non-zero. This is useful with `--safe --check`; warnings do not affect the exit code by default.
 
-`--report <path>` writes one JSON batch report after all inputs are processed. It contains each file's `changed`, `warning`, summary, and table diagnostics plus aggregate file, table, footer, redirect, and canonicalization counts. Reports never share stdout with formatted text or diffs and are compatible with normal output, `--check`, `--diff`, `--write`, and `--stdin`. The report schema is experimental before 1.0; changes should be additive where practical, but consumers should not treat it as stable yet.
+`--report <path>` writes one JSON batch report after all inputs are processed. It contains each file's `changed`, `failure`, `warning`, summary, and table diagnostics plus aggregate failure-code, file, table, footer, redirect, and canonicalization counts. Reports never share stdout with formatted text or diffs and are compatible with normal output, `--check`, `--diff`, `--write`, and `--stdin`. The report schema is experimental before 1.0; changes should be additive where practical, but consumers should not treat it as stable yet.
 
 `--print-localization-aliases` resolves the configured alias source and prints the final alias JSON to stdout without formatting input files. With `--localization-source siteinfo`, it requires `--site-api`.
 
@@ -316,8 +335,8 @@ const output = formatWikitext(source, {
 });
 
 const result = formatWikitextSafe(source);
-if (result.warning) {
-  console.warn(result.warning);
+if (result.failure) {
+  console.warn(result.failure.code, result.warning);
 }
 console.log(result.formatted);
 
@@ -335,7 +354,8 @@ For API use, `localizationSource: "siteinfo"` means “use aliases that were loa
 idempotency pass. `formatWikitextSafeDetailed()` performs the same input parse,
 output parse, and second-pass idempotency verification as
 `formatWikitextSafe()`, while also returning rule diagnostics. Every safe-mode
-failure returns the original source with a warning.
+failure returns the original source with a structured `FormatFailure` and a
+derived compatibility warning.
 
 ## Rule reliability
 
@@ -369,12 +389,29 @@ write profile-specific JSON reports:
 ```sh
 pnpm corpus
 node scripts/run-corpus.mjs path/to/pages --profile production \
-  --parser-config zhwiki --siteinfo siteinfo-aliases.json --output report.json
+  --parser-config zhwiki --siteinfo localization-aliases.json --output report.json
 ```
 
-The report includes pages processed/changed, warnings, parse, idempotency,
-equivalence and convergence failures, unique template/table node counts,
-separate coverage, and precise skip-reason frequencies. Coverage is
+When `<corpus>/manifest.json` exists, the runner automatically applies its
+parser config and normalized localization aliases. Explicit runner flags take
+precedence; `--no-manifest` uses isolated defaults. Namespace, tier, and source
+fields are retained as report metadata and do not change corpus selection or
+execution. A referenced missing or malformed metadata file is a hard error.
+
+The report includes pages processed/changed, structured failure codes, parse,
+idempotency, equivalence and convergence failures, unique template/table node
+counts, separate page/node coverage, content-model distribution, and precise
+skip-reason frequencies. Builder metadata records each page's MediaWiki
+`contentModel`. Only `wikitext` pages are selected for a newly built formatter
+corpus; the manifest records excluded non-wikitext pages. As a second guard,
+the runner never parses or formats an imported page explicitly marked with
+another content model, and reports it under `pagesSkippedNonWikitext` and
+`nonWikitextSkips`. Legacy metadata without a model is counted under
+`pagesAssumedWikitext`. Use `--progress` for per-page progress on long runs.
+Page structural coverage is
+`pagesStructurallyCovered / pagesWithStructuralNodes`; pages without template
+or table nodes are reported separately and excluded from that denominator.
+Node coverage is
 `(changed + alreadyCanonical) / eligible`. Use `--min-template-coverage` and
 `--min-table-coverage` to enforce a measured baseline. Ambiguous skips fail by
 default; a reviewed exact limitation can be admitted with
@@ -391,19 +428,26 @@ pnpm corpus:build -- --xml pages.xml --output corpus-medium --tier medium \
   --namespaces 0,10 --seed release-1
 pnpm corpus:build -- --api https://wiki.example/w/api.php \
   --titles titles.txt --output corpus-small --tier small
-node scripts/run-corpus.mjs corpus-medium --profile production \
-  --siteinfo corpus-medium/metadata/siteinfo.json --output report.json
+node scripts/run-corpus.mjs corpus-medium --profile production --output report.json
 ```
 
 The builder performs only local reads and MediaWiki API `GET` requests; it
 never edits pages. `small`, `medium`, and `full` tiers default to 100, 5,000,
 and all matching pages respectively. `--max-pages`, namespace filters,
 seeded deterministic sampling, repeatable title/content exclusion regexes,
-explicit parser configuration, and external siteinfo are supported. Sources,
-page metadata, hashes, and siteinfo are stored separately. Corpus reports
-include total bytes, namespace distribution when metadata is available,
-page/node coverage, skip frequencies, timing percentiles, and the largest and
-slowest pages.
+explicit parser configuration, and external siteinfo are supported. Raw
+siteinfo is stored as `metadata/siteinfo.raw.json`; the exact normalized
+`FormatOptions.localizationAliases` value is stored separately as
+`metadata/localization-aliases.json`. Sources, page metadata, hashes, parser
+config, content models, and localization metadata are referenced by the
+executable manifest. Scribunto, JSON, CSS, JavaScript, and other non-wikitext
+content models are counted but excluded before deterministic tier sampling.
+Corpus reports include bytes and lines before/after, changed lines/bytes,
+per-page and p50/p95/p99 diff ratios, largest diffs, line-ending-only and
+trailing-whitespace-only changes, structural changes, namespace distribution,
+coverage, skip frequencies, timing percentiles, and the largest and slowest
+pages. Optional churn gates are `--max-p95-diff-ratio` and
+`--max-single-page-diff-ratio`; neither has a default.
 
 ## List formatting
 
@@ -673,6 +717,7 @@ pnpm build
 pnpm check
 pnpm corpus
 pnpm benchmark
+pnpm benchmark:release
 pnpm smoke
 pnpm localization:update /path/to/mediawiki/languages/messages
 ```
@@ -684,6 +729,12 @@ parsed, formatting passes, total and equivalence time, fallback candidate work,
 and process memory. CI uses deterministic complexity assertions for fallback
 parse counts and bounded source ranges instead of machine-sensitive wall-clock
 ceilings.
+
+`pnpm benchmark:release` records a fresh timing/RSS report and compares it with
+the versioned reference in `benchmarks/structural-baseline.json`. The comparison
+is a release-review artifact; optional ratio thresholds can be supplied to the
+comparison script, while ordinary CI remains deterministic and
+machine-independent.
 
 `pnpm smoke` expects `pnpm build` to have run. It imports `dist/index.js`, runs `dist/cli.js --help`, checks that `loadSiteInfoAliases` is exported, verifies generated MediaWiki alias data is available from `dist`, and exercises `--print-localization-aliases --localization-source builtin` without network access.
 

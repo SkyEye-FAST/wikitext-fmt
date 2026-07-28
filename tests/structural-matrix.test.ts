@@ -1,13 +1,15 @@
 import { describe, expect, it } from "vitest";
-import {
-  formatWikitextSafeDetailed,
-  type FormatOptions,
-} from "../src/index.js";
+
 import {
   tableStructuralFingerprint,
   templateStructuralFingerprint,
   verifyStructuralEquivalence,
 } from "../src/equivalence.js";
+import {
+  type FormatOptions,
+  formatWikitextSafeDetailed,
+} from "../src/index.js";
+import { resolveOptions } from "../src/options.js";
 import { getParserConfig, parseWikitext } from "../src/parser.js";
 
 const config = getParserConfig("mediawiki");
@@ -15,7 +17,10 @@ const production: FormatOptions = { profile: "production" };
 
 function expectGraduatedCase(
   input: string,
-  fingerprint: (source: string, config: typeof config) => string,
+  fingerprint: (
+    source: string,
+    config: ReturnType<typeof getParserConfig>,
+  ) => string,
 ): void {
   expect(() => parseWikitext(input, config)).not.toThrow();
   const once = formatWikitextSafeDetailed(input, production);
@@ -26,9 +31,9 @@ function expectGraduatedCase(
   const twice = formatWikitextSafeDetailed(once.formatted, production);
   expect(twice.warning).toBeUndefined();
   expect(twice.formatted).toBe(once.formatted);
-  expect(
-    once.equivalenceDiagnostics.every((entry) => entry.equivalent),
-  ).toBe(true);
+  expect(once.equivalenceDiagnostics.every((entry) => entry.equivalent)).toBe(
+    true,
+  );
 }
 
 describe("generated graduated template matrix", () => {
@@ -67,6 +72,19 @@ describe("generated graduated template matrix", () => {
     );
   });
 
+  it("preserves inline table templates that emit table syntax", () => {
+    const input = [
+      "{|",
+      "| <pre>{{Loop|5|{{!}}{{!}}abc}}</pre>",
+      "| {{Loop|5|{{!}}{{!}}abc}}",
+      "|}",
+      "",
+    ].join("\n");
+    const result = formatWikitextSafeDetailed(input, production);
+    expect(result.failure).toBeUndefined();
+    expect(result.formatted).toContain("{{Loop|5|{{!}}{{!}}abc}}");
+  });
+
   it("formats multiple templates adjacent to ordinary prose", () => {
     expectGraduatedCase(
       "Lead {{First|a=1|b=2}} middle {{Second|x=3|y=4}} tail\n",
@@ -79,6 +97,16 @@ describe("generated graduated template matrix", () => {
       "{{Outer|a=1|nested={{Middle|b=2|nested={{Inner|c=3|d=4}}}}}}\n",
       templateStructuralFingerprint,
     );
+  });
+
+  it.each([
+    ["heading", "=== Nested heading ==="],
+    ["list", "* First item\n* Second item"],
+  ])("preserves line-sensitive %s parameter values", (_name, value) => {
+    const input = `{{Container|before=alpha|content=\n${value}\n|after=omega}}\n`;
+    const result = formatWikitextSafeDetailed(input, production);
+    expect(result.failure).toBeUndefined();
+    expect(result.formatted).toContain(`| content =\n${value}\n`);
   });
 });
 
@@ -138,6 +166,97 @@ describe("generated graduated table matrix", () => {
 });
 
 describe("structural equivalence rejection", () => {
+  const documentOptions = resolveOptions({
+    profile: "aggressive",
+    behaviorSwitchPlacement: "footer",
+    interlanguagePlacement: "footer",
+  });
+
+  it.each([
+    ["links", "[[Target|Label]]", "[[Changed|Label]]"],
+    [
+      "files",
+      "[[File:A.png|thumb|Caption]]",
+      "[[File:A.png|thumb|Changed caption]]",
+    ],
+    [
+      "references",
+      '<ref name="a">content</ref>',
+      '<ref name="a">changed</ref>',
+    ],
+    ["categories", "[[Category:A|one]]", "[[Category:A|two]]"],
+    ["redirects", "#REDIRECT [[Target]]", "#REDIRECT [[Changed]]"],
+    ["headings", "== Heading ==", "=== Heading ==="],
+    ["behaviorSwitches", "__NOTOC__", "__TOC__"],
+  ])("detects changed document %s", (category, before, after) => {
+    expect(
+      verifyStructuralEquivalence(
+        before,
+        after,
+        config,
+        "document",
+        documentOptions,
+      ),
+    ).toMatchObject({
+      equivalent: false,
+      structure: "document",
+      reason: `${category} semantic fingerprint changed`,
+    });
+  });
+
+  it.each([
+    ["heading spacing", "==Title==\n"],
+    ["blank lines", "Text\n\n\n\nMore\n"],
+    ["list spacing", "*item   \n"],
+    ["file syntax", "[[ファイル:A.png|サムネイル|右]]   \n"],
+    ["reference syntax", "<references/>\n"],
+    ["external-link syntax", "[https://example.com   Label]\n"],
+    ["redirect syntax", "#redirect[[Target]]\n"],
+    ["HTML void syntax", "<br />\n"],
+    ["footer syntax", "[[Category:A]]\nBody\n__NOTOC__\n"],
+  ])("accepts supported syntax-only normalization: %s", (_name, before) => {
+    const result = formatWikitextSafeDetailed(before, {
+      ...documentOptions,
+      localizedSyntaxStyle: "canonical-english",
+    });
+    expect(result.failure).toBeUndefined();
+    expect(result.equivalenceDiagnostics.at(-1)).toEqual({
+      equivalent: true,
+      structure: "document",
+    });
+  });
+
+  it("accepts template layout changes inside an external-link label", () => {
+    const input =
+      "[https://example.test label {{LongTemplateName|first=alpha|second=beta}}]\n";
+    const result = formatWikitextSafeDetailed(input, production);
+    expect(result.failure).toBeUndefined();
+    expect(result.formatted).not.toBe(input);
+    expect(result.equivalenceDiagnostics.at(-1)).toEqual({
+      equivalent: true,
+      structure: "document",
+    });
+  });
+
+  it.each([
+    [
+      "heading",
+      "== {{HeadingLabel|first=alpha|second=beta}} ==\n",
+    ],
+    [
+      "file caption",
+      "[[File:Example.png|thumb|{{Caption|first=alpha|second=beta}}]]\n",
+    ],
+    [
+      "HTML content",
+      "<span>{{Label|first=alpha|second=beta}}</span>\n",
+    ],
+  ])("accepts template layout changes inside %s semantics", (_name, input) => {
+    const result = formatWikitextSafeDetailed(input, production);
+    expect(result.failure).toBeUndefined();
+    expect(result.formatted).not.toBe(input);
+  });
+
   it("detects template parameter reordering", () => {
     expect(
       verifyStructuralEquivalence(
@@ -171,11 +290,7 @@ describe("structural equivalence rejection", () => {
     ["comment", "{|\n| A<!--keep-->\n|}", "{|\n| A\n|}"],
     ["table attributes", '{| class="x"\n| A\n|}', "{|\n| A\n|}"],
     ["row attributes", "{|\n|- class=x\n| A\n|}", "{|\n|-\n| A\n|}"],
-    [
-      "cell attributes",
-      "{|\n| class=x | A\n|}",
-      "{|\n| class=y | A\n|}",
-    ],
+    ["cell attributes", "{|\n| class=x | A\n|}", "{|\n| class=y | A\n|}"],
     ["caption", "{|\n|+ First\n| A\n|}", "{|\n|+ Second\n| A\n|}"],
     [
       "anonymous template whitespace in a cell",

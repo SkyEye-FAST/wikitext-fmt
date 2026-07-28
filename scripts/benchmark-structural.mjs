@@ -1,7 +1,8 @@
 import { writeFile } from "node:fs/promises";
 import { performance } from "node:perf_hooks";
-import { formatWikitextSafeDetailed } from "../dist/index.js";
+
 import { verifyStructuralEquivalence } from "../dist/equivalence.js";
+import { formatWikitextSafeDetailed } from "../dist/index.js";
 import { getParserConfig } from "../dist/parser.js";
 import {
   createParserContext,
@@ -13,7 +14,9 @@ const config = getParserConfig("mediawiki");
 
 function pageOfSize(targetBytes) {
   const unit = "Representative prose with [[Page|links]] and ordinary text.\n";
-  return unit.repeat(Math.ceil(targetBytes / unit.length)).slice(0, targetBytes);
+  return unit
+    .repeat(Math.ceil(targetBytes / unit.length))
+    .slice(0, targetBytes);
 }
 
 function templates(count) {
@@ -27,7 +30,8 @@ function templates(count) {
 function tables(count) {
   return Array.from(
     { length: count },
-    (_value, index) => `{| class="wikitable"\n! A !! B\n|-\n| ${index} || value\n|}\n`,
+    (_value, index) =>
+      `{| class="wikitable"\n! A !! B\n|-\n| ${index} || value\n|}\n`,
   ).join("");
 }
 
@@ -158,10 +162,13 @@ function benchmark(entry) {
     parserContextsCreated: measured.metrics.contextsCreated,
     parserContextSourceBytes: measured.metrics.sourceBytesParsed,
     formattingPasses: {
-      templates:
-        result.templateParameterDiagnostics.formattingPassesUsed,
+      templates: result.templateParameterDiagnostics.formattingPassesUsed,
       tables: result.tableFormatDiagnostics.formattingPassesUsed,
     },
+    candidateCount: candidateStats.rootCandidates + candidateStats.fallbackParses,
+    semanticNodeCount:
+      result.templateParameterDiagnostics.templateSemanticIds.length +
+      result.tableFormatDiagnostics.tableSemanticIds.length,
     totalFormattingMilliseconds,
     structuralEquivalenceMilliseconds,
     memory: {
@@ -170,6 +177,7 @@ function benchmark(entry) {
     },
     candidateCollection: candidateStats,
     warning: result.warning ?? null,
+    failureCode: result.failure?.code ?? null,
     equivalent: templateEquivalence.equivalent && tableEquivalence.equivalent,
   };
 }

@@ -1,7 +1,9 @@
 import { readdir, readFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+
 import { describe, expect, it } from "vitest";
+
 import { formatWikitextSafe } from "../src/index.js";
 import { getParserConfig, parseWikitext } from "../src/parser.js";
 

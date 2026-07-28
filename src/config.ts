@@ -1,7 +1,8 @@
 import { readFile, stat } from "node:fs/promises";
 import { dirname, isAbsolute, parse, resolve } from "node:path";
-import type { FormatOptions, LocalizationAliases } from "./options.js";
+
 import { behaviorSwitchIds } from "./localization/aliases.js";
+import type { FormatOptions, LocalizationAliases } from "./options.js";
 import {
   booleanOptionNames,
   enumOptions,

@@ -1,9 +1,9 @@
-import type { FormatOptions } from "../options.js";
 import {
   overrideLocalizationAliases,
   resolveLocalizationAliases,
 } from "../localization/aliases.js";
 import { loadSiteInfoAliases } from "../localization/siteinfo.js";
+import type { FormatOptions } from "../options.js";
 import type { CliOptions } from "./args.js";
 
 export async function prepareLocalizationOptions(

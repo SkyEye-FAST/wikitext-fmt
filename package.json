@@ -34,6 +34,7 @@
     "smoke": "node dist/cli.js --help > /dev/null && node dist/cli.js --print-localization-aliases --localization-source builtin > /dev/null && node scripts/release-smoke.mjs",
     "release:smoke": "pnpm build && pnpm smoke",
     "benchmark": "pnpm build && node scripts/benchmark-structural.mjs",
+    "benchmark:release": "pnpm build && node scripts/benchmark-structural.mjs --output benchmark-current-report.json > /dev/null && node scripts/compare-benchmark-baseline.mjs --report benchmark-current-report.json --baseline benchmarks/structural-baseline.json --output benchmark-comparison-report.json",
     "corpus:build": "node scripts/build-target-corpus.mjs",
     "localization:update": "node --experimental-strip-types scripts/update-mediawiki-aliases.ts",
     "corpus": "pnpm corpus:production && pnpm corpus:aggressive",
@@ -43,7 +44,7 @@
   "engines": {
     "node": "^22.13.0 || >=24.11.0"
   },
-  "packageManager": "pnpm@11.5.2",
+  "packageManager": "pnpm@11.17.0+sha512.cca3cea332ad254bb84145f966d19f4879615210346fc92c79a047f23a0d7b3cca3c3792f0076ba1f1831d277efbcf0a9119b31a9a60eca7fb3d6231f331ef72",
   "dependencies": {
     "fast-glob": "^3.3.3",
     "wikiparser-node": "^1.44.0"

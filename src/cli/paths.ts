@@ -1,5 +1,6 @@
 import { stat } from "node:fs/promises";
 import { isAbsolute, relative, resolve } from "node:path";
+
 import fg from "fast-glob";
 
 export async function expandInputPaths(

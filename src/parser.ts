@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
-import { dirname, isAbsolute, resolve } from "node:path";
 import { createRequire } from "node:module";
+import { dirname, isAbsolute, resolve } from "node:path";
+
 import Parser, { type Config, type ConfigData } from "wikiparser-node";
 import bundledDefaultConfig from "wikiparser-node/config/default.json" with { type: "json" };
 

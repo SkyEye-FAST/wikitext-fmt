@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { createUnifiedDiff } from "../src/cli/diff.js";
+
 import {
   createDiagnosticsRecord,
   serializeDiagnostics,
 } from "../src/cli/diagnostics.js";
+import { createUnifiedDiff } from "../src/cli/diff.js";
 import { createBatchReport } from "../src/cli/report.js";
 import { formatWikitextDetailedResult } from "../src/formatter.js";
 

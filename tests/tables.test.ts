@@ -1,16 +1,17 @@
 import { describe, expect, it } from "vitest";
-import {
-  formatWikitextDetailedResult,
-  formatWikitextSafeDetailed,
-  type FormatOptions,
-} from "../src/index.js";
+
 import {
   tableStructuralFingerprint,
   verifyStructuralEquivalence,
 } from "../src/equivalence.js";
+import {
+  type FormatOptions,
+  formatWikitextDetailedResult,
+  formatWikitextSafeDetailed,
+} from "../src/index.js";
+import { resolveOptions } from "../src/options.js";
 import { getParserConfig, parseWikitext } from "../src/parser.js";
 import { createParserContext } from "../src/parserContext.js";
-import { resolveOptions } from "../src/options.js";
 import { formatTablesWithDiagnostics } from "../src/rules/tables.js";
 
 const config = getParserConfig("mediawiki");
@@ -59,10 +60,7 @@ describe("production parser table formatter", () => {
       "quoted cell attributes containing separators",
       '{|\n| data-note="A || B" | C || D\n|}',
     ],
-    [
-      "single brackets inside wikilink labels",
-      "{|\n| [[［X］|[X]]] || C\n|}",
-    ],
+    ["single brackets inside wikilink labels", "{|\n| [[［X］|[X]]] || C\n|}"],
     ["continuation lines", "{|\n| first\ncontinued text\n|-\n| A || B\n|}"],
     ["empty cells", "{|\n| A || || C\n|}"],
     ["HTML", "{|\n| <span class=x>A</span> || B\n|}"],
@@ -92,7 +90,9 @@ describe("production parser table formatter", () => {
       tablesChanged: 2,
       tablesSkippedAmbiguous: 0,
     });
-    expect(new Set(result.tableFormatDiagnostics.tableSemanticIds).size).toBe(2);
+    expect(new Set(result.tableFormatDiagnostics.tableSemanticIds).size).toBe(
+      2,
+    );
     expect(
       new Set(result.tableFormatDiagnostics.changedTableSemanticIds),
     ).toEqual(new Set(result.tableFormatDiagnostics.tableSemanticIds));
@@ -105,7 +105,9 @@ describe("production parser table formatter", () => {
           ),
       ),
     ).toBe(true);
-    expect(result.tableFormatDiagnostics.formattingPassesUsed).toBeGreaterThan(1);
+    expect(result.tableFormatDiagnostics.formattingPassesUsed).toBeGreaterThan(
+      1,
+    );
   });
 
   it("formats multiple nested table levels", () => {
@@ -134,9 +136,7 @@ describe("production parser table formatter", () => {
   });
 
   it("uses the documented fallback when parser and link-aware separators disagree", () => {
-    const result = expectProductionTable(
-      "{|\n| [[Page|A || B]] || C\n|}\n",
-    );
+    const result = expectProductionTable("{|\n| [[Page|A || B]] || C\n|}\n");
     expect(result.tableDiagnostics).toContainEqual(
       expect.objectContaining({
         changed: true,

@@ -1,8 +1,6 @@
 import { describe, expect, it } from "vitest";
-import {
-  formatWikitext,
-  formatWikitextSafeDetailed,
-} from "../src/index.js";
+
+import { formatWikitext, formatWikitextSafeDetailed } from "../src/index.js";
 
 describe("rule interaction hardening", () => {
   it("combines template parameter formatting with section spacing", () => {
@@ -167,12 +165,12 @@ describe("rule interaction hardening", () => {
 
   it("preserves protected and ignored content with every experimental opt-in", () => {
     const protectedFragments = [
-      '<!-- ==Comment== {{T| a = b }} [[Category:Comment]] -->',
-      '<nowiki>==Nowiki== {{T| a = b }} [[Category:Nowiki]]</nowiki>',
-      '<pre>==Pre==\n{{T| a = b }}</pre>',
+      "<!-- ==Comment== {{T| a = b }} [[Category:Comment]] -->",
+      "<nowiki>==Nowiki== {{T| a = b }} [[Category:Nowiki]]</nowiki>",
+      "<pre>==Pre==\n{{T| a = b }}</pre>",
       '<syntaxhighlight lang="wikitext">==Code==\n{{T| a = b }}</syntaxhighlight>',
       '<ref name="content">==Reference== {{T| a = b }} [[Category:Ref]]</ref>',
-      '<!-- wikitext-fmt-ignore-start -->\n==Ignored==\n{{T| a = b }}\n[[Category:Ignored]]\n<!-- wikitext-fmt-ignore-end -->',
+      "<!-- wikitext-fmt-ignore-start -->\n==Ignored==\n{{T| a = b }}\n[[Category:Ignored]]\n<!-- wikitext-fmt-ignore-end -->",
       '{| class="wikitable"\n| <ref name="table"/> || {{T| a = b }}\n|}',
     ];
     const input = `==Outer==\n${protectedFragments.join("\n")}\n[https://example.test  Label]\n<references/>\n[[Category:Outer]]\n`;

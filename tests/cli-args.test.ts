@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+
 import { parseArgs } from "../src/cli/args.js";
 
 describe("CLI argument parsing", () => {
@@ -29,6 +30,13 @@ describe("CLI argument parsing", () => {
     expect(() => parseArgs(["--write", "--check", "page.wiki"])).toThrow(
       /--write and --check/u,
     );
+    expect(() =>
+      parseArgs(["--safe", "--unsafe", "page.wiki"]),
+    ).toThrow(/--safe and --unsafe/u);
+    expect(parseArgs(["--unsafe", "page.wiki"])).toMatchObject({
+      safe: false,
+      unsafe: true,
+    });
   });
 
   it("parses production formatter profiles", () => {

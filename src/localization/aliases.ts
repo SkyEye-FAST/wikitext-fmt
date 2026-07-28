@@ -1,5 +1,5 @@
-import builtinData from "./generated/mediawiki-aliases.json" with { type: "json" };
 import type { LocalizationAliases, LocalizationSource } from "../options.js";
+import builtinData from "./generated/mediawiki-aliases.json" with { type: "json" };
 
 export const behaviorSwitchIds = [
   "notoc",

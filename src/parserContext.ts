@@ -1,4 +1,5 @@
 import type { Config } from "wikiparser-node";
+
 import { parseWikitext } from "./parser.js";
 
 export interface SourceRange {

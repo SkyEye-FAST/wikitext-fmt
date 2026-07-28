@@ -2,6 +2,27 @@
 
 ## Unreleased
 
+- Normalize MediaWiki siteinfo through one shared conversion path and persist
+  raw siteinfo separately from executable localization aliases in target
+  corpora.
+- Make corpus manifests executable configuration with explicit CLI precedence
+  and `--no-manifest` isolation.
+- Add structured formatter failure codes and final full-document semantic
+  equivalence to safe mode while retaining compatibility warning text.
+- Correct page structural-coverage denominators and add page/node coverage,
+  byte/line churn, diff percentiles, largest diffs, and optional diff gates.
+- Make the production and aggressive CLI profiles safe by default; add an
+  explicit `--unsafe` development override.
+- Add deterministic parser-work assertions and a release-only versioned
+  timing/RSS benchmark comparison.
+- Record MediaWiki page content models in corpus metadata, exclude
+  non-wikitext models before tier sampling, and make the runner audit and skip
+  explicitly non-wikitext pages instead of parsing or formatting them.
+- Protect parser-confirmed extension bodies and comments from structural
+  formatting, and preserve line-sensitive template values and table-emitting
+  `{{!}}` invocations.
+- Make high-cardinality structural identities, descendant checks, replacement
+  application, and full-document prose masking linear or near-linear.
 - Preserve anonymous template and parser-function argument values byte-for-byte,
   including leading/trailing and whitespace-only values.
 - Compare anonymous arguments and table cell content exactly in structural

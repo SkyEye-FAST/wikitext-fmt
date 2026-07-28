@@ -1,13 +1,8 @@
 import { spawn } from "node:child_process";
-import {
-  mkdtemp,
-  mkdir,
-  readFile,
-  rm,
-  writeFile,
-} from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
+
 import { afterEach, describe, expect, it } from "vitest";
 
 const cli = resolve("dist/cli.js");
@@ -61,6 +56,42 @@ afterEach(async () => {
 });
 
 describe("CLI production behavior", () => {
+  it("uses safe mode by default for production writes and allows an explicit unsafe override", async () => {
+    const root = await temporaryDirectory();
+    const file = join(root, "page.wiki");
+    await writeFile(file, "==Title==\n");
+
+    const production = await runCli(
+      ["--profile", "production", "--write", "--debug", file],
+      { cwd: root },
+    );
+    expect(production.code).toBe(0);
+    expect(production.stderr).toContain("mode=safe");
+
+    const aggressive = await runCli(
+      ["--profile", "aggressive", "--check", "--debug", file],
+      { cwd: root },
+    );
+    expect(aggressive.code).toBe(0);
+    expect(aggressive.stderr).toContain("mode=safe");
+
+    const unsafe = await runCli(
+      ["--profile", "production", "--unsafe", "--check", "--debug", file],
+      { cwd: root },
+    );
+    expect(unsafe.code).toBe(0);
+    expect(unsafe.stderr).toContain("mode=unsafe");
+
+    const contradictory = await runCli(
+      ["--safe", "--unsafe", "--check", file],
+      { cwd: root },
+    );
+    expect(contradictory.code).toBe(2);
+    expect(contradictory.stderr).toContain(
+      "--safe and --unsafe cannot be used together",
+    );
+  });
+
   it("uses intentional exit codes for --check and --write", async () => {
     const root = await temporaryDirectory();
     const file = join(root, "page.wiki");
@@ -104,10 +135,9 @@ describe("CLI production behavior", () => {
       stderr: "",
     });
 
-    const warning = await runCli(
-      ["--safe", "--stdin", "--fail-on-warning"],
-      { stdin: "==Title==\r\nText\r\n" },
-    );
+    const warning = await runCli(["--safe", "--stdin", "--fail-on-warning"], {
+      stdin: "==Title==\r\nText\r\n",
+    });
     expect(warning.code).toBe(1);
     expect(warning.stdout).toBe("==Title==\r\nText\r\n");
     expect(warning.stderr).toMatch(/^warning: .*round-trip/imu);
@@ -119,10 +149,9 @@ describe("CLI production behavior", () => {
     await writeFile(join(root, "pages", "b.wiki"), "==Clean B==\n");
     await writeFile(join(root, "pages", "a.wiki"), "==Clean A==\n");
 
-    const matched = await runCli(
-      ["--safe", "--check", "pages/*.wiki"],
-      { cwd: root },
-    );
+    const matched = await runCli(["--safe", "--check", "pages/*.wiki"], {
+      cwd: root,
+    });
     expect(matched).toEqual({ code: 1, stdout: "", stderr: "" });
 
     const unmatched = await runCli(["--check", "missing/*.wiki"], {
@@ -166,10 +195,9 @@ describe("CLI production behavior", () => {
     await writeFile(join(root, "a.wiki"), "==A==\n");
     await writeFile(join(root, "b.wiki"), "==B==\n");
 
-    const result = await runCli(
-      ["--safe", "--diagnostics-json", "*.wiki"],
-      { cwd: root },
-    );
+    const result = await runCli(["--safe", "--diagnostics-json", "*.wiki"], {
+      cwd: root,
+    });
     expect(result.code).toBe(0);
     expect(result.stdout).toBe("== A ==\n== B ==\n");
     const records = result.stderr
@@ -198,10 +226,10 @@ describe("CLI production behavior", () => {
   it("writes a valid batch report without corrupting normal output", async () => {
     const root = await temporaryDirectory();
     const reportPath = join(root, "report.json");
-    const result = await runCli(
-      ["--safe", "--stdin", "--report", reportPath],
-      { cwd: root, stdin: "==Title==\n" },
-    );
+    const result = await runCli(["--safe", "--stdin", "--report", reportPath], {
+      cwd: root,
+      stdin: "==Title==\n",
+    });
     expect(result).toEqual({
       code: 0,
       stdout: "== Title ==\n",

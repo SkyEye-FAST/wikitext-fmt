@@ -1,4 +1,4 @@
-import type { FormatDetailedResult } from "../formatter.js";
+import type { FormatDetailedResult, FormatFailure } from "../formatter.js";
 
 export interface DiagnosticsSummary {
   tables: number;
@@ -52,6 +52,7 @@ export interface DiagnosticsSummary {
 export interface FileDiagnostics {
   file: string;
   changed: boolean;
+  failure: FormatFailure | null;
   warning: string | null;
   summary: DiagnosticsSummary;
   tableDiagnostics: FormatDetailedResult["tableDiagnostics"];
@@ -161,20 +162,16 @@ export function createDiagnosticsSummary(
       result.templateParameterDiagnostics.templateParameterLinesFormatted,
     templateParameterLinesSkippedUnsafe:
       result.templateParameterDiagnostics.templateParameterLinesSkippedUnsafe,
-    templatesInspected:
-      result.templateParameterDiagnostics.templatesInspected,
-    templatesEligible:
-      result.templateParameterDiagnostics.templatesEligible,
-    templatesChanged:
-      result.templateParameterDiagnostics.templatesChanged,
+    templatesInspected: result.templateParameterDiagnostics.templatesInspected,
+    templatesEligible: result.templateParameterDiagnostics.templatesEligible,
+    templatesChanged: result.templateParameterDiagnostics.templatesChanged,
     templatesAlreadyCanonical:
       result.templateParameterDiagnostics.templatesAlreadyCanonical,
     templatesSkippedAmbiguous:
       result.templateParameterDiagnostics.templatesSkippedAmbiguous,
     uniqueTemplatesFormatted:
       result.templateParameterDiagnostics.uniqueTemplatesFormatted,
-    templatesFormatted:
-      result.templateParameterDiagnostics.templatesFormatted,
+    templatesFormatted: result.templateParameterDiagnostics.templatesFormatted,
     templatesExpandedToMultiline:
       result.templateParameterDiagnostics.templatesExpandedToMultiline,
     existingMultilineTemplatesNormalized:
@@ -194,6 +191,7 @@ export function createDiagnosticsRecord(
   return {
     file,
     changed: result.formatted !== source,
+    failure: result.failure ?? null,
     warning: result.warning ?? null,
     summary,
     tableDiagnostics: result.tableDiagnostics,

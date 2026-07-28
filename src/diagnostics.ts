@@ -1,16 +1,20 @@
-import type { FormatDetailedResult, FormatResult } from "./formatter.js";
+import type { StructuralEquivalenceResult } from "./equivalence.js";
+import type {
+  FormatDetailedResult,
+  FormatFailure,
+  FormatResult,
+} from "./formatter.js";
 import type { FooterDiagnostics } from "./rules/categories.js";
 import type { ExternalLinkDiagnostics } from "./rules/externalLinks.js";
 import type { FileLinkDiagnostics } from "./rules/fileLinks.js";
-import type { ReferenceDiagnostics } from "./rules/references.js";
 import type { RedirectDiagnostics } from "./rules/redirects.js";
+import type { ReferenceDiagnostics } from "./rules/references.js";
 import type { SectionSpacingDiagnostics } from "./rules/sectionSpacing.js";
 import type {
   TableDiagnostic,
   TableFormatDiagnostics,
 } from "./rules/tables.js";
 import type { TemplateParameterDiagnostics } from "./rules/templateParameters.js";
-import type { StructuralEquivalenceResult } from "./equivalence.js";
 
 export interface DetailedDiagnostics {
   tableDiagnostics: TableDiagnostic[];
@@ -115,12 +119,13 @@ export function stripDiagnostics(result: FormatDetailedResult): FormatResult {
 
 export function fallbackDetailedResult(
   source: string,
-  warning: string,
+  failure: FormatFailure,
   diagnostics: DetailedDiagnostics = emptyDetailedDiagnostics(),
 ): FormatDetailedResult {
   return {
     formatted: source,
-    warning,
+    failure,
+    warning: failure.message,
     ...diagnostics,
   };
 }

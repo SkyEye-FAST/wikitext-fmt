@@ -1,9 +1,11 @@
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
+
 import { describe, expect, it } from "vitest";
-import { formatWikitext, formatWikitextDetailedResult } from "../src/index.js";
-import type { FormatOptions } from "../src/index.js";
+
 import { createDiagnosticsSummary } from "../src/cli/diagnostics.js";
+import type { FormatOptions } from "../src/index.js";
+import { formatWikitext, formatWikitextDetailedResult } from "../src/index.js";
 
 interface IntegrationCase {
   name: string;

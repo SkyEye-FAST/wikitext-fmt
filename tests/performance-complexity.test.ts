@@ -1,6 +1,16 @@
 import { describe, expect, it } from "vitest";
+
 import { getParserConfig } from "../src/parser.js";
-import { createParserContext } from "../src/parserContext.js";
+import {
+  createParserContext,
+  measureParserContexts,
+} from "../src/parserContext.js";
+import {
+  type SemanticIdentityStats,
+  outermostSourceRanges,
+  semanticRangeIdentities,
+} from "../src/semanticIdentity.js";
+import { formatWikitextSafeDetailed } from "../src/formatter.js";
 import {
   collectParserTableCandidates,
   type ParserTableCandidateStats,
@@ -29,6 +39,103 @@ function collectWithStats(source: string): {
 }
 
 describe("parser table candidate complexity", () => {
+  it("assigns high-cardinality semantic identities with linear containment work", () => {
+    const ranges = Array.from({ length: 10_000 }, (_value, index) => ({
+      start: index * 4,
+      end: index * 4 + 3,
+    }));
+    const stats: SemanticIdentityStats = {
+      rangeCount: 0,
+      containmentChecks: 0,
+    };
+    const identities = semanticRangeIdentities(ranges, "template", stats);
+    expect(identities).toHaveLength(ranges.length);
+    expect(new Set(identities).size).toBe(ranges.length);
+    expect(stats).toEqual({
+      rangeCount: ranges.length,
+      containmentChecks: ranges.length - 1,
+    });
+  });
+
+  it("preserves source-order identities for unsorted nested ranges", () => {
+    expect(
+      semanticRangeIdentities(
+        [
+          { start: 20, end: 30 },
+          { start: 0, end: 40 },
+          { start: 5, end: 10 },
+          { start: 50, end: 60 },
+        ],
+        "template",
+      ),
+    ).toEqual(["template/0/1", "template/0", "template/0/0", "template/1"]);
+  });
+
+  it("filters high-cardinality nested ranges with linear containment work", () => {
+    const ranges = Array.from({ length: 10_000 }, (_value, index) => ({
+      start: index,
+      end: 20_000 - index,
+    }));
+    const stats: SemanticIdentityStats = {
+      rangeCount: 0,
+      containmentChecks: 0,
+    };
+    expect(outermostSourceRanges(ranges, stats)).toEqual([ranges[0]]);
+    expect(stats).toEqual({
+      rangeCount: ranges.length,
+      containmentChecks: ranges.length - 1,
+    });
+  });
+
+  it("bounds parser contexts, source bytes, passes, candidates, and semantic nodes", () => {
+    const templateSource = Array.from(
+      { length: 10 },
+      (_value, index) => `{{T${index}|a=${index}|b={{I|x=${index}}}}}`,
+    ).join("\n");
+    const templates = measureParserContexts(() =>
+      formatWikitextSafeDetailed(templateSource, { profile: "production" }),
+    );
+    expect(templates.result.failure).toBeUndefined();
+    expect(templates.metrics.contextsCreated).toBeLessThanOrEqual(25);
+    expect(templates.metrics.sourceBytesParsed).toBeLessThanOrEqual(
+      templateSource.length * 30,
+    );
+    expect(
+      templates.result.templateParameterDiagnostics.formattingPassesUsed,
+    ).toBeLessThanOrEqual(2);
+    expect(
+      templates.result.templateParameterDiagnostics.templateSemanticIds,
+    ).toHaveLength(20);
+
+    const tableSource = Array.from(
+      { length: 10 },
+      (_value, index) => `{|\n| ${index} || x\n|}`,
+    ).join("\n");
+    const tables = measureParserContexts(() =>
+      formatWikitextSafeDetailed(tableSource, { profile: "production" }),
+    );
+    const candidates = collectWithStats(tableSource);
+    expect(tables.result.failure).toBeUndefined();
+    expect(tables.metrics.contextsCreated).toBeLessThanOrEqual(25);
+    expect(tables.metrics.sourceBytesParsed).toBeLessThanOrEqual(
+      tableSource.length * 30,
+    );
+    expect(tables.result.tableFormatDiagnostics.formattingPassesUsed).toBeLessThanOrEqual(
+      2,
+    );
+    expect(tables.result.tableFormatDiagnostics.tableSemanticIds).toHaveLength(
+      10,
+    );
+    expect(candidates.candidates).toHaveLength(10);
+    expect(candidates.stats).toMatchObject({
+      openerCount: 10,
+      rootCandidates: 10,
+      fallbackParses: 0,
+      fallbackSourceBytes: 0,
+      coveredOpeners: 10,
+    });
+  });
+
   it("does not fallback-reparse parser-visible top-level tables", () => {
     const source = Array.from(
       { length: 100 },

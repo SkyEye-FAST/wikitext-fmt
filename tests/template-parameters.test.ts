@@ -1,13 +1,14 @@
 import { describe, expect, it } from "vitest";
+
+import {
+  tableStructuralFingerprint,
+  templateStructuralFingerprint,
+} from "../src/equivalence.js";
 import {
   formatWikitext,
   formatWikitextDetailedResult,
   formatWikitextSafeDetailed,
 } from "../src/index.js";
-import {
-  tableStructuralFingerprint,
-  templateStructuralFingerprint,
-} from "../src/equivalence.js";
 import { getParserConfig, parseWikitext } from "../src/parser.js";
 import { formatTemplatesWithDiagnostics } from "../src/rules/templates.js";
 
@@ -83,9 +84,7 @@ describe("unified parser-assisted template formatting", () => {
   });
 
   it("keeps a clearly compact single parameter inline", () => {
-    expect(formatWikitext("{{Template|a=b}}\n")).toBe(
-      "{{Template| a = b}}\n",
-    );
+    expect(formatWikitext("{{Template|a=b}}\n")).toBe("{{Template| a = b}}\n");
   });
 
   it("preserves meaningful trailing whitespace in anonymous values", () => {
@@ -134,9 +133,12 @@ describe("unified parser-assisted template formatting", () => {
       "{{T|one<!-- between -->|two|three}}\n",
       "{{T\n|one<!-- between -->|two|three}}\n",
     ],
-  ])("formats %s parameters with an equivalent candidate", (_name, input, expected) => {
-    expectAnonymousLayout(input, expected);
-  });
+  ])(
+    "formats %s parameters with an equivalent candidate",
+    (_name, input, expected) => {
+      expectAnonymousLayout(input, expected);
+    },
+  );
 
   it("normalizes only named arguments in a mixed template", () => {
     const input = "{{T| first | named = value |2= numeric |last }}\n";
@@ -156,9 +158,7 @@ describe("unified parser-assisted template formatting", () => {
     const input = "{{T| {{Nested|a=1|b=2}} }}\n";
     const result = formatWikitextSafeDetailed(input);
     expect(result.warning).toBeUndefined();
-    expect(result.formatted).toBe(
-      "{{T\n| {{Nested\n| a = 1\n| b = 2\n}} }}\n",
-    );
+    expect(result.formatted).toBe("{{T\n| {{Nested\n| a = 1\n| b = 2\n}} }}\n");
     expect(result.formatted).toContain("| {{Nested");
     expect(result.formatted).toContain("}} }}");
   });
@@ -230,7 +230,7 @@ describe("unified parser-assisted template formatting", () => {
 
   it("preserves protected blocks and explicit ignore ranges", () => {
     const input =
-      '<nowiki>{{Template\n| a=b\n}}</nowiki>\n<!-- wikitext-fmt-ignore-start -->\n{{Template\n| c=d\n}}\n<!-- wikitext-fmt-ignore-end -->\n';
+      "<nowiki>{{Template\n| a=b\n}}</nowiki>\n<!-- wikitext-fmt-ignore-start -->\n{{Template\n| c=d\n}}\n<!-- wikitext-fmt-ignore-end -->\n";
     expect(formatWikitext(input)).toBe(input);
   });
 
@@ -288,7 +288,9 @@ describe("unified parser-assisted template formatting", () => {
     expect(result.formatted).toContain("{{Nested\n| x = 1\n| y = 2\n}}");
     expect(result.formatted).toContain("{{#if:x|y|z}}");
     expect(result.templateParameterDiagnostics.templatesFormatted).toBe(2);
-    expect(result.templateParameterDiagnostics.formattingPassesUsed).toBeGreaterThan(1);
+    expect(
+      result.templateParameterDiagnostics.formattingPassesUsed,
+    ).toBeGreaterThan(1);
   });
 
   it("fails closed on a table opener the parser cannot balance", () => {
@@ -301,12 +303,13 @@ describe("unified parser-assisted template formatting", () => {
   });
 
   it("does not mistake a safesubst triple-brace default for a table opener", () => {
-    const input =
-      "{{ {{{|safesubst:}}}#if:{{{1|}}}|yes|no }}\n";
+    const input = "{{ {{{|safesubst:}}}#if:{{{1|}}}|yes|no }}\n";
     const result = formatWikitextDetailedResult(input);
     expect(result.formatted).toBe(input);
     expect(result.templateParameterDiagnostics.skipReasons).toEqual({});
-    expect(result.templateParameterDiagnostics.templatesSkippedAmbiguous).toBe(0);
+    expect(result.templateParameterDiagnostics.templatesSkippedAmbiguous).toBe(
+      0,
+    );
   });
 
   it("reports production template diagnostics", () => {

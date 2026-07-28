@@ -1,13 +1,10 @@
 #!/usr/bin/env node
-import { createReadStream } from "node:fs";
-import {
-  mkdir,
-  readFile,
-  readdir,
-  writeFile,
-} from "node:fs/promises";
 import { createHash } from "node:crypto";
+import { createReadStream } from "node:fs";
+import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import { basename, resolve } from "node:path";
+
+import { normalizeSiteInfoPayload } from "../src/localization/siteinfo-normalize.js";
 
 const tierMaximums = { small: 100, medium: 5_000, full: Infinity };
 
@@ -77,7 +74,9 @@ function parseArgs(argv) {
   }
   if (
     options.namespaces &&
-    [...options.namespaces].some((namespace) => !Number.isSafeInteger(namespace))
+    [...options.namespaces].some(
+      (namespace) => !Number.isSafeInteger(namespace),
+    )
   ) {
     throw new Error("--namespaces must contain comma-separated integers");
   }
@@ -118,6 +117,26 @@ function includePage(page, options) {
   );
 }
 
+function isNormalizedLocalizationAliases(value) {
+  return (
+    value !== null &&
+    typeof value === "object" &&
+    !Array.isArray(value) &&
+    (Array.isArray(value.categoryNamespaces) ||
+      Array.isArray(value.fileNamespaces) ||
+      Array.isArray(value.defaultsortMagicWords) ||
+      Array.isArray(value.redirectMagicWords) ||
+      value.imageOptionAliases !== undefined ||
+      value.behaviorSwitches !== undefined)
+  );
+}
+
+function normalizedAliases(value, source) {
+  const candidate = value?.localizationAliases ?? value;
+  if (isNormalizedLocalizationAliases(candidate)) return candidate;
+  return normalizeSiteInfoPayload(value, source);
+}
+
 async function pagesFromXml(filename, onPage) {
   let buffer = "";
   for await (const chunk of createReadStream(resolve(filename), {
@@ -136,7 +155,8 @@ async function pagesFromXml(filename, onPage) {
         break;
       }
       const block = buffer.slice(start, end + "</page>".length);
-      const revision = /<revision>([\s\S]*?)<\/revision>/u.exec(block)?.[1] ?? "";
+      const revision =
+        /<revision>([\s\S]*?)<\/revision>/u.exec(block)?.[1] ?? "";
       const textMatch = /<text(?:\s[^>]*)?>([\s\S]*?)<\/text>/u.exec(revision);
       await onPage({
         title: tag(block, "title"),
@@ -144,6 +164,7 @@ async function pagesFromXml(filename, onPage) {
         pageId: Number(tag(block.slice(0, block.indexOf("<revision>")), "id")),
         revisionId: Number(tag(revision, "id")),
         timestamp: tag(revision, "timestamp") || null,
+        contentModel: tag(revision, "model") || "wikitext",
         source: textMatch ? xmlText(textMatch[1]) : "",
         sourceKind: "xml",
       });
@@ -172,7 +193,7 @@ async function pagesFromApi(api, titles, onPage) {
     const payload = await fetchJson(api, {
       action: "query",
       prop: "revisions",
-      rvprop: "ids|timestamp|content",
+      rvprop: "ids|timestamp|content|contentmodel",
       rvslots: "main",
       redirects: "1",
       titles: batch.join("|"),
@@ -188,6 +209,10 @@ async function pagesFromApi(api, titles, onPage) {
         pageId: page.pageid,
         revisionId: revision?.revid ?? null,
         timestamp: revision?.timestamp ?? null,
+        contentModel:
+          revision?.slots?.main?.contentmodel ??
+          page.contentmodel ??
+          "wikitext",
         source: revision?.slots?.main?.content ?? "",
         sourceKind: "api",
       });
@@ -224,13 +249,35 @@ async function ensureEmptyDirectory(directory) {
   }
 }
 
+async function copyParserConfigMetadata(parserConfig, metadataDirectory) {
+  const sourcePath = resolve(parserConfig);
+  try {
+    const source = await readFile(sourcePath, "utf8");
+    JSON.parse(source);
+    const file = "metadata/parser-config.json";
+    await writeFile(
+      resolve(metadataDirectory, "parser-config.json"),
+      source,
+      "utf8",
+    );
+    return { value: { file, original: parserConfig }, metadataFile: file };
+  } catch (error) {
+    if (error?.code === "ENOENT") {
+      return { value: parserConfig, metadataFile: undefined };
+    }
+    throw new Error(
+      `Could not copy parser config ${sourcePath}: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
+}
+
 async function main() {
   const options = parseArgs(process.argv.slice(2));
   const output = resolve(options.output);
   await ensureEmptyDirectory(output);
   const maximum = options.maxPages ?? tierMaximums[options.tier];
   const selected = [];
-  const excluded = { namespace: 0, title: 0, content: 0 };
+  const excluded = { namespace: 0, title: 0, content: 0, contentModel: 0 };
   let discovered = 0;
   const consider = async (page) => {
     discovered++;
@@ -246,17 +293,28 @@ async function main() {
       excluded.content++;
       return;
     }
+    if (page.contentModel.toLowerCase() !== "wikitext") {
+      excluded.contentModel++;
+      return;
+    }
     if (!includePage(page, options)) return;
     selected.push({ ...page, rank: rank(options.seed, page.title) });
-    selected.sort((a, b) => a.rank.localeCompare(b.rank) || a.title.localeCompare(b.title));
+    selected.sort(
+      (a, b) => a.rank.localeCompare(b.rank) || a.title.localeCompare(b.title),
+    );
     if (selected.length > maximum) selected.pop();
   };
 
   let siteinfo;
+  let localizationAliases;
   if (options.xml) {
     await pagesFromXml(options.xml, consider);
     if (options.siteinfo) {
       siteinfo = JSON.parse(await readFile(resolve(options.siteinfo), "utf8"));
+      localizationAliases = normalizedAliases(
+        siteinfo,
+        `Siteinfo file ${resolve(options.siteinfo)}`,
+      );
     }
   } else {
     const titles = options.allPages
@@ -269,10 +327,15 @@ async function main() {
     siteinfo = await fetchJson(options.api, {
       action: "query",
       meta: "siteinfo",
-      siprop: "general|namespaces|namespacealiases|magicwords|doubleunderscores",
+      siprop:
+        "general|namespaces|namespacealiases|magicwords|doubleunderscores",
       format: "json",
       formatversion: "2",
     });
+    localizationAliases = normalizeSiteInfoPayload(
+      siteinfo,
+      `MediaWiki siteinfo response from ${options.api}`,
+    );
   }
 
   const sourcesDirectory = resolve(output, "sources");
@@ -295,6 +358,7 @@ async function main() {
       pageId: page.pageId,
       revisionId: page.revisionId,
       timestamp: page.timestamp,
+      contentModel: page.contentModel,
       bytes,
       sha256: createHash("sha256").update(page.source).digest("hex"),
       sourceFile: `sources/${sourceFile}`,
@@ -307,12 +371,20 @@ async function main() {
   );
   if (siteinfo) {
     await writeFile(
-      resolve(metadataDirectory, "siteinfo.json"),
+      resolve(metadataDirectory, "siteinfo.raw.json"),
       `${JSON.stringify(siteinfo, null, 2)}\n`,
     );
+    await writeFile(
+      resolve(metadataDirectory, "localization-aliases.json"),
+      `${JSON.stringify(localizationAliases, null, 2)}\n`,
+    );
   }
+  const parserConfig = await copyParserConfigMetadata(
+    options.parserConfig,
+    metadataDirectory,
+  );
   const manifest = {
-    schemaVersion: 1,
+    schemaVersion: 2,
     createdAt: new Date().toISOString(),
     source: options.xml
       ? { kind: "xml", file: basename(options.xml) }
@@ -324,8 +396,10 @@ async function main() {
         },
     tier: options.tier,
     seed: options.seed,
-    parserConfig: options.parserConfig,
-    namespaces: options.namespaces ? [...options.namespaces].sort((a, b) => a - b) : null,
+    parserConfig: parserConfig.value,
+    namespaces: options.namespaces
+      ? [...options.namespaces].sort((a, b) => a - b)
+      : null,
     maximumPages: Number.isFinite(maximum) ? maximum : null,
     pagesDiscovered: discovered,
     pagesSelected: selected.length,
@@ -333,6 +407,18 @@ async function main() {
     namespaceDistribution,
     excluded,
     readOnly: true,
+    metadata: {
+      pages: "metadata/pages.json",
+      ...(siteinfo
+        ? {
+            siteinfoRaw: "metadata/siteinfo.raw.json",
+            localizationAliases: "metadata/localization-aliases.json",
+          }
+        : {}),
+      ...(parserConfig.metadataFile
+        ? { parserConfig: parserConfig.metadataFile }
+        : {}),
+    },
   };
   await writeFile(
     resolve(output, "manifest.json"),

@@ -1,9 +1,11 @@
 import { readdir, readFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+
 import { describe, expect, it } from "vitest";
-import { formatWikitext, formatWikitextSafe } from "../src/index.js";
+
 import type { FormatOptions } from "../src/index.js";
+import { formatWikitext, formatWikitextSafe } from "../src/index.js";
 
 const fixturesRoot = resolve(
   dirname(fileURLToPath(import.meta.url)),

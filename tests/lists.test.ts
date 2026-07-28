@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+
 import { formatWikitext } from "../src/index.js";
 import { formatLists } from "../src/rules/lists.js";
 

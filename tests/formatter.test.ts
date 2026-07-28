@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+
 import {
   formatWikitext,
   formatWikitextSafe,
@@ -19,6 +20,10 @@ describe("formatter API", () => {
       parserConfig: "missing-parser-config",
     });
     expect(result.formatted).toBe(input);
+    expect(result.failure).toMatchObject({
+      code: "formatter-exception",
+      stage: "safe-formatting",
+    });
     expect(result.warning).toMatch(/Safe formatting failed/u);
   });
 
@@ -57,9 +62,7 @@ describe("formatter API", () => {
 
   it("enables aggressive tables by default and supports an explicit opt-out", () => {
     const input = '{| class="wikitable"\n! A !! B\n|}\n';
-    expect(formatWikitext(input)).toBe(
-      '{| class="wikitable"\n! A \n! B\n|}\n',
-    );
+    expect(formatWikitext(input)).toBe('{| class="wikitable"\n! A \n! B\n|}\n');
     expect(formatWikitext(input, { formatTables: false })).toBe(input);
   });
 
@@ -123,6 +126,10 @@ describe("formatter API", () => {
     const input = "==Title==\r\nText\r\n";
     const result = formatWikitextSafe(input);
     expect(result.formatted).toBe(input);
+    expect(result.failure).toMatchObject({
+      code: "input-roundtrip",
+      stage: "initial-roundtrip",
+    });
     expect(result.warning).toMatch(/round-trip/u);
   });
 });

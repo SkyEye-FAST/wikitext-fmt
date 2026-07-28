@@ -73,6 +73,89 @@ function diffLines(original: string, formatted: string): DiffOperation[] {
   return operations;
 }
 
+export interface DiffQualityMetrics {
+  bytesBefore: number;
+  bytesAfter: number;
+  linesBefore: number;
+  linesAfter: number;
+  changedLines: number;
+  changedBytes: number;
+  diffRatio: number;
+  lineEndingsOnly: boolean;
+  trailingWhitespaceOnly: boolean;
+}
+
+function physicalLineCount(source: string): number {
+  if (source.length === 0) return 0;
+  const newlineCount = source.match(/\n/gu)?.length ?? 0;
+  return newlineCount + (source.endsWith("\n") ? 0 : 1);
+}
+
+export function measureDiffQuality(
+  original: string,
+  formatted: string,
+): DiffQualityMetrics {
+  const bytesBefore = Buffer.byteLength(original);
+  const bytesAfter = Buffer.byteLength(formatted);
+  if (original === formatted) {
+    return {
+      bytesBefore,
+      bytesAfter,
+      linesBefore: physicalLineCount(original),
+      linesAfter: physicalLineCount(formatted),
+      changedLines: 0,
+      changedBytes: 0,
+      diffRatio: 0,
+      lineEndingsOnly: false,
+      trailingWhitespaceOnly: false,
+    };
+  }
+  let prefix = 0;
+  while (
+    prefix < original.length &&
+    prefix < formatted.length &&
+    original[prefix] === formatted[prefix]
+  ) {
+    prefix++;
+  }
+  let suffix = 0;
+  while (
+    suffix < original.length - prefix &&
+    suffix < formatted.length - prefix &&
+    original[original.length - suffix - 1] ===
+      formatted[formatted.length - suffix - 1]
+  ) {
+    suffix++;
+  }
+  const changedBytes =
+    Buffer.byteLength(original.slice(prefix, original.length - suffix)) +
+    Buffer.byteLength(formatted.slice(prefix, formatted.length - suffix));
+  const operations = diffLines(original, formatted);
+  const changedLines = operations.filter(
+    (operation) => operation.type !== "context",
+  ).length;
+  const normalizedOriginal = original.replace(/\r\n/gu, "\n");
+  const normalizedFormatted = formatted.replace(/\r\n/gu, "\n");
+  const lineEndingsOnly = normalizedOriginal === normalizedFormatted;
+  const trailingWhitespaceOnly =
+    !lineEndingsOnly &&
+    normalizedOriginal.replace(/[ \t]+$/gmu, "") ===
+      normalizedFormatted.replace(/[ \t]+$/gmu, "");
+  return {
+    bytesBefore,
+    bytesAfter,
+    linesBefore: physicalLineCount(original),
+    linesAfter: physicalLineCount(formatted),
+    changedLines,
+    changedBytes,
+    diffRatio: Number(
+      (changedBytes / Math.max(1, bytesBefore + bytesAfter)).toFixed(6),
+    ),
+    lineEndingsOnly,
+    trailingWhitespaceOnly,
+  };
+}
+
 function linePosition(
   operations: readonly DiffOperation[],
   end: number,

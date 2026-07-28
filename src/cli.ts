@@ -1,31 +1,32 @@
 #!/usr/bin/env node
 import { readFile, writeFile } from "node:fs/promises";
-import { stdin, stderr, stdout } from "node:process";
+import { stderr, stdin, stdout } from "node:process";
+
 import {
-  formatWikitextDetailedResult,
-  formatWikitextSafeDetailed,
-  type FormatDetailedResult,
-} from "./formatter.js";
-import { resolveOptions, type FormatOptions } from "./options.js";
-import { resolveCliConfig } from "./cli/config.js";
-import {
+  type CliOptions,
   formatterOptions,
   parseArgs,
   usage,
-  type CliOptions,
 } from "./cli/args.js";
+import { resolveCliConfig } from "./cli/config.js";
+import {
+  createDiagnosticsRecord,
+  type FileDiagnostics,
+  serializeDiagnostics,
+} from "./cli/diagnostics.js";
+import { createUnifiedDiff } from "./cli/diff.js";
 import {
   prepareLocalizationOptions,
   resolvedLocalizationAliasesJson,
 } from "./cli/localization.js";
 import { expandInputPaths } from "./cli/paths.js";
-import { createUnifiedDiff } from "./cli/diff.js";
-import {
-  createDiagnosticsRecord,
-  serializeDiagnostics,
-  type FileDiagnostics,
-} from "./cli/diagnostics.js";
 import { createBatchReport } from "./cli/report.js";
+import {
+  type FormatDetailedResult,
+  formatWikitextDetailedResult,
+  formatWikitextSafeDetailed,
+} from "./formatter.js";
+import { type FormatOptions, resolveOptions } from "./options.js";
 
 async function readStdin(): Promise<string> {
   const chunks: Buffer[] = [];
@@ -57,12 +58,22 @@ async function writeReport(
 
 function runFormatter(
   source: string,
-  options: CliOptions,
+  safe: boolean,
   formatOptions: FormatOptions,
 ): FormatDetailedResult {
-  return options.safe
+  return safe
     ? formatWikitextSafeDetailed(source, formatOptions)
     : formatWikitextDetailedResult(source, formatOptions);
+}
+
+function useSafeFormatting(
+  options: CliOptions,
+  formatOptions: FormatOptions,
+): boolean {
+  if (options.unsafe) return false;
+  if (options.safe) return true;
+  const profile = resolveOptions(formatOptions).profile;
+  return profile === "production" || profile === "aggressive";
 }
 
 function debugResult(
@@ -70,12 +81,13 @@ function debugResult(
   source: string,
   result: FormatDetailedResult,
   options: CliOptions,
+  safe: boolean,
   formatOptions: FormatOptions,
   configPath?: string,
 ): void {
   if (!options.debug) return;
   const level = resolveOptions(formatOptions).level;
-  const mode = options.safe ? "safe" : "normal";
+  const mode = safe ? "safe" : "unsafe";
   const status = result.warning
     ? "fallback"
     : result.formatted === source
@@ -106,6 +118,7 @@ function reportDiagnostics(
   source: string,
   result: FormatDetailedResult,
   options: CliOptions,
+  safe: boolean,
   formatOptions: FormatOptions,
   configPath?: string,
 ): void {
@@ -113,7 +126,7 @@ function reportDiagnostics(
     stderr.write(`${serializeDiagnostics(label, source, result)}\n`);
     return;
   }
-  debugResult(label, source, result, options, formatOptions, configPath);
+  debugResult(label, source, result, options, safe, formatOptions, configPath);
 }
 
 async function main(): Promise<void> {
@@ -147,16 +160,18 @@ async function main(): Promise<void> {
     stdout.write(resolvedLocalizationAliasesJson(formatOptions));
     return;
   }
+  const safe = useSafeFormatting(options, formatOptions);
 
   if (options.stdin) {
     const source = await readStdin();
-    const result = runFormatter(source, options, formatOptions);
+    const result = runFormatter(source, safe, formatOptions);
     const diagnostics = createDiagnosticsRecord("stdin", source, result);
     reportDiagnostics(
       "stdin",
       source,
       result,
       options,
+      safe,
       formatOptions,
       configPath,
     );
@@ -168,7 +183,7 @@ async function main(): Promise<void> {
       process.exitCode = result.formatted === source ? 0 : 1;
     else stdout.write(result.formatted);
     if (options.diff && result.formatted !== source) process.exitCode = 1;
-    if (options.failOnWarning && result.warning) process.exitCode = 1;
+    if (options.failOnWarning && result.failure) process.exitCode = 1;
     await writeReport(options.reportPath, [diagnostics]);
     return;
   }
@@ -183,16 +198,24 @@ async function main(): Promise<void> {
   }
 
   let changed = false;
-  let warned = false;
+  let failed = false;
   const diagnostics: FileDiagnostics[] = [];
   for (const file of files) {
     const source = await readFile(file, "utf8");
-    const result = runFormatter(source, options, formatOptions);
+    const result = runFormatter(source, safe, formatOptions);
     diagnostics.push(createDiagnosticsRecord(file, source, result));
-    reportDiagnostics(file, source, result, options, formatOptions, configPath);
+    reportDiagnostics(
+      file,
+      source,
+      result,
+      options,
+      safe,
+      formatOptions,
+      configPath,
+    );
     if (result.warning && !options.diagnosticsJson)
       stderr.write(`${file}: warning: ${result.warning}\n`);
-    if (result.warning) warned = true;
+    if (result.failure) failed = true;
     if (result.formatted !== source) changed = true;
     if (options.write) await writeFile(file, result.formatted, "utf8");
     else if (options.diff)
@@ -200,7 +223,7 @@ async function main(): Promise<void> {
     else if (!options.check) stdout.write(result.formatted);
   }
   if ((options.check || options.diff) && changed) process.exitCode = 1;
-  if (options.failOnWarning && warned) process.exitCode = 1;
+  if (options.failOnWarning && failed) process.exitCode = 1;
   await writeReport(options.reportPath, diagnostics);
 }
 

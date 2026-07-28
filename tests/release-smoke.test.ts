@@ -1,5 +1,6 @@
 import { access } from "node:fs/promises";
 import { resolve } from "node:path";
+
 import { describe, expect, it } from "vitest";
 
 describe("release smoke", () => {

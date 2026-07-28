@@ -1,6 +1,6 @@
 # Wikitext Formatter for VS Code
 
-This is the VS Code wrapper for `wikitext-fmt`, a parser-assisted structural MediaWiki wikitext formatter. The extension calls the core API and shares its template/table equivalence and idempotency safety gates. The VSIX build is bundled, so installed extensions do not rely on pnpm workspace links being present at runtime.
+This is the VS Code wrapper for `wikitext-fmt`, a parser-assisted structural MediaWiki wikitext formatter. The extension calls the core API and shares its template, table, final-document equivalence, structured-failure, and idempotency safety gates. The VSIX build is bundled, so installed extensions do not rely on pnpm workspace links being present at runtime.
 
 ## Features
 

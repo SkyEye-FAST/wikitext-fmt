@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
-import {
-  formatWikitextSafeDetailed,
-  type FormatOptions,
-} from "../src/index.js";
+
 import { createDiagnosticsSummary } from "../src/cli/diagnostics.js";
+import {
+  type FormatOptions,
+  formatWikitextSafeDetailed,
+} from "../src/index.js";
 import {
   expectRealPageRegression,
   listRealPages,

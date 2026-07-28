@@ -1,18 +1,20 @@
 export {
+  type FormatDetailedResult,
+  type FormatFailure,
+  type FormatFailureCode,
+  type FormatResult,
   formatWikitext,
   formatWikitextDetailedResult,
   formatWikitextResult,
   formatWikitextSafe,
   formatWikitextSafeDetailed,
-  type FormatDetailedResult,
-  type FormatResult,
 } from "./formatter.js";
 export {
-  defaultOptions,
   type BehaviorSwitchPlacement,
+  defaultOptions,
   type FormatLevel,
-  type FormatProfile,
   type FormatOptions,
+  type FormatProfile,
   type HtmlVoidTagStyle,
   type InterlanguagePlacement,
   type LocalizationAliases,
@@ -34,13 +36,16 @@ export type {
   TableFormatDiagnostics,
 } from "./rules/tables.js";
 export {
-  verifyStructuralEquivalence,
   type StructuralEquivalenceKind,
   type StructuralEquivalenceResult,
+  verifyStructuralEquivalence,
 } from "./equivalence.js";
 export type { ResolvedLocalizationAliases } from "./localization/aliases.js";
 export type { DiagnosticsSummary } from "./cli/diagnostics.js";
-export { loadSiteInfoAliases } from "./localization/siteinfo.js";
+export {
+  loadSiteInfoAliases,
+  normalizeSiteInfoPayload,
+} from "./localization/siteinfo.js";
 export {
   classifyParserFunction,
   type ParserFunctionFormattingClass,

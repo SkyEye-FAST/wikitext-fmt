@@ -1,5 +1,6 @@
-import Parser from "wikiparser-node";
 import { describe, expect, it } from "vitest";
+import Parser from "wikiparser-node";
+
 import { getParserConfig } from "../src/parser.js";
 import {
   collectNodes,

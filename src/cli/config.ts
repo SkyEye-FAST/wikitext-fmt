@@ -1,9 +1,9 @@
 export {
   CONFIG_FILENAMES,
+  type ConfigResolutionOptions,
   discoverConfig,
   loadConfig,
   resolveCliConfig,
-  validateConfig,
-  type ConfigResolutionOptions,
   type ResolvedCliConfig,
+  validateConfig,
 } from "../config.js";

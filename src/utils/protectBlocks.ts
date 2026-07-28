@@ -22,9 +22,10 @@ export interface ProtectBlocksOptions {
   protectTables?: boolean;
   protectComments?: boolean;
   protectReferenceTags?: boolean;
+  additionalRanges?: readonly Range[];
 }
 
-interface Range {
+export interface Range {
   start: number;
   end: number;
 }
@@ -146,6 +147,7 @@ export function protectBlocks(
       options.protectComments ?? true,
       options.protectReferenceTags ?? true,
     ),
+    ...(options.additionalRanges ?? []),
   ]);
   const values: string[] = [];
   const mappings: Array<{

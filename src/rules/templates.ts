@@ -114,6 +114,10 @@ function renderArgument(arg: ParameterToken): string | undefined {
   const value = rawValue.trim();
   const key = arg.firstChild.toString().trim();
   if (!key) return undefined;
+  const lineSensitiveBlock =
+    /^[ \t]*\r?\n/u.test(rawValue) &&
+    /^(?:[*#:;]+|\{\||={1,6}(?:[ \t]|$))/u.test(value);
+  if (lineSensitiveBlock) return `| ${key} =\n${value}`;
   return `| ${key} = ${value}`;
 }
 
@@ -453,16 +457,32 @@ function renderTemplate(
   };
 }
 
-function hasChangedDescendant(
-  replacement: Replacement,
+function closestTemplateAncestor(node: TemplateNode): TemplateNode | undefined {
+  return node.parentNode?.closest("template, magic-word") as
+    | TemplateNode
+    | undefined;
+}
+
+function hasTableSyntaxMagicWord(node: TemplateNode): boolean {
+  return node
+    .querySelectorAll<TemplateNode>("magic-word")
+    .some((candidate) => candidate.name === "!");
+}
+
+function applyReplacements(
+  source: string,
   replacements: readonly Replacement[],
-): boolean {
-  return replacements.some(
-    (candidate) =>
-      candidate !== replacement &&
-      candidate.start > replacement.start &&
-      candidate.end < replacement.end,
-  );
+): string {
+  const parts: string[] = [];
+  let cursor = 0;
+  for (const replacement of [...replacements].sort(
+    (a, b) => a.start - b.start,
+  )) {
+    parts.push(source.slice(cursor, replacement.start), replacement.value);
+    cursor = replacement.end;
+  }
+  parts.push(source.slice(cursor));
+  return parts.join("");
 }
 
 export function formatTemplatesWithDiagnostics(
@@ -543,6 +563,7 @@ export function formatTemplatesWithDiagnostics(
       }
     }
     const changed: Replacement[] = [];
+    const changedAncestors = new Set<TemplateNode>();
 
     const visitOrder = nodes
       .map((node, nodeIndex) => ({ node, nodeIndex }))
@@ -557,12 +578,13 @@ export function formatTemplatesWithDiagnostics(
       const raw = node.toString();
       const start = node.getAbsoluteIndex();
       const end = start + raw.length;
+      if (changedAncestors.has(node)) continue;
       if (
-        changed.some(
-          (replacement) =>
-            replacement.start > start && replacement.end < end,
-        )
+        !raw.includes("\n") &&
+        node.parentNode?.closest("table") &&
+        hasTableSyntaxMagicWord(node)
       ) {
+        canonicalNodeIds.add(semanticId);
         continue;
       }
       const rendered = renderTemplate(node, config, options);
@@ -584,6 +606,11 @@ export function formatTemplatesWithDiagnostics(
           rendered.multiline === true,
         normalizedMultiline: originalMultiline.get(semanticId) === true,
       });
+      let ancestor = closestTemplateAncestor(node);
+      while (ancestor) {
+        changedAncestors.add(ancestor);
+        ancestor = closestTemplateAncestor(ancestor);
+      }
     }
 
     if (changed.length === 0) {
@@ -591,14 +618,8 @@ export function formatTemplatesWithDiagnostics(
       return finalize(output);
     }
 
-    const deepest = changed.filter(
-      (replacement) => !hasChangedDescendant(replacement, changed),
-    );
-    for (const replacement of deepest.sort((a, b) => b.start - a.start)) {
-      output =
-        output.slice(0, replacement.start) +
-        replacement.value +
-        output.slice(replacement.end);
+    output = applyReplacements(output, changed);
+    for (const replacement of changed) {
       changedNodeIds.add(replacement.semanticId);
       canonicalNodeIds.add(replacement.semanticId);
       diagnostics.templateParameterLinesFormatted +=

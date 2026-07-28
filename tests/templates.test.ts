@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+
 import { getParserConfig } from "../src/parser.js";
 import { createParserContext } from "../src/parserContext.js";
 import { formatTemplates } from "../src/rules/templates.js";

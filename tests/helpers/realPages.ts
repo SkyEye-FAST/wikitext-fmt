@@ -1,12 +1,14 @@
 import { readdir, readFile } from "node:fs/promises";
 import { dirname, extname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+
 import { expect } from "vitest";
-import {
-  formatWikitextSafeDetailed,
-  type FormatOptions,
-} from "../../src/index.js";
+
 import { createDiagnosticsSummary } from "../../src/cli/diagnostics.js";
+import {
+  type FormatOptions,
+  formatWikitextSafeDetailed,
+} from "../../src/index.js";
 import { getParserConfig, parseWikitext } from "../../src/parser.js";
 
 export const realPagesRoot = resolve(
@@ -49,17 +51,17 @@ export async function expectRealPageRegression(
       summary.tablesAlreadyCanonical +
       summary.tablesSkippedAmbiguous,
   ).toBe(summary.tablesInspected);
-  expect(
-    summary.tablesChanged + summary.tablesAlreadyCanonical,
-  ).toBe(summary.tablesEligible);
+  expect(summary.tablesChanged + summary.tablesAlreadyCanonical).toBe(
+    summary.tablesEligible,
+  );
   expect(
     summary.templatesChanged +
       summary.templatesAlreadyCanonical +
       summary.templatesSkippedAmbiguous,
   ).toBe(summary.templatesInspected);
-  expect(
-    summary.templatesChanged + summary.templatesAlreadyCanonical,
-  ).toBe(summary.templatesEligible);
+  expect(summary.templatesChanged + summary.templatesAlreadyCanonical).toBe(
+    summary.templatesEligible,
+  );
   expect(summary.formattedLines).toBe(
     once.tableDiagnostics.reduce(
       (count, diagnostic) =>
@@ -73,8 +75,7 @@ export async function expectRealPageRegression(
     once.tableDiagnostics.reduce(
       (count, diagnostic) =>
         count +
-        (diagnostic.lineDiagnostics?.filter((line) => line.reason).length ??
-          0),
+        (diagnostic.lineDiagnostics?.filter((line) => line.reason).length ?? 0),
       0,
     ),
   );

@@ -1,11 +1,24 @@
 import type { Config, ParameterToken, TranscludeToken } from "wikiparser-node";
+import type { ResolvedFormatOptions } from "./options.js";
 import { createParserContext } from "./parserContext.js";
+import { outermostSourceRanges } from "./semanticIdentity.js";
+import { normalizeBlankLines } from "./rules/blankLines.js";
+import { formatPageFooter } from "./rules/categories.js";
+import { formatExternalLinks } from "./rules/externalLinks.js";
+import { formatFileLinks } from "./rules/fileLinks.js";
+import { formatHeadings } from "./rules/headings.js";
+import { formatHtmlVoidTags } from "./rules/htmlVoidTags.js";
+import { formatLists } from "./rules/lists.js";
+import { formatRedirects } from "./rules/redirects.js";
+import { formatReferences } from "./rules/references.js";
+import { formatSectionSpacing } from "./rules/sectionSpacing.js";
+import { protectBlocks } from "./utils/protectBlocks.js";
 import {
   collectParserTableCandidates,
   type ParserTableNode,
 } from "./rules/tables.js";
 
-export type StructuralEquivalenceKind = "templates" | "tables";
+export type StructuralEquivalenceKind = "templates" | "tables" | "document";
 
 export interface StructuralEquivalenceResult {
   equivalent: boolean;
@@ -23,11 +36,31 @@ type TransclusionNode = TranscludeToken & {
 
 interface GenericNode {
   type: string;
+  name?: string;
   parentNode?: GenericNode;
   childNodes: readonly GenericNode[];
   getAbsoluteIndex(): number;
   toString(): string;
   querySelectorAll<T = GenericNode>(selector: string): T[];
+}
+
+interface DocumentFingerprint {
+  templates: unknown;
+  tables: unknown;
+  links: unknown[];
+  files: unknown[];
+  externalLinks: unknown[];
+  references: unknown[];
+  categories: unknown[];
+  defaultsort: unknown[];
+  redirects: unknown[];
+  headings: unknown[];
+  behaviorSwitches: unknown[];
+  interlanguageLinks: unknown[];
+  extensions: unknown[];
+  html: unknown[];
+  comments: unknown[];
+  prose: string;
 }
 
 interface TemplateFingerprint {
@@ -43,17 +76,22 @@ interface TemplateFingerprint {
 
 type TemplateValuePart =
   | string
-  | { kind: "template"; value: Omit<TemplateFingerprint, "parent"> };
+  | { kind: "template"; value: Omit<TemplateFingerprint, "parent"> }
+  | { kind: "structure"; type: string; value: unknown };
 
-function collectTransclusions(source: string, config: Config): TransclusionNode[] {
+function collectTransclusions(
+  source: string,
+  config: Config,
+): TransclusionNode[] {
   const root = createParserContext(source, config).root;
-  return [
-    ...root.querySelectorAll<TransclusionNode>("template"),
-    ...root.querySelectorAll<TransclusionNode>("magic-word"),
-  ].sort((a, b) => a.getAbsoluteIndex() - b.getAbsoluteIndex());
+  return root
+    .querySelectorAll<TransclusionNode>("template, magic-word")
+    .sort((a, b) => a.getAbsoluteIndex() - b.getAbsoluteIndex());
 }
 
-function nearestTransclusion(node: GenericNode | undefined): TransclusionNode | undefined {
+function nearestTransclusion(
+  node: GenericNode | undefined,
+): TransclusionNode | undefined {
   let current = node;
   while (current) {
     if (current.type === "template" || current.type === "magic-word") {
@@ -74,10 +112,8 @@ function semanticTransclusionValue(
   const content = trim ? raw.trim() : raw;
   const contentStart = trim ? raw.indexOf(content) : 0;
   const contentEnd = contentStart + content.length;
-  const nested = [
-    ...valueNode.querySelectorAll<TransclusionNode>("template"),
-    ...valueNode.querySelectorAll<TransclusionNode>("magic-word"),
-  ]
+  const nested = valueNode
+    .querySelectorAll<TransclusionNode>("template, magic-word")
     .filter((node) => nearestTransclusion(node.parentNode) === owner)
     .map((node) => ({
       start: node.getAbsoluteIndex() - base,
@@ -92,17 +128,66 @@ function semanticTransclusionValue(
         replacement.start >= contentStart && replacement.end <= contentEnd,
     )
     .sort((a, b) => a.start - b.start);
-  if (nested.length === 0) return content;
+  const semanticStructure = (node: GenericNode): unknown => {
+    switch (node.type) {
+      case "file":
+        return semanticFile(node);
+      case "category":
+        return {
+          target: node.name ?? childText(node, "link-target"),
+          sortKey: semanticChildText(node, "link-text"),
+        };
+      case "link":
+        return {
+          target: childText(node, "link-target"),
+          label: semanticChildText(node, "link-text"),
+        };
+      case "ext-link":
+        return {
+          url: childText(node, "ext-link-url"),
+          label: semanticChildText(node, "ext-link-text", "leading"),
+        };
+      case "ext":
+        return semanticExtension(node);
+      case "html":
+        return semanticHtml(node);
+      default:
+        return node.toString();
+    }
+  };
+  const structured = valueNode
+    .querySelectorAll<GenericNode>(
+      "file, category, link, ext-link, ext, html, comment",
+    )
+      .filter((node) => nearestTransclusion(node.parentNode) === owner)
+      .map((node) => ({
+        start: node.getAbsoluteIndex() - base,
+        end: node.getAbsoluteIndex() - base + node.toString().length,
+        part: {
+          kind: "structure" as const,
+          type: node.type,
+          value: semanticStructure(node),
+        },
+      }));
+  const replacements = outermostSourceRanges([...nested, ...structured])
+    .filter(
+      (replacement) =>
+        replacement.start >= contentStart && replacement.end <= contentEnd,
+    )
+    .sort((a, b) => a.start - b.start);
+  if (replacements.length === 0) return formatLists(content);
   const parts: TemplateValuePart[] = [];
   let cursor = contentStart;
-  for (const replacement of nested) {
+  for (const replacement of replacements) {
     if (replacement.start > cursor) {
-      parts.push(raw.slice(cursor, replacement.start));
+      parts.push(formatLists(raw.slice(cursor, replacement.start)));
     }
     parts.push(replacement.part);
     cursor = replacement.end;
   }
-  if (cursor < contentEnd) parts.push(raw.slice(cursor, contentEnd));
+  if (cursor < contentEnd) {
+    parts.push(formatLists(raw.slice(cursor, contentEnd)));
+  }
   return parts;
 }
 
@@ -220,7 +305,9 @@ interface TableFingerprint {
   }>;
 }
 
-function closestTable(node: ParserTableNode | undefined): ParserTableNode | undefined {
+function closestTable(
+  node: ParserTableNode | undefined,
+): ParserTableNode | undefined {
   let current = node;
   while (current && current.type !== "table") current = current.parentNode;
   return current;
@@ -259,8 +346,9 @@ function semanticTableCellContent(
         value: tableNodeFingerprint(table),
       };
     })
-    .filter((replacement): replacement is NonNullable<typeof replacement> =>
-      replacement !== undefined
+    .filter(
+      (replacement): replacement is NonNullable<typeof replacement> =>
+        replacement !== undefined,
     )
     .map((replacement) => ({ ...replacement, kind: "table" as const }));
   let templateCursor = 0;
@@ -277,8 +365,9 @@ function semanticTableCellContent(
         kind: "template" as const,
       };
     })
-    .filter((replacement): replacement is NonNullable<typeof replacement> =>
-      replacement !== undefined
+    .filter(
+      (replacement): replacement is NonNullable<typeof replacement> =>
+        replacement !== undefined,
     )
     .filter(
       (replacement) =>
@@ -367,7 +456,11 @@ export function tableStructuralFingerprint(
   const candidates = collectParserTableCandidates(source, context, config);
   const fingerprint: TableFingerprint[] = candidates.map((candidate, index) => {
     let parent = -1;
-    for (let possibleIndex = 0; possibleIndex < candidates.length; possibleIndex++) {
+    for (
+      let possibleIndex = 0;
+      possibleIndex < candidates.length;
+      possibleIndex++
+    ) {
       const possible = candidates[possibleIndex]!;
       if (
         possibleIndex !== index &&
@@ -385,12 +478,488 @@ export function tableStructuralFingerprint(
   return JSON.stringify(fingerprint);
 }
 
+function childText(node: GenericNode, type: string): string | null {
+  return (
+    node.childNodes.find((child) => child.type === type)?.toString() ?? null
+  );
+}
+
+function isDirectTransclusionWithin(
+  node: TransclusionNode,
+  boundary: GenericNode,
+): boolean {
+  let parent = node.parentNode;
+  while (parent && parent !== boundary) {
+    if (parent.type === "template" || parent.type === "magic-word") {
+      return false;
+    }
+    parent = parent.parentNode;
+  }
+  return parent === boundary;
+}
+
+function semanticNodeText(
+  node: GenericNode,
+  trim: "none" | "leading" | "both" = "none",
+): string | TemplateValuePart[] {
+  const raw = node.toString();
+  const contentStart =
+    trim === "none" ? 0 : (/^[ \t]*/u.exec(raw)?.[0].length ?? 0);
+  const contentEnd =
+    trim === "both"
+      ? raw.length - (/[ \t]*$/u.exec(raw)?.[0].length ?? 0)
+      : raw.length;
+  const nested = node
+    .querySelectorAll<TransclusionNode>("template, magic-word")
+    .filter((candidate) => isDirectTransclusionWithin(candidate, node))
+    .map((candidate) => ({
+      start: candidate.getAbsoluteIndex() - node.getAbsoluteIndex(),
+      end:
+        candidate.getAbsoluteIndex() -
+        node.getAbsoluteIndex() +
+        candidate.toString().length,
+      part: {
+        kind: "template" as const,
+        value: templateNodeFingerprint(candidate),
+      },
+    }))
+    .filter(
+      (replacement) =>
+        replacement.start >= contentStart && replacement.end <= contentEnd,
+    )
+    .sort((a, b) => a.start - b.start);
+  if (nested.length === 0) return raw.slice(contentStart, contentEnd);
+  const parts: TemplateValuePart[] = [];
+  let cursor = contentStart;
+  for (const replacement of nested) {
+    if (replacement.start > cursor) {
+      parts.push(raw.slice(cursor, replacement.start));
+    }
+    parts.push(replacement.part);
+    cursor = replacement.end;
+  }
+  if (cursor < contentEnd) parts.push(raw.slice(cursor, contentEnd));
+  return parts;
+}
+
+function semanticChildText(
+  node: GenericNode,
+  type: string,
+  trim: "none" | "leading" | "both" = "none",
+): string | TemplateValuePart[] | null {
+  const child = node.childNodes.find((candidate) => candidate.type === type);
+  return child ? semanticNodeText(child, trim) : null;
+}
+
+function isInside(node: GenericNode, types: ReadonlySet<string>): boolean {
+  let parent = node.parentNode;
+  while (parent) {
+    if (types.has(parent.type)) return true;
+    parent = parent.parentNode;
+  }
+  return false;
+}
+
+function semanticFile(node: GenericNode): unknown {
+  return {
+    target: node.name ?? childText(node, "link-target"),
+    options: node.childNodes
+      .filter((child) => child.type === "image-parameter")
+      .map((option) => ({
+        kind: option.name ?? "caption",
+        value: semanticNodeText(option),
+      })),
+  };
+}
+
+function semanticExtension(node: GenericNode): unknown {
+  return {
+    name: node.name?.toLowerCase() ?? "",
+    attributes: node
+      .querySelectorAll<GenericNode>("ext-attr")
+      .map((attribute) => attribute.toString()),
+    content: childText(node, "ext-inner"),
+  };
+}
+
+function semanticHtml(node: GenericNode): unknown {
+  const name = node.name?.toLowerCase() ?? "";
+  if (name === "br" || name === "hr" || name === "wbr") {
+    return {
+      name,
+      attributes: node
+        .querySelectorAll<GenericNode>("html-attr")
+        .map((attribute) => attribute.toString()),
+    };
+  }
+  return semanticNodeText(node);
+}
+
+function structuralNodes(root: GenericNode, selector: string): GenericNode[] {
+  return [...root.querySelectorAll<GenericNode>(selector)];
+}
+
+function lineBounds(
+  source: string,
+  node: GenericNode,
+  knownStart?: number,
+  knownEnd?: number,
+): {
+  start: number;
+  end: number;
+  wholeLine: boolean;
+} {
+  const start = knownStart ?? node.getAbsoluteIndex();
+  const end = knownEnd ?? start + node.toString().length;
+  const lineStart = source.lastIndexOf("\n", start - 1) + 1;
+  const newline = source.indexOf("\n", end);
+  const lineEnd = newline < 0 ? source.length : newline + 1;
+  return {
+    start: lineStart,
+    end: lineEnd,
+    wholeLine:
+      source.slice(lineStart, start).trim() === "" &&
+      source.slice(end, newline < 0 ? source.length : newline).trim() === "",
+  };
+}
+
+function normalizeSectionSpacingSkeleton(source: string): string {
+  const lines = source.split("\n");
+  for (let index = lines.length - 1; index >= 0; index--) {
+    if (!/^⟪heading:\d+⟫$/u.test(lines[index]!)) continue;
+    while (index > 1 && lines[index - 1] === "" && lines[index - 2] === "") {
+      lines.splice(index - 1, 1);
+      index--;
+    }
+    if (index > 0 && lines[index - 1] !== "") {
+      lines.splice(index, 0, "");
+      index++;
+    }
+    if (index + 1 < lines.length && lines[index + 1] !== "") {
+      lines.splice(index + 1, 0, "");
+    }
+  }
+  return lines.join("\n");
+}
+
+function canonicalizeDocumentSyntax(
+  source: string,
+  config: Config,
+  options: ResolvedFormatOptions,
+): string {
+  let output = source;
+  if (options.formatReferences) {
+    const blocks = protectBlocks(output, {
+      protectTables: true,
+      protectReferenceTags: false,
+    });
+    output = blocks.restore(
+      formatReferences(
+        blocks.text,
+        createParserContext(blocks.text, config),
+      ).formatted,
+    );
+  }
+  const protectedText = protectBlocks(output, { protectTables: true });
+  output = protectedText.text;
+  if (options.formatHeadings) output = formatHeadings(output);
+  if (options.formatRedirects) {
+    output = formatRedirects(
+      output,
+      {
+        localizationSource: options.localizationSource,
+        localizedSyntaxStyle: "canonical-english",
+        localizationAliases: options.localizationAliases,
+      },
+      createParserContext(output, config),
+    ).formatted;
+  }
+  if (options.formatFileLinks) {
+    output = formatFileLinks(
+      output,
+      {
+        localizationSource: options.localizationSource,
+        localizedSyntaxStyle: "canonical-english",
+        localizationAliases: options.localizationAliases,
+      },
+      createParserContext(output, config),
+    ).formatted;
+  }
+  if (options.formatExternalLinks) {
+    output = formatExternalLinks(
+      output,
+      createParserContext(output, config),
+    ).formatted;
+  }
+  if (options.formatLists) output = formatLists(output);
+  if (options.formatSectionSpacing) {
+    output = formatSectionSpacing(
+      output,
+      createParserContext(output, config),
+    ).formatted;
+  }
+  if (options.normalizeBlankLines) output = normalizeBlankLines(output);
+  output = formatHtmlVoidTags(output, options.htmlVoidTagStyle);
+  if (
+    options.formatCategories ||
+    options.formatBehaviorSwitches ||
+    options.formatInterlanguageLinks
+  ) {
+    output = formatPageFooter(
+      output,
+      config,
+      {
+        formatCategories: options.formatCategories,
+        formatBehaviorSwitches: options.formatBehaviorSwitches,
+        formatInterlanguageLinks: options.formatInterlanguageLinks,
+        interlanguagePlacement: options.interlanguagePlacement,
+        interlanguagePrefixes: options.interlanguagePrefixes,
+        behaviorSwitchPlacement: options.behaviorSwitchPlacement,
+        localizationSource: options.localizationSource,
+        localizedSyntaxStyle: "canonical-english",
+        localizationAliases: options.localizationAliases,
+      },
+      createParserContext(output, config),
+    ).formatted;
+  }
+  return protectedText.restore(output);
+}
+
+export function documentStructuralFingerprint(
+  source: string,
+  config: Config,
+  options: ResolvedFormatOptions,
+): DocumentFingerprint {
+  source = canonicalizeDocumentSyntax(source, config, options);
+  const context = createParserContext(source, config);
+  const root = context.root as unknown as GenericNode;
+  const templates = JSON.parse(
+    templateStructuralFingerprint(source, config),
+  ) as unknown;
+  const tables = JSON.parse(
+    tableStructuralFingerprint(source, config),
+  ) as unknown;
+  const links = structuralNodes(root, "link");
+  const files = structuralNodes(root, "file");
+  const externalLinks = structuralNodes(root, "ext-link");
+  const extensions = structuralNodes(root, "ext");
+  const categories = structuralNodes(root, "category");
+  const magicWords = structuralNodes(root, "magic-word");
+  const redirects = structuralNodes(root, "redirect");
+  const headings = structuralNodes(root, "heading");
+  const behaviorSwitches = structuralNodes(root, "double-underscore");
+  const html = structuralNodes(root, "html");
+  const comments = structuralNodes(root, "comment");
+  const excludedParents = new Set(["template", "magic-word", "table", "ext"]);
+  const interlanguagePrefixes = new Set(
+    options.interlanguagePrefixes.map((prefix) => prefix.toLowerCase()),
+  );
+  const ordinaryLinks = links.filter((node) => {
+    if (isInside(node, excludedParents)) return false;
+    const target = childText(node, "link-target") ?? "";
+    const prefix = target.split(":", 1)[0]?.toLowerCase();
+    return !prefix || !interlanguagePrefixes.has(prefix);
+  });
+  const interlanguageLinks = links.filter((node) => {
+    if (isInside(node, excludedParents)) return false;
+    const target = childText(node, "link-target") ?? "";
+    const prefix = target.split(":", 1)[0]?.toLowerCase();
+    return Boolean(prefix && interlanguagePrefixes.has(prefix));
+  });
+  const defaultsort = magicWords.filter((node) =>
+    /^(?:defaultsort|defaultsortkey)$/iu.test(node.name ?? ""),
+  );
+  const references = extensions.filter((node) =>
+    /^(?:ref|references)$/iu.test(node.name ?? ""),
+  );
+  const opaqueExtensions = extensions.filter(
+    (node) => !/^(?:ref|references)$/iu.test(node.name ?? ""),
+  );
+
+  const replacements: Array<{
+    start: number;
+    end: number;
+    marker: string;
+    removableLine?: boolean;
+  }> = [];
+  const add = (
+    nodes: GenericNode[],
+    category: string,
+    removableLine = false,
+  ): void => {
+    nodes.forEach((node, index) => {
+      const start = node.getAbsoluteIndex();
+      const end = start + node.toString().length;
+      replacements.push({
+        start,
+        end,
+        marker: `⟪${category}:${index}⟫`,
+        removableLine:
+          removableLine && lineBounds(source, node, start, end).wholeLine,
+      });
+    });
+  };
+  const structuralParentTypes = new Set([
+    "table",
+    "template",
+    "magic-word",
+    "category",
+    "file",
+    "link",
+    "ext-link",
+    "ext",
+    "redirect",
+    "heading",
+    "double-underscore",
+    "html",
+    "comment",
+  ]);
+  const topLevel = (nodes: GenericNode[]): GenericNode[] =>
+    nodes.filter((node) => !isInside(node, structuralParentTypes));
+  add(topLevel(structuralNodes(root, "table")), "table");
+  add(
+    topLevel([
+      ...structuralNodes(root, "template"),
+      ...magicWords.filter((node) => !defaultsort.includes(node)),
+    ]),
+    "template",
+  );
+  add(topLevel(defaultsort), "defaultsort", true);
+  add(topLevel(categories), "category", true);
+  add(topLevel(files), "file");
+  add(topLevel(externalLinks), "external-link");
+  add(topLevel(ordinaryLinks), "link");
+  add(topLevel(interlanguageLinks), "interlanguage", true);
+  add(topLevel(extensions), "extension");
+  add(topLevel(redirects), "redirect");
+  add(topLevel(headings), "heading");
+  add(topLevel(behaviorSwitches), "behavior", true);
+  add(topLevel(html), "html");
+  add(topLevel(comments), "comment");
+
+  const outermost = outermostSourceRanges(replacements);
+  let prose = source;
+  const hasRemovableMetadata = outermost.some(
+    (replacement) => replacement.removableLine,
+  );
+  for (let index = outermost.length - 1; index >= 0; index--) {
+    const replacement = outermost[index]!;
+    if (replacement.removableLine) {
+      const node = {
+        getAbsoluteIndex: () => replacement.start,
+        toString: () => source.slice(replacement.start, replacement.end),
+      } as GenericNode;
+      const bounds = lineBounds(source, node);
+      prose = prose.slice(0, bounds.start) + prose.slice(bounds.end);
+    } else {
+      prose =
+        prose.slice(0, replacement.start) +
+        replacement.marker +
+        prose.slice(replacement.end);
+    }
+  }
+  prose = prose.replace(
+    /^(⟪(?:file|external-link|extension|redirect|heading):\d+⟫)[ \t]+$/gmu,
+    "$1",
+  );
+  prose = formatLists(prose);
+  prose = normalizeBlankLines(prose);
+  if (options.formatSectionSpacing) {
+    prose = normalizeSectionSpacingSkeleton(prose);
+  }
+  if (hasRemovableMetadata) {
+    prose = prose
+      .replace(/^(?:[ \t]*\n)+/u, "")
+      .replace(/(?:\n[ \t]*){2,}$/u, "\n");
+  }
+
+  return {
+    templates,
+    tables,
+    links: ordinaryLinks.map((node) => ({
+      target: childText(node, "link-target"),
+      label: semanticChildText(node, "link-text"),
+    })),
+    files: files.map(semanticFile),
+    externalLinks: externalLinks.map((node) => ({
+      url: childText(node, "ext-link-url"),
+      label: semanticChildText(node, "ext-link-text", "leading"),
+    })),
+    references: references.map(semanticExtension),
+    categories: categories.map((node) => ({
+      target: node.name ?? childText(node, "link-target"),
+      sortKey: childText(node, "link-text"),
+    })),
+    defaultsort: defaultsort.map((node) => ({
+      name: node.name?.toLowerCase(),
+      value: node
+        .querySelectorAll<GenericNode>("parameter")
+        .map((parameter) => parameter.toString()),
+    })),
+    redirects: redirects.map((node) => ({
+      target:
+        node.querySelectorAll<GenericNode>("link-target").at(0)?.toString() ??
+        null,
+    })),
+    headings: headings.map((node) => ({
+      level: /^=+/u.exec(node.toString())?.[0].length ?? 0,
+      text: semanticChildText(node, "heading-title", "both") ?? "",
+    })),
+    behaviorSwitches: [
+      ...new Set(
+        behaviorSwitches.map((node) =>
+          (node.name ?? node.toString()).toLowerCase(),
+        ),
+      ),
+    ],
+    interlanguageLinks: interlanguageLinks.map((node) => ({
+      target: childText(node, "link-target"),
+      label: semanticChildText(node, "link-text"),
+    })),
+    extensions: opaqueExtensions.map(semanticExtension),
+    html: html.map(semanticHtml),
+    comments: comments.map((node) => node.toString()),
+    prose,
+  };
+}
+
 export function verifyStructuralEquivalence(
   before: string,
   after: string,
   config: Config,
   structure: StructuralEquivalenceKind,
+  options?: ResolvedFormatOptions,
 ): StructuralEquivalenceResult {
+  if (structure === "document") {
+    if (!options) {
+      throw new Error("Document equivalence requires resolved format options");
+    }
+    const beforeFingerprint = documentStructuralFingerprint(
+      before,
+      config,
+      options,
+    );
+    const afterFingerprint = documentStructuralFingerprint(
+      after,
+      config,
+      options,
+    );
+    for (const category of Object.keys(beforeFingerprint) as Array<
+      keyof DocumentFingerprint
+    >) {
+      if (
+        JSON.stringify(beforeFingerprint[category]) !==
+        JSON.stringify(afterFingerprint[category])
+      ) {
+        return {
+          equivalent: false,
+          structure,
+          reason: `${category} semantic fingerprint changed`,
+        };
+      }
+    }
+    return { equivalent: true, structure };
+  }
   const fingerprint =
     structure === "templates"
       ? templateStructuralFingerprint

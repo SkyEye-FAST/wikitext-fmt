@@ -7,3 +7,5 @@ coverage/
 .vscode-test/
 corpus-report.json
 corpus-*-report.json
+benchmark-current-report.json
+benchmark-comparison-report.json

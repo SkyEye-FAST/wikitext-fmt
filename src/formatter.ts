@@ -1,39 +1,73 @@
-import type { FormatOptions } from "./options.js";
-import { resolveOptions } from "./options.js";
 import {
+  type DetailedDiagnostics,
   emptyDetailedDiagnostics,
   fallbackDetailedResult,
   stripDiagnostics,
-  type DetailedDiagnostics,
 } from "./diagnostics.js";
+import { verifyStructuralEquivalence } from "./equivalence.js";
+import type { FormatOptions } from "./options.js";
+import { resolveOptions } from "./options.js";
 import { getParserConfig, isRoundTripSafe } from "./parser.js";
 import {
+  collectNodes,
   createParserContext,
+  nodeRange,
   type ParsedDocumentContext,
+  type ParserNodeLike,
+  type SourceRange,
 } from "./parserContext.js";
 import { normalizeBlankLines } from "./rules/blankLines.js";
 import { formatPageFooter } from "./rules/categories.js";
-import { formatHeadings } from "./rules/headings.js";
-import { formatTemplatesWithDiagnostics } from "./rules/templates.js";
-import { isRuleEnabled } from "./rules/index.js";
-import { formatHtmlVoidTags } from "./rules/htmlVoidTags.js";
-import { formatLists } from "./rules/lists.js";
-import { formatFileLinks } from "./rules/fileLinks.js";
 import { formatExternalLinks } from "./rules/externalLinks.js";
-import { formatReferences } from "./rules/references.js";
+import { formatFileLinks } from "./rules/fileLinks.js";
+import { formatHeadings } from "./rules/headings.js";
+import { formatHtmlVoidTags } from "./rules/htmlVoidTags.js";
+import { isRuleEnabled } from "./rules/index.js";
+import { formatLists } from "./rules/lists.js";
 import { formatRedirects } from "./rules/redirects.js";
+import { formatReferences } from "./rules/references.js";
 import { formatSectionSpacing } from "./rules/sectionSpacing.js";
-import {
-  formatTablesWithDiagnostics,
-  lineNumberAt,
-  type TableDiagnostic,
-} from "./rules/tables.js";
+import { formatTablesWithDiagnostics, lineNumberAt } from "./rules/tables.js";
+import { formatTemplatesWithDiagnostics } from "./rules/templates.js";
 import { protectBlocks } from "./utils/protectBlocks.js";
-import { verifyStructuralEquivalence } from "./equivalence.js";
 
 export interface FormatResult {
   formatted: string;
+  failure?: FormatFailure;
   warning?: string;
+}
+
+export type FormatFailureCode =
+  | "input-parse"
+  | "input-roundtrip"
+  | "output-parse"
+  | "template-equivalence"
+  | "table-equivalence"
+  | "document-equivalence"
+  | "idempotency"
+  | "template-convergence"
+  | "table-convergence"
+  | "formatter-exception";
+
+export interface FormatFailure {
+  code: FormatFailureCode;
+  stage?: string;
+  message: string;
+}
+
+type ExtensionNode = ParserNodeLike & { name?: string };
+
+function parserExtensionRanges(
+  context: ParsedDocumentContext,
+  protectReferences = true,
+): SourceRange[] {
+  return collectNodes(context, "ext")
+    .map((node) => node as ExtensionNode)
+    .filter(
+      (node) =>
+        protectReferences || !/^(?:ref|references)$/iu.test(node.name ?? ""),
+    )
+    .map(nodeRange);
 }
 
 export interface FormatDetailedResult extends FormatResult {
@@ -57,11 +91,30 @@ export function formatWikitextDetailedResult(
   const diagnostics = emptyDetailedDiagnostics();
   try {
     const config = getParserConfig(resolved.parserConfig);
-    const initialContext = createParserContext(source, config);
+    let initialContext: ParsedDocumentContext;
+    try {
+      initialContext = createParserContext(source, config);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      return fallbackDetailedResult(
+        source,
+        {
+          code: "input-parse",
+          stage: "initial-parse",
+          message: `The input could not be parsed safely: ${message}; left it unchanged.`,
+        },
+        diagnostics,
+      );
+    }
     if (initialContext.root.toString() !== source) {
       return fallbackDetailedResult(
         source,
-        "The parser could not round-trip the input exactly; left it unchanged.",
+        {
+          code: "input-roundtrip",
+          stage: "initial-roundtrip",
+          message:
+            "The parser could not round-trip the input exactly; left it unchanged.",
+        },
         diagnostics,
       );
     }
@@ -85,7 +138,7 @@ export function formatWikitextDetailedResult(
       const beforeTables = tableOutput;
       const tableBlocks = protectBlocks(tableOutput, {
         protectTables: false,
-        protectComments: false,
+        additionalRanges: parserExtensionRanges(contextFor(tableOutput)),
       });
       const tableContext = contextFor(tableBlocks.text);
       const tableResult = formatTablesWithDiagnostics(
@@ -118,6 +171,18 @@ export function formatWikitextDetailedResult(
         },
       );
       diagnostics.tableFormatDiagnostics = tableResult.summary;
+      if (tableResult.summary.convergenceLimitReached) {
+        return fallbackDetailedResult(
+          source,
+          {
+            code: "table-convergence",
+            stage: "tables",
+            message:
+              "Table formatting did not converge within its bounded pass limit; left the input unchanged.",
+          },
+          diagnostics,
+        );
+      }
       tableOutput = tableBlocks.restore(tableOutput);
       const equivalence =
         beforeTables === tableOutput
@@ -132,7 +197,11 @@ export function formatWikitextDetailedResult(
       if (!equivalence.equivalent) {
         return fallbackDetailedResult(
           source,
-          `Structural equivalence failed for tables: ${equivalence.reason}; left the input unchanged.`,
+          {
+            code: "table-equivalence",
+            stage: "tables",
+            message: `Structural equivalence failed for tables: ${equivalence.reason}; left the input unchanged.`,
+          },
           diagnostics,
         );
       }
@@ -145,6 +214,10 @@ export function formatWikitextDetailedResult(
       const referenceBlocks = protectBlocks(tableOutput, {
         protectTables: true,
         protectReferenceTags: false,
+        additionalRanges: parserExtensionRanges(
+          contextFor(tableOutput),
+          false,
+        ),
       });
       const referenceContext = contextFor(referenceBlocks.text);
       const references = formatReferences(
@@ -165,6 +238,7 @@ export function formatWikitextDetailedResult(
     if (templateLayoutEnabled || templateSpacingCompatibilityEnabled) {
       const templateBlocks = protectBlocks(tableOutput, {
         protectTables: false,
+        additionalRanges: parserExtensionRanges(contextFor(tableOutput)),
       });
       const templateContext = createParserContext(templateBlocks.text, config);
       const templates = formatTemplatesWithDiagnostics(
@@ -180,6 +254,18 @@ export function formatWikitextDetailedResult(
       const previous = tableOutput;
       tableOutput = templateBlocks.restore(templates.formatted);
       diagnostics.templateParameterDiagnostics = templates.diagnostics;
+      if (templates.diagnostics.convergenceLimitReached) {
+        return fallbackDetailedResult(
+          source,
+          {
+            code: "template-convergence",
+            stage: "templates",
+            message:
+              "Template formatting did not converge within its bounded pass limit; left the input unchanged.",
+          },
+          diagnostics,
+        );
+      }
       const equivalence =
         previous === tableOutput
           ? { equivalent: true as const, structure: "templates" as const }
@@ -193,7 +279,11 @@ export function formatWikitextDetailedResult(
       if (!equivalence.equivalent) {
         return fallbackDetailedResult(
           source,
-          `Structural equivalence failed for templates: ${equivalence.reason}; left the input unchanged.`,
+          {
+            code: "template-equivalence",
+            stage: "templates",
+            message: `Structural equivalence failed for templates: ${equivalence.reason}; left the input unchanged.`,
+          },
           diagnostics,
         );
       }
@@ -203,7 +293,10 @@ export function formatWikitextDetailedResult(
     // Re-protect tables before running rules that do not own table-internal
     // structure. Templates have already run against parser-confirmed nodes so
     // templates inside cells and tables inside templates remain supported.
-    const protectedText = protectBlocks(tableOutput, { protectTables: true });
+    const protectedText = protectBlocks(tableOutput, {
+      protectTables: true,
+      additionalRanges: parserExtensionRanges(contextFor(tableOutput)),
+    });
     let output = protectedText.text;
     if (resolved.formatHeadings && isRuleEnabled("headings", resolved.level)) {
       const previous = output;
@@ -327,10 +420,52 @@ export function formatWikitextDetailedResult(
     }
     output = protectedText.restore(output);
 
-    if (!isRoundTripSafe(output, config)) {
+    let outputRoundTripSafe: boolean;
+    try {
+      outputRoundTripSafe = isRoundTripSafe(output, config);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
       return fallbackDetailedResult(
         source,
-        "The formatted output did not parse safely; left the input unchanged.",
+        {
+          code: "output-parse",
+          stage: "final-parse",
+          message: `The formatted output could not be parsed safely: ${message}; left the input unchanged.`,
+        },
+        diagnostics,
+      );
+    }
+    if (!outputRoundTripSafe) {
+      return fallbackDetailedResult(
+        source,
+        {
+          code: "output-parse",
+          stage: "final-parse",
+          message:
+            "The formatted output did not parse safely; left the input unchanged.",
+        },
+        diagnostics,
+      );
+    }
+    const documentEquivalence =
+      source === output
+        ? { equivalent: true as const, structure: "document" as const }
+        : verifyStructuralEquivalence(
+            source,
+            output,
+            config,
+            "document",
+            resolved,
+          );
+    diagnostics.equivalenceDiagnostics.push(documentEquivalence);
+    if (!documentEquivalence.equivalent) {
+      return fallbackDetailedResult(
+        source,
+        {
+          code: "document-equivalence",
+          stage: documentEquivalence.reason?.split(" ", 1)[0],
+          message: `Structural equivalence failed for the document: ${documentEquivalence.reason}; left the input unchanged.`,
+        },
         diagnostics,
       );
     }
@@ -342,7 +477,11 @@ export function formatWikitextDetailedResult(
     const message = error instanceof Error ? error.message : String(error);
     return fallbackDetailedResult(
       source,
-      `Formatting failed safely: ${message}`,
+      {
+        code: "formatter-exception",
+        stage: "formatting",
+        message: `Formatting failed safely: ${message}`,
+      },
       diagnostics,
     );
   }
@@ -390,20 +529,40 @@ export function formatWikitextSafeDetailed(
       templateParameterDiagnostics: first.templateParameterDiagnostics,
       equivalenceDiagnostics: first.equivalenceDiagnostics,
     };
-    if (first.warning)
-      return fallbackDetailedResult(source, first.warning, diagnostics);
+    if (first.failure)
+      return fallbackDetailedResult(source, first.failure, diagnostics);
+    if (first.warning) {
+      return fallbackDetailedResult(
+        source,
+        {
+          code: "formatter-exception",
+          stage: "compatibility-warning",
+          message: first.warning,
+        },
+        diagnostics,
+      );
+    }
     const second = formatWikitextDetailedResult(first.formatted, options);
     if (second.warning) {
       return fallbackDetailedResult(
         source,
-        `Safe formatting verification failed: ${second.warning}`,
+        {
+          code: "idempotency",
+          stage: second.failure?.code ?? "second-pass",
+          message: `Safe formatting verification failed: ${second.warning}`,
+        },
         diagnostics,
       );
     }
     if (second.formatted !== first.formatted) {
       return fallbackDetailedResult(
         source,
-        "Safe formatting verification failed: output is not idempotent.",
+        {
+          code: "idempotency",
+          stage: "second-pass",
+          message:
+            "Safe formatting verification failed: output is not idempotent.",
+        },
         diagnostics,
       );
     }
@@ -412,7 +571,11 @@ export function formatWikitextSafeDetailed(
     const message = error instanceof Error ? error.message : String(error);
     return fallbackDetailedResult(
       source,
-      `Safe formatting failed: ${message}`,
+      {
+        code: "formatter-exception",
+        stage: "safe-formatting",
+        message: `Safe formatting failed: ${message}`,
+      },
       diagnostics,
     );
   }
