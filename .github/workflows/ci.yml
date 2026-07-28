@@ -32,5 +32,5 @@ jobs:
       - run: corepack enable
       - run: pnpm install --frozen-lockfile
       - run: xvfb-run -a pnpm check:extension
-      - run: pnpm check:vsix
+      - run: xvfb-run -a pnpm check:vsix
       - run: pnpm check:vscode-release
