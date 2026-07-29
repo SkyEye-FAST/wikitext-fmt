@@ -120,6 +120,15 @@ describe("production parser table formatter", () => {
     );
   });
 
+  it("composes cell layout and separator replacements at their shared boundary", () => {
+    const result = expectProductionTable(
+      '{|\n|-\n|style="text-align:center"|A||B\n|}\n',
+    );
+    expect(result.formatted).toBe(
+      '{|\n|-\n| style="text-align:center" | A\n| B\n|}\n',
+    );
+  });
+
   it("leaves canonical standalone cell spacing unchanged", () => {
     const input = "{|\n|-\n| A\n! B\n|}\n";
     const result = formatWikitextSafeDetailed(input, production);

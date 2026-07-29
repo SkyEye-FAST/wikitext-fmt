@@ -17,6 +17,12 @@ here. The project follows the pre-1.0 policy in
   eligible, changed, fragment-containing and excluded links, replaced
   underscores, and skip reasons.
 
+### Fixed
+
+- Kept parser-confirmed templates and magic words opaque while confirming table
+  cell separators, so tables containing multiline template parameters or pipe
+  escapes format completely and idempotently in one formatter call.
+
 ## 0.2.2 - 2026-07-30
 
 ### Changed

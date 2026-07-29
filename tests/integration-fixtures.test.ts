@@ -56,6 +56,36 @@ const cases: IntegrationCase[] = [
       categoriesMoved: 0,
     },
   },
+  {
+    name: "regression-pack-list-table-idempotency",
+    expectedSummary: {
+      tables: 1,
+      formattedTables: 1,
+      tablesEligible: 1,
+      tablesSkippedAmbiguous: 0,
+      templatesChanged: 1,
+    },
+  },
+  {
+    name: "regression-interface-table-idempotency",
+    expectedSummary: {
+      tables: 1,
+      formattedTables: 1,
+      tablesEligible: 1,
+      tablesSkippedAmbiguous: 0,
+      templatesChanged: 3,
+    },
+  },
+  {
+    name: "regression-background-list-table-idempotency",
+    expectedSummary: {
+      tables: 1,
+      formattedTables: 1,
+      tablesEligible: 1,
+      tablesSkippedAmbiguous: 0,
+      templatesChanged: 1,
+    },
+  },
 ];
 
 async function readOptions(directory: string): Promise<FormatOptions> {

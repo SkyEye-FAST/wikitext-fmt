@@ -1,0 +1,8 @@
+{{Pipe escape|
+{| class{{=}}"wikitable" style{{=}}"text-align:center"
+! style{{=}}"min-width:100px" | 封面
+|-
+| [[File:Pack base.png|无框|160x160px]]
+| [[Arcaea (移动版曲包)|Arcaea]]{{仅|移动版||图片角标}}
+| 免费包
+|}}}

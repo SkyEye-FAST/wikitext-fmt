@@ -1,0 +1,14 @@
+{| class="wikitable"
+!平台
+!背景
+!名称
+!描述
+!命名规则
+|-
+|[[File:Icon_Smartphone.png|16px|link=Arcaea_(移动版)]][[File:Icon_Nintendo_switch.png|16px|link=Arcaea_(Nintendo_Switch版)]]
+|[[File:Background_prelude_conflict.jpg|300px]]
+|[[:Category:采用prelude_conflict背景的曲目|prelude_conflict]]
+|[[Adverse Prelude]]的纷争侧非特殊曲目<br>(包括[[Particle Arts]]{{仅
+|移动版||文字角标}}、[[BLRINK]]、[[Heavensdoor]]和[[Saint or Sinner]])
+|包名 + 纷争侧(conflict)
+|}

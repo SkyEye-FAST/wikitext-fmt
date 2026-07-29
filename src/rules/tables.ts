@@ -329,7 +329,16 @@ function protectedTableRanges(
   raw: string,
 ): SourceRange[] {
   const ranges: SourceRange[] = [];
-  for (const selector of ["ext", "comment", "table"]) {
+  // Multiline templates can put parameter pipes at the start of physical
+  // table lines. Keep every parser-confirmed opaque node out of the lexical
+  // separator fallback instead of requiring its delimiters to balance per line.
+  for (const selector of [
+    "ext",
+    "comment",
+    "table",
+    "template",
+    "magic-word",
+  ]) {
     let cursor = 0;
     for (const node of table.querySelectorAll<ParserTableNode>(selector)) {
       if (node === table) continue;

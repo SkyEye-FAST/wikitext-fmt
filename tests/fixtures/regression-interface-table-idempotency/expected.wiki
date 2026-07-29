@@ -1,0 +1,16 @@
+{| class="wikitable"
+|- style="position:-webkit-sticky;position:sticky;top:0px;"
+! style="min-width:36px;" | 模块
+! style="min-width:90px;" | 设定项
+! style="min-width:150px;" | 功能
+! style="min-width:200px;" | 备注
+|-
+| rowspan="7" | 玩法
+| 纯粹【过早/过晚】
+| 开启后会在纯粹(Pure)时显示【过早/过晚】
+| 即连击数上方的{{color|#1111dd|Early}}/{{color|#dd1111|Late}}
+|-
+| 暂停模式{{仅|移动版||图片角标}}
+| 设置或停用暂停功能
+| 选项：单击/双击/长按/隐藏
+|}
