@@ -1,7 +1,6 @@
 import type { ResolvedFormatOptions } from "../options.js";
 import {
   collectNodes,
-  nodeRange,
   type ParsedDocumentContext,
   type ParserNodeLike,
   type SourceRange,
@@ -53,6 +52,11 @@ type WikilinkOptions = Pick<ResolvedFormatOptions, "interlanguagePrefixes">;
 
 interface Replacement extends SourceRange {
   value: string;
+}
+
+interface ClassifiedWikilink {
+  node: WikilinkParserNode;
+  classification: WikilinkClassification;
 }
 
 const excludedParentTypes = new Set([
@@ -169,6 +173,72 @@ function recordSkip(
   diagnostics.skipReasons[reason] = (diagnostics.skipReasons[reason] ?? 0) + 1;
 }
 
+function parserNodeSourceRanges(
+  context: ParsedDocumentContext,
+  requestedNodes: readonly WikilinkParserNode[],
+): ReadonlyMap<WikilinkParserNode, SourceRange> {
+  // getAbsoluteIndex() walks preceding siblings, which becomes quadratic for
+  // link-heavy pages. Resolve relevant branches while scanning each serialized
+  // parent once in source order.
+  const requested = new Set(requestedNodes);
+  const relevant = new Set<WikilinkParserNode>();
+  for (const node of requested) {
+    let current: WikilinkParserNode | undefined = node;
+    while (current) {
+      relevant.add(current);
+      current = current.parentNode;
+    }
+  }
+
+  const ranges = new Map<WikilinkParserNode, SourceRange>();
+  const visit = (
+    parent: WikilinkParserNode,
+    parentStart: number,
+    parentRaw: string,
+  ): void => {
+    let cursor = 0;
+    for (const child of parent.childNodes) {
+      const raw = child.toString();
+      const relativeStart = parentRaw.indexOf(raw, cursor);
+      if (relativeStart < 0) continue;
+      const start = parentStart + relativeStart;
+      const end = start + raw.length;
+      if (requested.has(child)) ranges.set(child, { start, end });
+      if (relevant.has(child)) visit(child, start, raw);
+      cursor = relativeStart + raw.length;
+    }
+  };
+
+  const root = context.root as unknown as WikilinkParserNode;
+  if (root.toString() === context.source) {
+    visit(root, 0, context.source);
+  }
+  return ranges;
+}
+
+function applyReplacements(
+  source: string,
+  replacements: readonly Replacement[],
+): string {
+  const parts: string[] = [];
+  let cursor = 0;
+  for (const replacement of [...replacements].sort(
+    (a, b) => a.start - b.start,
+  )) {
+    if (
+      replacement.start < cursor ||
+      replacement.end < replacement.start ||
+      replacement.end > source.length
+    ) {
+      return source;
+    }
+    parts.push(source.slice(cursor, replacement.start), replacement.value);
+    cursor = replacement.end;
+  }
+  parts.push(source.slice(cursor));
+  return parts.join("");
+}
+
 export function formatWikilinks(
   source: string,
   options: WikilinkOptions,
@@ -181,18 +251,31 @@ export function formatWikilinks(
     context,
     "link, redirect-target, file, category",
   ) as WikilinkParserNode[];
+  const classified: ClassifiedWikilink[] = nodes.map((node) => ({
+    node,
+    classification: classifyWikilinkNode(node, options),
+  }));
+  const ranges = parserNodeSourceRanges(
+    context,
+    classified.flatMap(({ node, classification }) =>
+      classification.eligible
+        ? [node, classification.targetNode]
+        : [],
+    ),
+  );
   const replacements: Replacement[] = [];
-  for (const node of nodes) {
+  for (const { node, classification } of classified) {
     diagnostics.wikilinksInspected++;
-    const classification = classifyWikilinkNode(node, options);
     if (!classification.eligible) {
       recordSkip(diagnostics, classification.reason);
       continue;
     }
 
-    const nodeBounds = nodeRange(node);
-    const targetBounds = nodeRange(classification.targetNode);
+    const nodeBounds = ranges.get(node);
+    const targetBounds = ranges.get(classification.targetNode);
     if (
+      !nodeBounds ||
+      !targetBounds ||
       targetBounds.start < nodeBounds.start ||
       targetBounds.end > nodeBounds.end ||
       source.slice(targetBounds.start, targetBounds.end) !== classification.target
@@ -219,12 +302,5 @@ export function formatWikilinks(
     }
   }
 
-  let output = source;
-  for (const replacement of replacements.sort((a, b) => b.start - a.start)) {
-    output =
-      output.slice(0, replacement.start) +
-      replacement.value +
-      output.slice(replacement.end);
-  }
-  return { formatted: output, diagnostics };
+  return { formatted: applyReplacements(source, replacements), diagnostics };
 }

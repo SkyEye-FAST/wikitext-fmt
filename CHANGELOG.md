@@ -24,6 +24,9 @@ here. The project follows the pre-1.0 policy in
 - Kept parser-confirmed templates and magic words opaque while confirming table
   cell separators, so tables containing multiline template parameters or pipe
   escapes format completely and idempotently in one formatter call.
+- Resolved parser-confirmed wikilink source ranges in one source-order traversal
+  and applied replacements in one pass, avoiding quadratic formatting time on
+  pages containing many links.
 
 ## 0.2.2 - 2026-07-30
 

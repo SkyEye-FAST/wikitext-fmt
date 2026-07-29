@@ -189,6 +189,30 @@ describe("ordinary wikilink formatting", () => {
       },
     });
   });
+
+  it("resolves many parser ranges without per-link absolute-index walks", () => {
+    const source = Array.from(
+      { length: 1_000 },
+      (_value, index) => `[[Repeated_Page_${index}]]`,
+    ).join("\n");
+    const context = createParserContext(source, config);
+    for (const node of context.root.querySelectorAll(
+      "link, redirect-target, file, category, link-target",
+    )) {
+      node.getAbsoluteIndex = () => {
+        throw new Error("wikilink formatting must resolve ranges linearly");
+      };
+    }
+
+    const result = formatWikilinks(source, directOptions, context);
+    expect(result.formatted).toBe(source.replaceAll("_", " "));
+    expect(result.diagnostics).toMatchObject({
+      wikilinksInspected: 1_000,
+      wikilinksEligible: 1_000,
+      wikilinksFormatted: 1_000,
+      wikilinksSkippedUnsafe: 0,
+    });
+  });
 });
 
 describe("wikilink structural equivalence", () => {
