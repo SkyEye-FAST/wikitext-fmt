@@ -6,6 +6,8 @@ here. The project follows the pre-1.0 policy in
 
 ## Unreleased
 
+## 0.2.2 - 2026-07-30
+
 ### Changed
 
 - Added `inlineTemplateSpacing` with `auto`, `compact`, and `spaced` modes so
