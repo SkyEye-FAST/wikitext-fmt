@@ -56,8 +56,28 @@ describe("core release workflow", () => {
   });
 
   it("publishes only the verified tarball and never recursively", () => {
-    expect(releaseWorkflow).toContain("pnpm publish \\");
+    const dryRunStep = releaseWorkflow.match(
+      /      - name: Dry-run the exact publish command[\s\S]*?(?=\n      - (?:name:|uses:))/u,
+    )?.[0];
+    const productionPublishStep = releaseWorkflow.match(
+      /      - name: Publish the verified core tarball with OIDC[\s\S]*?(?=\n      - name:)/u,
+    )?.[0];
+
+    expect(dryRunStep).toContain(
+      '"release-artifacts/$TARBALL_FILENAME" \\',
+    );
+    expect(dryRunStep).toContain('--tag "$DIST_TAG" \\');
+    expect(dryRunStep).toContain("--provenance \\");
+    expect(dryRunStep).toContain("--no-git-checks \\");
+    expect(dryRunStep).toContain("--dry-run");
+    expect(productionPublishStep).toContain(
+      '"$ARTIFACT_DIRECTORY/$TARBALL_FILENAME" \\',
+    );
+    expect(productionPublishStep).toContain('--tag "$DIST_TAG" \\');
+    expect(productionPublishStep).toContain("--provenance \\");
+    expect(productionPublishStep).toContain("--no-git-checks");
+    expect(productionPublishStep).not.toContain("--dry-run");
     expect(releaseWorkflow).not.toMatch(/pnpm (?:-r|--recursive) publish/u);
-    expect(releaseWorkflow.match(/pnpm publish/gu)).toHaveLength(1);
+    expect(releaseWorkflow.match(/pnpm publish/gu)).toHaveLength(2);
   });
 });

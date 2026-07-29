@@ -157,7 +157,9 @@ Core verification and release operations are deliberately separate workflows:
 `Checks` handles branch pushes, pull requests, and manual runs with read-only
 repository access. It never reacts to release tags. `Core release` reacts to
 exactly `core-v*` tag pushes and also supports manual verification. A manual
-dispatch never reaches npm publication or GitHub Release creation.
+dispatch runs the complete verification job, including a dry run of the exact
+tarball publication command, but never reaches npm publication or GitHub
+Release creation.
 
 The release workflow has three least-privilege jobs:
 
@@ -173,6 +175,16 @@ The release workflow has three least-privilege jobs:
 The jobs pass one uploaded `release-artifacts/` directory containing the npm
 tarball, `SHA256SUMS`, `release-notes.md`, and machine-readable release
 metadata. The publication job does not rebuild the package.
+
+GitHub Actions checks out the exact release commit, so a tag-triggered run uses
+a detached `HEAD`. The production command intentionally passes
+`--no-git-checks` when publishing the verified tarball. pnpm's normal
+branch-attached check is redundant there because the workflow already proves
+the exact tag format and commit, default-branch ancestry, package and changelog
+metadata, tarball contents, installation smoke test, and checksum before
+publication. The bypass is present only on the CI commands that dry-run or
+publish that exact tarball. Local or maintainer-run publishing commands must
+retain pnpm's normal Git checks.
 
 The filename `release-core.yml` is part of npm Trusted Publisher identity.
 Renaming it later requires an npm package-settings update.
@@ -196,6 +208,14 @@ Allowed action: npm publish
 The workflow filename and environment name are case-sensitive trust inputs and
 must match exactly. The workflow uses a GitHub-hosted runner and OIDC only; do
 not configure `NPM_TOKEN` or another long-lived publish secret.
+
+`actions/setup-node` writes an npm configuration containing a
+`${NODE_AUTH_TOKEN}` placeholder when `registry-url` is set. pnpm may therefore
+warn that it could not replace that variable during an OIDC Trusted Publishing
+run. The warning alone does not indicate an authentication failure: no
+long-lived npm token is required, and an empty or synthetic `NODE_AUTH_TOKEN`
+must not be added merely to suppress it. Diagnose authentication from the
+actual publish result and the Trusted Publisher identity and OIDC permissions.
 
 If npm does not allow Trusted Publisher configuration before the package's
 first publication, perform a one-time bootstrap publication from the reviewed
@@ -273,12 +293,14 @@ exact assets are verified; a conflicting published release fails for
 maintainer review.
 
 If the workflow or a release script is defective in the tagged commit, complete
-that release manually only when it is safe, fix forward on `master`, and use the
-corrected workflow for the next version.
+that release manually only when it is safe, and fix forward on `master`.
+Ordinarily, use the corrected workflow for the next version.
 
-Do not delete or move the tag to retry. Never attempt to overwrite an npm
-version. Fix-forward package changes require the next version under the
-pre-1.0 policy.
+Do not delete or move a tag merely to retry unchanged code. A failed tag for
+an unpublished version may be recreated on the reviewed fix only after
+independently confirming that both the exact npm version and its GitHub Release
+are absent. If either exists, the tag must never be moved and the fix requires
+the next version. Never attempt to overwrite an npm version.
 
 ## 12. Verify the core registry release
 

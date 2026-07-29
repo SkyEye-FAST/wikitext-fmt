@@ -14,6 +14,8 @@ here. The project follows the pre-1.0 policy in
   shasum while accepting a missing registry `gitHead` when the artifact matches.
 - Made post-publication npm registry verification tolerate temporary metadata
   propagation delays while remaining fail-closed on persistent conflicts.
+- Allowed the verified npm tarball to be published from the detached tag
+  checkout used by GitHub Actions without relying on pnpm branch checks.
 
 ## 0.2.0 - 2026-07-29
 

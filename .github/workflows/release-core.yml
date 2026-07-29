@@ -85,6 +85,18 @@ jobs:
             cd release-artifacts
             sha256sum "$TARBALL_FILENAME" > SHA256SUMS
           )
+      - name: Dry-run the exact publish command
+        env:
+          DIST_TAG: ${{ steps.metadata.outputs.npm_dist_tag }}
+          TARBALL_FILENAME: ${{ steps.metadata.outputs.tarball_filename }}
+        run: |
+          pnpm publish \
+            "release-artifacts/$TARBALL_FILENAME" \
+            --access public \
+            --tag "$DIST_TAG" \
+            --provenance \
+            --no-git-checks \
+            --dry-run
       - uses: actions/upload-artifact@v7
         with:
           name: core-release-${{ steps.metadata.outputs.version }}
@@ -160,7 +172,8 @@ jobs:
             "$ARTIFACT_DIRECTORY/$TARBALL_FILENAME" \
             --access public \
             --tag "$DIST_TAG" \
-            --provenance
+            --provenance \
+            --no-git-checks
       - name: Verify the published npm version
         env:
           ARTIFACT_DIRECTORY: ${{ runner.temp }}/release-artifacts
