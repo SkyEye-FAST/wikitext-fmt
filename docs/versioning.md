@@ -19,11 +19,11 @@ Keep these facts separate:
 - **Released version**: publication and component-specific tag/release evidence
   have been independently verified.
 
-The current development version is `0.2.0` for both components. Repository
-history contains the version-bump commit but no Git tags. Therefore this
-documentation does not claim that `0.2.0`, or any earlier version, was
-published. A package version or dated changelog heading alone is insufficient
-publication evidence.
+Published core releases are available through npm, and the released VS Code
+extension follows its own version and publication lifecycle. A package version
+or dated changelog heading alone remains insufficient publication evidence;
+verify the corresponding registry or Marketplace entry and component-specific
+tag or release.
 
 Normal development keeps new work under `Unreleased`. Release finalization
 moves selected items into a version heading. Core publication is initiated
@@ -73,11 +73,11 @@ or runtime requirements, evaluate and record an extension release.
 Use unambiguous tag and release names:
 
 ```text
-core-v0.2.0
-vscode-v0.2.0
+core-v<version>
+vscode-v<version>
 ```
 
-Do not introduce a shared `v0.2.0` tag after component versions can diverge.
+Do not introduce a shared `v<version>` tag after component versions can diverge.
 
 ## Changelogs
 
@@ -108,9 +108,11 @@ release heading or imply publication.
 For a finalized core release, validate the proposed component tag:
 
 ```sh
+version="$(node -p "require('./package.json').version")"
+
 pnpm check:release-metadata -- \
   --component core \
-  --tag core-v0.2.0
+  --tag "core-v$version"
 ```
 
 This derives the package name and version, exact tag, stable or prerelease

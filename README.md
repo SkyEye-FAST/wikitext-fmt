@@ -6,12 +6,15 @@ extension, and it does not require a running wiki for ordinary formatting.
 
 ## Project status
 
-The project is pre-1.0. The current package development version is `0.2.0`;
-that number in the repository does not by itself mean the version has been
-published. There are currently no component release tags in this repository.
-See the [versioning policy](docs/versioning.md) for the distinction between a
-development version, an `Unreleased` changelog, release preparation, tagging,
-and publication.
+The project is pre-1.0. Published core releases are available through npm. The
+VS Code extension is also released and is versioned independently from the core
+package. Component tags use `core-v<version>` for the npm package and
+`vscode-v<version>` for the extension.
+
+Repository package metadata alone does not prove that a version has been
+published. See the [versioning policy](docs/versioning.md) for the pre-1.0
+compatibility rules and the distinction between development metadata, release
+preparation, component tags, and verified publication.
 
 The documented CLI streams, configuration validation, public entry points, and
 fail-closed formatter pipeline are tested and usable for controlled automation.

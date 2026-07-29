@@ -212,23 +212,25 @@ appropriate and revoke obsolete npm automation tokens.
 Use component-specific names derived from the finalized package versions:
 
 ```text
-core-v0.2.0
-vscode-v0.2.0
+core-v<version>
+vscode-v<version>
 ```
 
 Do not create a shared ambiguous tag. Verify the commit and reviewed artifact
 before creating signed or annotated tags. The metadata check prints expected
 names but does not create or prove tags.
 
-For a stable `0.2.0` core release:
+For a stable core release:
 
 ```sh
+version="$(node -p "require('./package.json').version")"
+
 git checkout master
 git pull --ff-only
 pnpm check
 pnpm corpus
-git tag -s core-v0.2.0 -m "wikitext-fmt 0.2.0"
-git push origin core-v0.2.0
+git tag -s "core-v$version" -m "wikitext-fmt $version"
+git push origin "core-v$version"
 ```
 
 Pushing the component tag starts npm publication and, only after npm succeeds,
@@ -245,16 +247,34 @@ Release notes are the non-empty body of the exact matching core
 
 ## 11. Partial failures and reruns
 
-npm versions are immutable and cannot be overwritten. Before publishing, the
-workflow queries the exact version. If it exists, registry package identity,
-repository metadata, `gitHead`, and dist-tag must match the release commit. A
-missing or conflicting value fails closed.
+npm versions are immutable and cannot be overwritten. Before publication, the
+workflow queries the exact version once. An absent version requires publication;
+an existing conflict fails immediately without retrying.
 
-Rerun the failed jobs from the original tag workflow. If npm succeeded but the
-GitHub Release step failed, the npm check recognizes the same immutable
-publication and allows recovery to continue. A matching draft is completed; a
-matching published release and its exact assets are verified; a conflicting
-published release fails for maintainer review.
+Recovery of an already published version verifies package name and version,
+repository type and URL, the expected npm dist-tag, and the exact verified
+tarball's npm-compatible SHA-512 `dist.integrity` and SHA-1 `dist.shasum`.
+`gitHead` must match the release commit when npm provides it. A missing
+`gitHead` does not by itself conflict when both exact tarball hashes and all
+other package identity checks match.
+
+The post-publication registry check retries while a newly published version is
+absent or its metadata is temporarily incomplete or stale. It succeeds only
+when every required value matches and throws the last meaningful validation
+error when a mismatch persists.
+
+For a transient operational failure with unchanged tagged code, rerun the
+failed jobs from the original tag workflow. A rerun uses the workflow and
+scripts from the original tagged commit; it does not pick up fixes from the
+current `master` branch. If npm succeeded but GitHub Release creation failed,
+the npm check recognizes the same immutable publication and allows recovery to
+continue. A matching draft is completed; a matching published release and its
+exact assets are verified; a conflicting published release fails for
+maintainer review.
+
+If the workflow or a release script is defective in the tagged commit, complete
+that release manually only when it is safe, fix forward on `master`, and use the
+corrected workflow for the next version.
 
 Do not delete or move the tag to retry. Never attempt to overwrite an npm
 version. Fix-forward package changes require the next version under the
@@ -265,8 +285,12 @@ pre-1.0 policy.
 After a successful run:
 
 ```sh
-pnpm view wikitext-fmt@0.2.0 version repository gitHead dist-tags
-pnpm dlx wikitext-fmt@0.2.0 --version
+version="$(node -p "require('./package.json').version")"
+
+pnpm view "wikitext-fmt@$version" \
+  version repository gitHead dist.integrity dist.shasum dist-tags
+
+pnpm dlx "wikitext-fmt@$version" --version
 ```
 
 Confirm the GitHub Release tag, title, prerelease state, changelog-derived body,

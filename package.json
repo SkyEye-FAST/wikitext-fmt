@@ -1,8 +1,15 @@
 {
   "name": "wikitext-fmt",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "A parser-assisted structural formatter for MediaWiki wikitext",
   "license": "GPL-3.0-or-later",
+  "keywords": [
+    "mediawiki",
+    "wikitext",
+    "formatter",
+    "pretty-printer",
+    "cli"
+  ],
   "repository": {
     "type": "git",
     "url": "git+https://github.com/SkyEye-FAST/wikitext-fmt.git"

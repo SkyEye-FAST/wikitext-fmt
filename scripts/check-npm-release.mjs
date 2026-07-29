@@ -103,6 +103,56 @@ async function fetchPackument(metadata) {
   return response.json();
 }
 
+function waitForRetry() {
+  return new Promise((resolveDelay) => setTimeout(resolveDelay, 5_000));
+}
+
+export async function verifyPublishedVersionWithRetry({
+  fetchPackument,
+  metadata,
+  commit,
+  tarballDigests,
+  attempts = 1,
+  delay = waitForRetry,
+  requireExisting = false,
+}) {
+  assertRelease(
+    Number.isInteger(attempts) && attempts > 0,
+    "attempts must be a positive integer",
+  );
+
+  if (!requireExisting) {
+    return assessRegistryVersion(
+      await fetchPackument(metadata),
+      metadata,
+      commit,
+      tarballDigests,
+    );
+  }
+
+  let lastValidationError;
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    try {
+      const state = assessRegistryVersion(
+        await fetchPackument(metadata),
+        metadata,
+        commit,
+        tarballDigests,
+      );
+      if (!state.publishRequired) return state;
+      lastValidationError ??= new Error(
+        `npm ${metadata.packageName}@${metadata.version} is still unavailable after publication`,
+      );
+    } catch (error) {
+      lastValidationError = error;
+    }
+
+    if (attempt < attempts) await delay();
+  }
+
+  throw lastValidationError;
+}
+
 async function main() {
   const options = parseArguments(process.argv.slice(2));
   const metadataPath = resolve(options.metadata);
@@ -116,25 +166,14 @@ async function main() {
     : resolve(dirname(metadataPath), metadata.tarballFilename);
   const tarballDigests = await computeTarballDigests(tarballPath);
   const attempts = Number(options.attempts ?? 1);
-  let state;
-  for (let attempt = 1; attempt <= attempts; attempt += 1) {
-    state = assessRegistryVersion(
-      await fetchPackument(metadata),
-      metadata,
-      options.commit,
-      tarballDigests,
-    );
-    if (!options.requireExisting || !state.publishRequired) break;
-    if (attempt < attempts) {
-      await new Promise((resolveDelay) => setTimeout(resolveDelay, 5_000));
-    }
-  }
-  if (options.requireExisting) {
-    assertRelease(
-      !state.publishRequired,
-      `npm ${metadata.packageName}@${metadata.version} is still unavailable after publication`,
-    );
-  }
+  const state = await verifyPublishedVersionWithRetry({
+    fetchPackument,
+    metadata,
+    commit: options.commit,
+    tarballDigests,
+    attempts,
+    requireExisting: options.requireExisting,
+  });
   if (options["github-output"]) {
     await appendFile(
       options["github-output"],
