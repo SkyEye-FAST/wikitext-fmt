@@ -17,10 +17,9 @@
   },
   "files": [
     "dist",
+    "docs",
     "README.md",
     "CHANGELOG.md",
-    "VERSIONING.md",
-    "RELEASE_CHECKLIST.md",
     "LICENSE"
   ],
   "scripts": {
@@ -30,7 +29,9 @@
     "typecheck:tests": "tsc -p tsconfig.test.json",
     "test": "vitest",
     "test:run": "vitest run",
-    "check": "pnpm check:versions && pnpm build:all && pnpm typecheck:tests && pnpm --filter wikitext-formatter typecheck && pnpm --filter wikitext-formatter check:package-content && pnpm test:run && pnpm smoke",
+    "check": "pnpm check:versions && pnpm build:all && node scripts/check-docs.mjs && pnpm typecheck:tests && pnpm --filter wikitext-formatter typecheck && pnpm --filter wikitext-formatter check:package-content && pnpm test:run && pnpm smoke",
+    "check:docs": "pnpm build && node scripts/check-docs.mjs",
+    "check:release-metadata": "node scripts/check-version-metadata.mjs --release",
     "check:versions": "node scripts/check-version-metadata.mjs",
     "check:extension": "pnpm --filter wikitext-formatter test:extension",
     "check:vsix": "pnpm --filter wikitext-formatter test:vsix",

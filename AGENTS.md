@@ -24,6 +24,7 @@ The formatter should fail closed. When parsing, exact round-tripping, structural
 - `tests/real-pages/` is the committed production corpus.
 - `scripts/` contains corpus, benchmark, localization, package, and release tooling.
 - `packages/vscode/` is a thin VS Code wrapper around the core package.
+- `docs/` contains the CLI, API, configuration, safety, rule, localization, development, versioning, and release guides.
 
 ## Toolchain
 
@@ -173,6 +174,6 @@ When changing extension-visible behavior:
 
 ## Documentation and release hygiene
 
-Update user-facing documentation when behavior, defaults, profiles, options, diagnostics, CLI output, package contents, or supported runtimes change. Add an entry to `CHANGELOG.md` for user-visible changes and consult `RELEASE_CHECKLIST.md` for release-related work.
+Update user-facing documentation when behavior, defaults, profiles, options, diagnostics, CLI output, package contents, or supported runtimes change. Add an entry to `CHANGELOG.md` for user-visible changes and consult `docs/releasing.md` for release-related work.
 
 Do not commit benchmark or corpus report output unless the repository intentionally tracks that specific baseline. Avoid unrelated refactors, mass reformatting, dependency churn, and generated-file changes in focused patches.

@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { execFileSync } from "node:child_process";
 import { readFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -28,17 +29,33 @@ function assert(condition, message) {
   if (!condition) throw new Error(message);
 }
 
-function currentChangelogVersion(contents, path) {
-  assert(
-    /^## Unreleased\s*$/mu.test(contents),
-    `${path} must contain an Unreleased section`,
-  );
+function changelogMetadata(contents, path) {
+  const heading = /^## Unreleased\s*$/mu.exec(contents);
+  assert(heading, `${path} must contain an Unreleased section`);
+  const remainder = contents.slice(heading.index + heading[0].length);
+  const nextHeading = /^## /mu.exec(remainder);
   const releaseHeadings = [
     ...contents.matchAll(/^## (?!Unreleased\s*$)([^\s]+)(?: - \d{4}-\d{2}-\d{2})?\s*$/gmu),
   ];
-  assert(releaseHeadings.length > 0, `${path} has no versioned release heading`);
-  return releaseHeadings[0][1];
+  return {
+    currentRelease: releaseHeadings[0]?.[1],
+    unreleased: (
+      nextHeading ? remainder.slice(0, nextHeading.index) : remainder
+    ).trim(),
+  };
 }
+
+const args = process.argv.slice(2);
+const releaseTarget =
+  args[0] === "--release" ? (args[1] ?? "all") : undefined;
+const releaseMode = releaseTarget !== undefined;
+assert(
+  args.length === 0 ||
+    (releaseMode &&
+      args.length <= 2 &&
+      ["all", "core", "vscode"].includes(releaseTarget)),
+  "Usage: check-version-metadata.mjs [--release [all|core|vscode]]",
+);
 
 const corePackage = await readJson("package.json");
 const extensionPackage = await readJson("packages/vscode/package.json");
@@ -53,15 +70,24 @@ assert(
 );
 
 const changelogs = [
-  ["CHANGELOG.md", corePackage.version],
-  ["packages/vscode/CHANGELOG.md", extensionPackage.version],
+  ["core", "CHANGELOG.md", corePackage.version],
+  ["vscode", "packages/vscode/CHANGELOG.md", extensionPackage.version],
 ];
-for (const [path, expectedVersion] of changelogs) {
-  const actualVersion = currentChangelogVersion(await readText(path), path);
-  assert(
-    actualVersion === expectedVersion,
-    `${path} current release ${actualVersion} does not match package version ${expectedVersion}`,
-  );
+for (const [component, path, expectedVersion] of changelogs) {
+  const metadata = changelogMetadata(await readText(path), path);
+  if (
+    releaseMode &&
+    (releaseTarget === "all" || releaseTarget === component)
+  ) {
+    assert(
+      metadata.currentRelease === expectedVersion,
+      `${path} current release ${metadata.currentRelease ?? "(none)"} does not match package version ${expectedVersion}`,
+    );
+    assert(
+      metadata.unreleased === "",
+      `${path} Unreleased section must be empty when finalizing a release`,
+    );
+  }
 }
 
 assert(
@@ -77,6 +103,36 @@ assert(
   "pnpm-lock.yaml must resolve the extension's core dependency to link:../..",
 );
 
-console.log(
-  `version metadata ok (core ${corePackage.version}, vscode ${extensionPackage.version})`,
-);
+if (releaseMode) {
+  const expectedTags = [];
+  if (releaseTarget === "all" || releaseTarget === "core")
+    expectedTags.push(`core-v${corePackage.version}`);
+  if (releaseTarget === "all" || releaseTarget === "vscode")
+    expectedTags.push(`vscode-v${extensionPackage.version}`);
+  const tags = execFileSync("git", ["tag", "--list"], {
+    cwd: repositoryRoot,
+    encoding: "utf8",
+  })
+    .trim()
+    .split("\n")
+    .filter(Boolean);
+  const releaseVersions = [];
+  if (releaseTarget === "all" || releaseTarget === "core")
+    releaseVersions.push(corePackage.version);
+  if (releaseTarget === "all" || releaseTarget === "vscode")
+    releaseVersions.push(extensionPackage.version);
+  for (const version of releaseVersions) {
+    const ambiguousTag = `v${version}`;
+    assert(
+      !tags.includes(ambiguousTag),
+      `Ambiguous component tag is not allowed: ${ambiguousTag}`,
+    );
+  }
+  console.log(
+    `release metadata ok (expected tags: ${expectedTags.join(", ")})`,
+  );
+} else {
+  console.log(
+    `development version metadata ok (core ${corePackage.version}, vscode ${extensionPackage.version})`,
+  );
+}

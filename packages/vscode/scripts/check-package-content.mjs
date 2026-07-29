@@ -13,6 +13,7 @@ const required = [
 ];
 const forbiddenFiles = ["tsconfig.json"];
 const forbiddenPatterns = [
+  /^docs\//u,
   /^src\//u,
   /^tests\//u,
   /^test\//u,

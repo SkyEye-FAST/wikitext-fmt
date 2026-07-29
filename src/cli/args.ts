@@ -1,7 +1,11 @@
 import { stdout } from "node:process";
 
 import type { FormatOptions } from "../options.js";
-import { booleanCliFlags } from "../options/schema.js";
+import {
+  booleanCliFlags,
+  optionSchema,
+  type OptionSchemaEntry,
+} from "../options/schema.js";
 
 export interface CliOptions extends FormatOptions {
   write: boolean;
@@ -21,8 +25,224 @@ export interface CliOptions extends FormatOptions {
   files: string[];
 }
 
+interface HelpOption {
+  syntax: string;
+  description: string;
+}
+
+interface FormatterValueHelp {
+  name: keyof FormatOptions;
+  syntax: string;
+  description: string;
+}
+
+const formatterValueHelp: readonly FormatterValueHelp[] = [
+  {
+    name: "profile",
+    syntax: "--profile <default|production|aggressive>",
+    description: "Select a coordinated formatter preset.",
+  },
+  {
+    name: "level",
+    syntax: "--level <safe|normal|experimental>",
+    description: "Set the maximum rule reliability level.",
+  },
+  {
+    name: "parserConfig",
+    syntax: "--parser-config <name-or-json-path>",
+    description: "Select a bundled parser config or JSON path.",
+  },
+  {
+    name: "htmlVoidTagStyle",
+    syntax: "--html-void-tag-style <html5|xhtml|preserve>",
+    description: "Choose simple HTML void-tag spelling.",
+  },
+  {
+    name: "tableCellSeparatorStyle",
+    syntax: "--table-cell-separator-style <auto|split|preserve>",
+    description: "Choose parser-confirmed inline table-cell layout.",
+  },
+  {
+    name: "interlanguagePlacement",
+    syntax: "--interlanguage-placement <preserve|footer>",
+    description: "Preserve or move eligible interlanguage links.",
+  },
+  {
+    name: "interlanguagePrefixes",
+    syntax: "--interlanguage-prefixes <a,b,...>",
+    description: "Replace the recognized interlanguage prefix list.",
+  },
+  {
+    name: "behaviorSwitchPlacement",
+    syntax: "--behavior-switch-placement <preserve|footer>",
+    description: "Preserve or move eligible behavior switches.",
+  },
+  {
+    name: "localizationSource",
+    syntax: "--localization-source <builtin|siteinfo|custom>",
+    description: "Select the localization alias source.",
+  },
+  {
+    name: "localizedSyntaxStyle",
+    syntax: "--localized-syntax-style <preserve|canonical-english>",
+    description: "Preserve aliases or emit certain canonical keywords.",
+  },
+];
+
+const helpSections: readonly [
+  title: string,
+  options: readonly HelpOption[],
+][] = [
+  [
+    "General",
+    [
+      { syntax: "--help", description: "Show this help and exit." },
+      {
+        syntax: "--version, -v",
+        description: "Print the package version and exit before other processing.",
+      },
+    ],
+  ],
+  [
+    "Input and output",
+    [
+      {
+        syntax: "--write",
+        description: "Replace input files with accepted formatter output.",
+      },
+      {
+        syntax: "--check",
+        description: "Emit no formatted text; exit 1 if changes are needed.",
+      },
+      {
+        syntax: "--diff",
+        description: "Print unified diffs; exit 1 if changes are needed.",
+      },
+      {
+        syntax: "--stdin",
+        description: "Read one input from stdin instead of file paths.",
+      },
+      {
+        syntax: "--report <path>",
+        description: "Write an aggregate JSON report to a file.",
+      },
+    ],
+  ],
+  [
+    "Safety and diagnostics",
+    [
+      {
+        syntax: "--safe",
+        description: "Add a second formatting pass to verify idempotency.",
+      },
+      {
+        syntax: "--unsafe",
+        description: "Use the base single-call formatter pipeline only.",
+      },
+      {
+        syntax: "--fail-on-warning",
+        description: "Exit 1 when a structured formatter fallback occurs.",
+      },
+      {
+        syntax: "--debug",
+        description: "Write human-readable diagnostics to stderr.",
+      },
+      {
+        syntax: "--diagnostics-json",
+        description: "Write one JSON diagnostic record per input to stderr.",
+      },
+    ],
+  ],
+  [
+    "Configuration and localization",
+    [
+      {
+        syntax: "--config <path>",
+        description: "Load one explicit JSON configuration file.",
+      },
+      {
+        syntax: "--no-config",
+        description: "Disable configuration-file discovery.",
+      },
+      {
+        syntax: "--site-api <url>",
+        description: "Load siteinfo aliases from a MediaWiki API.",
+      },
+      {
+        syntax: "--print-localization-aliases",
+        description: "Print resolved aliases as JSON without formatting input.",
+      },
+    ],
+  ],
+];
+
 export function usage(): string {
-  return "Usage: wikitext-fmt [--help | --version | -v] [--write | --check | --diff] [--stdin] [--safe | --unsafe] [--profile default|production|aggressive] [--fail-on-warning] [--report <path>] [--debug | --diagnostics-json] [--config <path> | --no-config] [--level safe|normal|experimental] [options] <file-or-glob...>";
+  return "Usage: wikitext-fmt [options] <file-or-glob...>\n       wikitext-fmt --stdin [options]";
+}
+
+function renderHelpSection(
+  title: string,
+  options: readonly HelpOption[],
+): string {
+  const width = Math.max(...options.map((option) => option.syntax.length));
+  return `${title}:\n${options
+    .map(
+      (option) =>
+        `  ${option.syntax.padEnd(width)}  ${option.description}`,
+    )
+    .join("\n")}`;
+}
+
+function schemaDefault(entry: OptionSchemaEntry | undefined): string {
+  if (!entry || entry.defaultValue === undefined) return "";
+  return ` Default: ${JSON.stringify(entry.defaultValue)}.`;
+}
+
+function formatterHelpOptions(): HelpOption[] {
+  const valueOptions = formatterValueHelp.map((option) => {
+    const schema = optionSchema.find((entry) => entry.name === option.name);
+    return {
+      syntax: option.syntax,
+      description: `${option.description}${schemaDefault(schema)}`,
+    };
+  });
+  const booleanOptions = optionSchema.flatMap((entry) => {
+    if (entry.type !== "boolean") return [];
+    const syntax = [entry.positiveFlag, entry.negativeFlag]
+      .filter((flag): flag is string => Boolean(flag))
+      .join(", ");
+    if (!syntax) return [];
+    const rule = entry.ruleName ?? String(entry.name);
+    const level = entry.ruleLevel ? ` (${entry.ruleLevel} rule)` : "";
+    const action =
+      entry.positiveFlag && entry.negativeFlag
+        ? "Enable or disable"
+        : entry.positiveFlag
+          ? "Enable"
+          : "Disable";
+    return [
+      {
+        syntax,
+        description: `${action} ${rule}${level}.${schemaDefault(entry)}`,
+      },
+    ];
+  });
+  return [...valueOptions, ...booleanOptions];
+}
+
+export function help(): string {
+  return [
+    usage(),
+    "",
+    "Files and glob patterns may be mixed. Run modes and incompatible options",
+    "are described in docs/cli.md.",
+    "",
+    ...helpSections.flatMap(([title, options]) => [
+      renderHelpSection(title, options),
+      "",
+    ]),
+    renderHelpSection("Formatter options", formatterHelpOptions()),
+  ].join("\n");
 }
 
 export function parseArgs(args: string[]): CliOptions {
@@ -207,7 +427,7 @@ export function parseArgs(args: string[]): CliOptions {
         break;
       }
       case "--help":
-        stdout.write(`${usage()}\n`);
+        stdout.write(`${help()}\n`);
         process.exit(0);
         break;
       default:

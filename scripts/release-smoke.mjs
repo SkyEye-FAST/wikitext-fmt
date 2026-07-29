@@ -24,6 +24,16 @@ for (const flag of ["--version", "-v"]) {
   }
 }
 
+for (const path of [
+  "docs/README.md",
+  "docs/cli.md",
+  "docs/configuration.md",
+  "docs/versioning.md",
+  "docs/releasing.md",
+]) {
+  await access(path);
+}
+
 await access("dist/localization/generated/mediawiki-aliases.json");
 const aliases = await import(
   "../dist/localization/generated/mediawiki-aliases.json",

@@ -1,8 +1,28 @@
 import { describe, expect, it } from "vitest";
 
-import { parseArgs } from "../src/cli/args.js";
+import { help, parseArgs } from "../src/cli/args.js";
+import { booleanCliFlags } from "../src/options/schema.js";
 
 describe("CLI argument parsing", () => {
+  it("keeps structured help synchronized with schema-driven flags", () => {
+    const output = help();
+    for (const flag of booleanCliFlags.keys()) expect(output).toContain(flag);
+    for (const flag of [
+      "--profile",
+      "--level",
+      "--parser-config",
+      "--html-void-tag-style",
+      "--table-cell-separator-style",
+      "--interlanguage-placement",
+      "--interlanguage-prefixes",
+      "--behavior-switch-placement",
+      "--localization-source",
+      "--localized-syntax-style",
+    ]) {
+      expect(output).toContain(flag);
+    }
+  });
+
   it("parses schema-driven formatter boolean flags", () => {
     const options = parseArgs([
       "--format-template-parameters",

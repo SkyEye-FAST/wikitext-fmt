@@ -82,7 +82,14 @@ describe("CLI production behavior", () => {
   it("advertises version reporting in CLI help", async () => {
     const result = await runCli(["--help"]);
     expect(result.code).toBe(0);
-    expect(result.stdout).toContain("[--help | --version | -v]");
+    expect(result.stdout).toContain("General:");
+    expect(result.stdout).toContain("--version, -v");
+    expect(result.stdout).toContain("Input and output:");
+    expect(result.stdout).toContain("Safety and diagnostics:");
+    expect(result.stdout).toContain("Configuration and localization:");
+    expect(result.stdout).toContain("Formatter options:");
+    expect(result.stdout).toContain("--format-tables, --no-format-tables");
+    expect(result.stdout).toContain("--localized-syntax-style");
     expect(result.stderr).toBe("");
   });
 

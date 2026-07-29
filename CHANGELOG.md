@@ -1,11 +1,10 @@
 # Changelog
 
 All notable user-visible changes to the core package and CLI are documented
-here. The project follows the pre-1.0 policy in [VERSIONING.md](VERSIONING.md).
+here. The project follows the pre-1.0 policy in
+[docs/versioning.md](docs/versioning.md).
 
 ## Unreleased
-
-## 0.2.0 - 2026-07-29
 
 ### Added
 
@@ -24,6 +23,10 @@ here. The project follows the pre-1.0 policy in [VERSIONING.md](VERSIONING.md).
   verification gates.
 - Added `wikitext-fmt --version` and `-v`, sourced from package metadata, plus
   an offline version-consistency check.
+- Added a maintainable `docs/` reference hierarchy and offline documentation
+  consistency checks.
+- Replaced the one-line CLI synopsis with structured, metadata-assisted
+  `--help` output.
 
 ### Changed
 
@@ -42,7 +45,13 @@ here. The project follows the pre-1.0 policy in [VERSIONING.md](VERSIONING.md).
 - Made high-cardinality structural identity checks, descendant checks,
   replacement application, and document prose masking linear or near-linear.
 - Reorganized project, API, CLI, extension, versioning, and release
-  documentation around the actual pre-1.0 contracts.
+  documentation around implementation boundaries and the actual pre-1.0
+  contracts.
+- Clarified that the base formatter pipeline remains fail-closed and safe mode
+  adds a second idempotency pass rather than enabling every safeguard.
+- Separated normal development version checks from release-finalization
+  metadata checks so an unpublished development version need not appear as a
+  dated release.
 
 ### Fixed
 
