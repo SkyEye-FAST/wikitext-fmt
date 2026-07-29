@@ -1,6 +1,7 @@
 #!/usr/bin/env node
+import { createHash } from "node:crypto";
 import { appendFile, readFile } from "node:fs/promises";
-import { resolve } from "node:path";
+import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import {
@@ -19,7 +20,7 @@ function parseArguments(args) {
     const value = args[index + 1];
     assertRelease(
       name?.startsWith("--") && value !== undefined,
-      "Usage: check-npm-release.mjs --metadata FILE --commit SHA [--github-output FILE] [--require-existing]",
+      "Usage: check-npm-release.mjs --metadata FILE [--tarball FILE] --commit SHA [--github-output FILE] [--require-existing]",
     );
     options[name.slice(2)] = value;
     index += 1;
@@ -35,7 +36,20 @@ function parseArguments(args) {
   return options;
 }
 
-export function assessRegistryVersion(packument, metadata, commit) {
+export async function computeTarballDigests(tarballPath) {
+  const tarball = await readFile(resolve(tarballPath));
+  return {
+    integrity: `sha512-${createHash("sha512").update(tarball).digest("base64")}`,
+    shasum: createHash("sha1").update(tarball).digest("hex"),
+  };
+}
+
+export function assessRegistryVersion(
+  packument,
+  metadata,
+  commit,
+  tarballDigests,
+) {
   const published = packument?.versions?.[metadata.version];
   if (!published) return { publishRequired: true };
   assertRelease(
@@ -48,10 +62,27 @@ export function assessRegistryVersion(packument, metadata, commit) {
       published.repository?.url === CORE_REPOSITORY_URL,
     `npm ${metadata.packageName}@${metadata.version} has a conflicting repository`,
   );
-  assertRelease(
-    published.gitHead === commit,
-    `npm ${metadata.packageName}@${metadata.version} gitHead ${published.gitHead ?? "(missing)"} does not match release commit ${commit}`,
-  );
+  if (tarballDigests) {
+    assertRelease(
+      published.dist?.integrity === tarballDigests.integrity,
+      `npm ${metadata.packageName}@${metadata.version} tarball integrity does not match the verified release artifact`,
+    );
+    assertRelease(
+      published.dist?.shasum === tarballDigests.shasum,
+      `npm ${metadata.packageName}@${metadata.version} tarball shasum does not match the verified release artifact`,
+    );
+    if (published.gitHead !== undefined && published.gitHead !== null) {
+      assertRelease(
+        published.gitHead === commit,
+        `npm ${metadata.packageName}@${metadata.version} gitHead ${published.gitHead} does not match release commit ${commit}`,
+      );
+    }
+  } else {
+    assertRelease(
+      published.gitHead === commit,
+      `npm ${metadata.packageName}@${metadata.version} gitHead ${published.gitHead ?? "(missing)"} does not match release commit ${commit}`,
+    );
+  }
   assertRelease(
     packument["dist-tags"]?.[metadata.npmDistTag] === metadata.version,
     `npm dist-tag ${metadata.npmDistTag} does not point to ${metadata.version}`,
@@ -74,9 +105,16 @@ async function fetchPackument(metadata) {
 
 async function main() {
   const options = parseArguments(process.argv.slice(2));
-  const metadata = JSON.parse(
-    await readFile(resolve(options.metadata), "utf8"),
+  const metadataPath = resolve(options.metadata);
+  const metadata = JSON.parse(await readFile(metadataPath, "utf8"));
+  assertRelease(
+    options.tarball || metadata.tarballFilename,
+    "--tarball is required when release metadata has no tarballFilename",
   );
+  const tarballPath = options.tarball
+    ? resolve(options.tarball)
+    : resolve(dirname(metadataPath), metadata.tarballFilename);
+  const tarballDigests = await computeTarballDigests(tarballPath);
   const attempts = Number(options.attempts ?? 1);
   let state;
   for (let attempt = 1; attempt <= attempts; attempt += 1) {
@@ -84,6 +122,7 @@ async function main() {
       await fetchPackument(metadata),
       metadata,
       options.commit,
+      tarballDigests,
     );
     if (!options.requireExisting || !state.publishRequired) break;
     if (attempt < attempts) {
@@ -105,7 +144,7 @@ async function main() {
   console.log(
     state.publishRequired
       ? `npm ${metadata.packageName}@${metadata.version} is not published`
-      : `npm ${metadata.packageName}@${metadata.version} matches ${options.commit}`,
+      : `npm ${metadata.packageName}@${metadata.version} matches the verified release artifact`,
   );
 }
 
