@@ -6,6 +6,15 @@ here. The project follows the pre-1.0 policy in
 
 ## Unreleased
 
+### Changed
+
+- Made anonymous template line width a soft constraint: short, structurally
+  equivalent templates can collapse inline, while positional argument
+  whitespace is never introduced to force multiline output.
+- Added `templateParameterLayout` with `compact`, `flush`, and `indented`
+  modes for multiline named and explicitly numbered parameters. The default is
+  `flush`.
+
 ## 0.2.1 - 2026-07-29
 
 ### Fixed

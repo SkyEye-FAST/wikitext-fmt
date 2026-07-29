@@ -126,7 +126,9 @@ describe("production parser table formatter", () => {
     const result = expectProductionTable(
       "{|\n| {{Cell|name=A|nested={{Inner|x=1|y=2}}}} || B\n|}\n",
     );
-    expect(result.formatted).toContain("{{Inner\n| x = 1\n| y = 2\n}}");
+    expect(result.formatted).toContain(
+      "{{Inner\n| x = 1\n| y = 2\n}}",
+    );
   });
 
   it("formats a nested table inside a template", () => {

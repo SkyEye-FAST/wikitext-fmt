@@ -185,9 +185,21 @@ describe("CLI configuration", () => {
   });
 
   it("accepts experimental template parameter formatting configuration", () => {
-    expect(validateConfig({ formatTemplateParameters: true })).toEqual({
+    expect(
+      validateConfig({
+        formatTemplateParameters: true,
+        templateParameterLayout: "flush",
+      }),
+    ).toEqual({
       formatTemplateParameters: true,
+      templateParameterLayout: "flush",
     });
+  });
+
+  it("rejects invalid template parameter layouts", () => {
+    expect(() =>
+      validateConfig({ templateParameterLayout: "aligned" }),
+    ).toThrow(/compact, flush, indented/u);
   });
 
   it("accepts experimental reference formatting configuration", () => {

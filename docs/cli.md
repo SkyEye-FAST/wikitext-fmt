@@ -71,8 +71,8 @@ profile-based choice.
 | `--localization-source <value>` | `builtin`, `siteinfo`, `custom` | `localizationSource` |
 | `--localized-syntax-style <value>` | `preserve`, `canonical-english` | `localizedSyntaxStyle` |
 
-`lineWidth` and `localizationAliases` are config/API-only; the CLI has no
-direct flag for either key.
+`lineWidth`, `templateParameterLayout`, and `localizationAliases` are
+config/API-only; the CLI has no direct flag for these keys.
 
 ## Rule switches
 

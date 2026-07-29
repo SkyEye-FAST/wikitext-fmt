@@ -107,7 +107,7 @@ The package exports:
 
 - `FormatOptions`;
 - `FormatProfile` and `FormatLevel`;
-- `HtmlVoidTagStyle`, `TableCellSeparatorStyle`,
+- `HtmlVoidTagStyle`, `TableCellSeparatorStyle`, `TemplateParameterLayout`,
   `BehaviorSwitchPlacement`, and `InterlanguagePlacement`;
 - `LocalizationSource`, `LocalizedSyntaxStyle`, and `LocalizationAliases`;
 - read-only `defaultOptions`.

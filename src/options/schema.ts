@@ -47,6 +47,12 @@ export const optionSchema: readonly OptionSchemaEntry[] = [
     ruleLevel: "normal",
   },
   {
+    name: "templateParameterLayout",
+    type: "enum",
+    defaultValue: "flush",
+    enumValues: ["compact", "flush", "indented"],
+  },
+  {
     name: "formatTemplateParameters",
     type: "boolean",
     defaultValue: false,

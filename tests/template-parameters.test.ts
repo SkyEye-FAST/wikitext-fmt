@@ -87,10 +87,44 @@ describe("unified parser-assisted template formatting", () => {
     expect(formatWikitext("{{Template|a=b}}\n")).toBe("{{Template| a = b}}\n");
   });
 
+  it.each([
+    [
+      "compact",
+      "{{a\n|b=c\n|d=e\n}}\n",
+    ],
+    [
+      "flush",
+      "{{a\n| b = c\n| d = e\n}}\n",
+    ],
+    [
+      "indented",
+      "{{a\n | b = c\n | d = e\n}}\n",
+    ],
+  ] as const)("supports the %s named-parameter layout", (layout, expected) => {
+    const input = "{{a|b=c|d=e}}\n";
+    const result = formatWikitextSafeDetailed(input, {
+      templateParameterLayout: layout,
+    });
+    expect(result.warning).toBeUndefined();
+    expect(result.formatted).toBe(expected);
+    expect(
+      formatWikitextSafeDetailed(result.formatted, {
+        templateParameterLayout: layout,
+      }).formatted,
+    ).toBe(expected);
+  });
+
+  it("collapses a short multiline anonymous template without changing values", () => {
+    expectAnonymousLayout(
+      "{{Lang\n|ja|シエラ}}\n",
+      "{{Lang|ja|シエラ}}\n",
+    );
+  });
+
   it("preserves meaningful trailing whitespace in anonymous values", () => {
     expectAnonymousLayout(
       "{{Template|one |named=value}}\n",
-      "{{Template\n|one | named = value\n}}\n",
+      "{{Template|one | named = value}}\n",
     );
   });
 
@@ -105,33 +139,33 @@ describe("unified parser-assisted template formatting", () => {
   });
 
   it.each([
-    ["all anonymous", "{{T|one|two|three}}\n", "{{T\n|one|two|three}}\n"],
+    ["all anonymous", "{{T|one|two|three}}\n", "{{T|one|two|three}}\n"],
     [
       "named then anonymous",
       "{{T|name=value|tail }}\n",
-      "{{T\n| name = value\n|tail }}\n",
+      "{{T| name = value|tail }}\n",
     ],
     [
       "anonymous then named",
       "{{T| head |name=value}}\n",
-      "{{T\n| head | name = value\n}}\n",
+      "{{T| head | name = value}}\n",
     ],
     [
       "alternating named and anonymous",
       "{{T|one|a=1|two|b=2}}\n",
-      "{{T\n|one| a = 1\n|two| b = 2\n}}\n",
+      "{{T|one|a = 1|two|b = 2}}\n",
     ],
-    ["empty", "{{T||foo}}\n", "{{T\n||foo}}\n"],
-    ["whitespace-only", "{{T| |foo}}\n", "{{T\n| |foo}}\n"],
+    ["empty", "{{T||foo}}\n", "{{T||foo}}\n"],
+    ["whitespace-only", "{{T| |foo}}\n", "{{T| |foo}}\n"],
     [
       "multiline",
       "{{T|first line\nsecond line}}\n",
-      "{{T\n|first line\nsecond line}}\n",
+      "{{T|first line\nsecond line}}\n",
     ],
     [
       "comments between positional arguments",
       "{{T|one<!-- between -->|two|three}}\n",
-      "{{T\n|one<!-- between -->|two|three}}\n",
+      "{{T|one<!-- between -->|two|three}}\n",
     ],
   ])(
     "formats %s parameters with an equivalent candidate",
@@ -144,23 +178,43 @@ describe("unified parser-assisted template formatting", () => {
     const input = "{{T| first | named = value |2= numeric |last }}\n";
     expectAnonymousLayout(
       input,
-      "{{T\n| first | named = value\n| 2 = numeric\n|last }}\n",
+      "{{T| first |named = value|2 = numeric|last }}\n",
     );
   });
 
   it("keeps explicit numeric parameters named", () => {
     const result = formatWikitextSafeDetailed("{{T|1= first |2= second }}\n");
     expect(result.warning).toBeUndefined();
-    expect(result.formatted).toBe("{{T\n| 1 = first\n| 2 = second\n}}\n");
+    expect(result.formatted).toBe(
+      "{{T\n| 1 = first\n| 2 = second\n}}\n",
+    );
   });
 
   it("preserves anonymous whitespace around a formatted nested template", () => {
     const input = "{{T| {{Nested|a=1|b=2}} }}\n";
     const result = formatWikitextSafeDetailed(input);
     expect(result.warning).toBeUndefined();
-    expect(result.formatted).toBe("{{T\n| {{Nested\n| a = 1\n| b = 2\n}} }}\n");
+    expect(result.formatted).toBe(
+      "{{T| {{Nested\n| a = 1\n| b = 2\n}} }}\n",
+    );
     expect(result.formatted).toContain("| {{Nested");
     expect(result.formatted).toContain("}} }}");
+  });
+
+  it("does not collapse a multiline anonymous template with nested structure", () => {
+    const input = "{{T\n|{{Nested|x=1|y=2}}|tail}}\n";
+    const expected = "{{T\n|{{Nested\n| x = 1\n| y = 2\n}}|tail}}\n";
+    const result = formatWikitextSafeDetailed(input);
+    expect(result.warning).toBeUndefined();
+    expect(result.formatted).toBe(expected);
+    expect(anonymousValues(result.formatted)).toEqual([
+      "{{Nested\n| x = 1\n| y = 2\n}}",
+      "tail",
+    ]);
+    expect(templateStructuralFingerprint(result.formatted, config)).toBe(
+      templateStructuralFingerprint(input, config),
+    );
+    expect(formatWikitextSafeDetailed(result.formatted).formatted).toBe(expected);
   });
 
   it("keeps an anonymous value immediately adjacent to the closing braces", () => {
@@ -172,8 +226,27 @@ describe("unified parser-assisted template formatting", () => {
     const second = "b".repeat(80);
     expectAnonymousLayout(
       `{{T|${first}|${second}}}\n`,
-      `{{T\n|${first}|${second}}}\n`,
+      `{{T|${first}|${second}}}\n`,
     );
+  });
+
+  it("treats line width as soft for anonymous parameters", () => {
+    const input =
+      "{{Lang\n|ja|a very long value that cannot reasonably stay inline}}\n";
+    const expected =
+      "{{Lang|ja|a very long value that cannot reasonably stay inline}}\n";
+    const result = formatWikitextSafeDetailed(input, { lineWidth: 20 });
+    expect(result.warning).toBeUndefined();
+    expect(result.formatted).toBe(expected);
+    expect(anonymousValues(result.formatted)).toEqual(anonymousValues(input));
+    expect(
+      formatWikitextSafeDetailed(result.formatted, { lineWidth: 20 }).formatted,
+    ).toBe(expected);
+  });
+
+  it("preserves multiline anonymous parameter whitespace exactly", () => {
+    const input = "{{T\n| first\n|second\n}}\n";
+    expectAnonymousLayout(input, input);
   });
 
   it("preserves comments and trivia between parser argument ranges", () => {
@@ -242,21 +315,21 @@ describe("unified parser-assisted template formatting", () => {
   it("formats positional templates inside table cells", () => {
     expectEmbeddedTableLayout(
       "{|\n| {{T|one|two}} || tail\n|}\n",
-      "{|\n| {{T\n|one|two}} \n| tail\n|}\n",
+      "{|\n| {{T|one|two}} \n| tail\n|}\n",
     );
   });
 
   it("treats a table in a positional parameter as opaque content", () => {
     expectEmbeddedTableLayout(
       "{{T|before|{|\n| A || B\n|}\n|after}}\n",
-      "{{T\n|before|{|\n| A \n| B\n|}\n|after}}\n",
+      "{{T|before|{|\n| A \n| B\n|}\n|after}}\n",
     );
   });
 
   it("preserves multiple tables and the text between them", () => {
     expectEmbeddedTableLayout(
       "{{Box|before|{|\n| A\n|}\ntext\n{|\n| B\n|}\n|after}}\n",
-      "{{Box\n|before|{|\n| A\n|}\ntext\n{|\n| B\n|}\n|after}}\n",
+      "{{Box|before|{|\n| A\n|}\ntext\n{|\n| B\n|}\n|after}}\n",
     );
   });
 
@@ -270,7 +343,7 @@ describe("unified parser-assisted template formatting", () => {
   it("formats tables inside nested templates independently", () => {
     expectEmbeddedTableLayout(
       "{{Outer|one|nested={{Inner|{|\n| A || B\n|}\n}}|last}}\n",
-      "{{Outer\n|one| nested = {{Inner\n|{|\n| A \n| B\n|}\n}}\n|last}}\n",
+      "{{Outer|one|nested = {{Inner|{|\n| A \n| B\n|}\n}}|last}}\n",
     );
   });
 
@@ -285,7 +358,9 @@ describe("unified parser-assisted template formatting", () => {
     const input =
       "{{Outer|safe=value|nested={{Nested|x=1|y=2}}|parser={{#if:x|y|z}}}}\n";
     const result = formatWikitextDetailedResult(input);
-    expect(result.formatted).toContain("{{Nested\n| x = 1\n| y = 2\n}}");
+    expect(result.formatted).toContain(
+      "{{Nested\n| x = 1\n| y = 2\n}}",
+    );
     expect(result.formatted).toContain("{{#if:x|y|z}}");
     expect(result.templateParameterDiagnostics.templatesFormatted).toBe(2);
     expect(
@@ -351,6 +426,7 @@ describe("unified parser-assisted template formatting", () => {
         lineWidth: 120,
         layout: "auto",
         parameterSpacing: true,
+        parameterLayout: "flush",
         maxPasses: 0,
       },
     );

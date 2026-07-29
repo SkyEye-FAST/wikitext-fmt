@@ -3,6 +3,7 @@ import type {
   ParameterToken,
   TranscludeToken,
 } from "wikiparser-node";
+import type { TemplateParameterLayout } from "../options.js";
 import {
   createParserContext,
   type ParsedDocumentContext,
@@ -59,6 +60,7 @@ export interface TemplateFormatOptions {
   lineWidth: number;
   layout: "auto" | "preserve";
   parameterSpacing: boolean;
+  parameterLayout: TemplateParameterLayout;
   maxPasses?: number;
 }
 
@@ -108,17 +110,27 @@ function collectTemplateNodes(
   ].sort((a, b) => a.getAbsoluteIndex() - b.getAbsoluteIndex());
 }
 
-function renderArgument(arg: ParameterToken): string | undefined {
+function renderNamedArgument(
+  arg: ParameterToken,
+  spacing: "compact" | "spaced",
+): string | undefined {
+  if (arg.anon) return undefined;
   const rawValue = arg.lastChild.toString();
-  if (arg.anon) return `|${rawValue}`;
   const value = rawValue.trim();
   const key = arg.firstChild.toString().trim();
   if (!key) return undefined;
   const lineSensitiveBlock =
     /^[ \t]*\r?\n/u.test(rawValue) &&
     /^(?:[*#:;]+|\{\||={1,6}(?:[ \t]|$))/u.test(value);
-  if (lineSensitiveBlock) return `| ${key} =\n${value}`;
-  return `| ${key} = ${value}`;
+  if (spacing === "compact") {
+    return lineSensitiveBlock ? `|${key}=\n${value}` : `|${key}=${value}`;
+  }
+  return lineSensitiveBlock ? `| ${key} =\n${value}` : `| ${key} = ${value}`;
+}
+
+function renderArgument(arg: ParameterToken): string | undefined {
+  if (arg.anon) return `|${arg.lastChild.toString()}`;
+  return renderNamedArgument(arg, "spaced");
 }
 
 function normalizeNamedArgumentsInPlace(
@@ -162,6 +174,7 @@ function containsNestedStructure(arg: ParameterToken): boolean {
     "ext-link",
     "ext",
     "html",
+    "comment",
   ].some((selector) => arg.lastChild.querySelectorAll(selector).length > 0);
 }
 
@@ -172,32 +185,21 @@ function appendLine(output: string, line: string): string {
 function renderMultilineArguments(
   head: string,
   renderedArgs: readonly string[],
+  layout: TemplateParameterLayout,
 ): string {
   let output = `{{${head}`;
-  for (const rendered of renderedArgs) output = appendLine(output, rendered);
+  const indent = layout === "indented" ? " " : "";
+  for (const rendered of renderedArgs) {
+    output = appendLine(output, `${indent}${rendered}`);
+  }
   return appendLine(output.replace(/[\t ]+$/u, ""), "}}");
 }
 
-function renderAnonymousBoundarySafeMultiline(
-  head: string,
-  args: readonly ParameterToken[],
-  renderedArgs: readonly string[],
-): string {
-  let output = appendLine(`{{${head}`, renderedArgs[0]!);
-  for (let index = 1; index < renderedArgs.length; index++) {
-    const rendered = renderedArgs[index]!;
-    output = args[index - 1]!.anon
-      ? `${output}${rendered}`
-      : appendLine(output.replace(/[\t ]+$/u, ""), rendered);
-  }
-  return args.at(-1)!.anon
-    ? `${output}}}`
-    : appendLine(output.replace(/[\t ]+$/u, ""), "}}");
-}
+const INLINE_ANONYMOUS_ARGUMENT_LIMIT = 3;
 
 function anonymousLayoutCandidates(
   node: TemplateNode,
-  options: TemplateFormatOptions,
+  collapseAnonymous: boolean,
 ): { candidates: string[]; reason?: string } {
   const raw = node.toString();
   const args = node.getAllArgs();
@@ -216,25 +218,14 @@ function anonymousLayoutCandidates(
     (arg): arg is string => arg !== undefined,
   );
   const compact = `{{${head}${rendered.join("")}}}`;
-  const multiline =
-    raw.includes("\n") ||
-    (options.layout === "auto" &&
-      (args.length > 1 ||
-        args.some(containsNestedStructure) ||
-        raw.length > options.lineWidth ||
-        compact.length > options.lineWidth));
   const candidates: string[] = [];
-  if (multiline) {
-    if (
-      args
-        .filter((argument) => argument.anon)
-        .every((argument) => argument.lastChild.toString().endsWith("\n"))
-    ) {
-      candidates.push(renderMultilineArguments(head, rendered));
-    }
-    candidates.push(
-      renderAnonymousBoundarySafeMultiline(head, args, rendered),
-    );
+  const inlineEligible =
+    collapseAnonymous &&
+    args.length <= INLINE_ANONYMOUS_ARGUMENT_LIMIT &&
+    !args.some(containsNestedStructure) &&
+    !/[\r\n]/u.test(compact);
+  if (inlineEligible) {
+    candidates.push(compact);
   }
   const normalized = normalizeNamedArgumentsInPlace(raw, start, args);
   if (normalized.reason) {
@@ -329,7 +320,7 @@ function renderTemplateWithOpaqueTables(
       reason: "parser did not expose an owning template around embedded tables",
     };
   }
-  const rendered = renderTemplate(protectedNode, config, options);
+  const rendered = renderTemplate(protectedNode, config, options, false);
   if (rendered.reason || rendered.value === undefined) return rendered;
   const value = protectedTables.restore(rendered.value);
   try {
@@ -349,11 +340,11 @@ function renderTemplateWithOpaqueTables(
 function selectAnonymousLayoutCandidate(
   node: TemplateNode,
   config: Config,
-  options: TemplateFormatOptions,
+  collapseAnonymous: boolean,
   requireIdempotency: boolean,
 ): { value?: string; reason?: string; multiline?: boolean } {
   const raw = node.toString();
-  const generated = anonymousLayoutCandidates(node, options);
+  const generated = anonymousLayoutCandidates(node, collapseAnonymous);
   if (generated.reason) return { reason: generated.reason };
 
   let originalFingerprint: string;
@@ -374,7 +365,10 @@ function selectAnonymousLayoutCandidate(
       if (requireIdempotency) {
         const reparsed = findOwningTemplate(candidate, config);
         if (!reparsed) continue;
-        const regenerated = anonymousLayoutCandidates(reparsed, options);
+        const regenerated = anonymousLayoutCandidates(
+          reparsed,
+          collapseAnonymous,
+        );
         if (
           regenerated.reason ||
           regenerated.candidates[0] !== candidate
@@ -394,6 +388,7 @@ function renderTemplate(
   node: TemplateNode,
   config: Config,
   options: TemplateFormatOptions,
+  collapseAnonymous = true,
 ): { value?: string; reason?: string; multiline?: boolean } {
   const raw = node.toString();
   if (!raw.startsWith("{{") || !raw.endsWith("}}")) {
@@ -422,10 +417,19 @@ function renderTemplate(
     if (options.layout === "preserve" || !options.parameterSpacing) {
       return { value: raw, multiline: raw.includes("\n") };
     }
-    return selectAnonymousLayoutCandidate(node, config, options, true);
+    return selectAnonymousLayoutCandidate(
+      node,
+      config,
+      collapseAnonymous,
+      true,
+    );
   }
 
-  const renderedArgs = args.map(renderArgument);
+  const multilineSpacing =
+    options.parameterLayout === "compact" ? "compact" : "spaced";
+  const renderedArgs = args.map((arg) =>
+    renderNamedArgument(arg, multilineSpacing),
+  );
   if (renderedArgs.some((arg) => arg === undefined)) {
     return { reason: "parser exposed an empty named-parameter key" };
   }
@@ -452,6 +456,7 @@ function renderTemplate(
     value: renderMultilineArguments(
       head,
       renderedArgs.filter((arg): arg is string => arg !== undefined),
+      options.parameterLayout,
     ),
     multiline: true,
   };
@@ -623,8 +628,9 @@ export function formatTemplatesWithDiagnostics(
       changedNodeIds.add(replacement.semanticId);
       canonicalNodeIds.add(replacement.semanticId);
       diagnostics.templateParameterLinesFormatted +=
-        replacement.value.split("\n").filter((line) => /^\|/u.test(line))
-          .length;
+        replacement.value
+          .split("\n")
+          .filter((line) => /^[ \t]*\|/u.test(line)).length;
       if (replacement.expanded) expandedNodeIds.add(replacement.semanticId);
       if (replacement.normalizedMultiline)
         normalizedNodeIds.add(replacement.semanticId);
@@ -653,7 +659,12 @@ export function formatTemplates(
   return formatTemplatesWithDiagnostics(
     source,
     config,
-    { lineWidth, layout: "auto", parameterSpacing: true },
+    {
+      lineWidth,
+      layout: "auto",
+      parameterSpacing: true,
+      parameterLayout: "flush",
+    },
     context,
   ).formatted;
 }

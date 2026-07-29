@@ -73,8 +73,9 @@ Protected content is restored unchanged.
 The unified template engine operates on parser template and supported
 magic-word argument nodes, deepest first, with at most 64 passes.
 
-It can normalize named-parameter spacing and choose compact or multiline
-layout:
+It can normalize named-parameter spacing and choose inline or multiline
+layout. Multiline named and explicitly numbered parameters use the configured
+`templateParameterLayout`; the default `flush` layout is:
 
 ```wikitext
 {{Infobox|name=Example|value=42}}
@@ -88,6 +89,27 @@ may become:
 | value = 42
 }}
 ```
+
+The other multiline modes are `compact`, which emits `|name=value`, and
+`indented`, which emits a leading space before each parameter pipe. The option
+affects multiline named parameters only.
+
+Anonymous parameters are whitespace-sensitive in MediaWiki. For templates
+containing any anonymous parameter, `lineWidth` is therefore a soft constraint:
+
+- a simple template with at most three arguments may collapse to one line only
+  when the resulting candidate has no newline and exact structural equivalence
+  is proven;
+- line width never causes anonymous parameters to gain indentation or trailing
+  newlines;
+- existing multiline anonymous values are preserved byte-for-byte unless an
+  exactly equivalent compact candidate exists;
+- nested structures, comments, and embedded tables prevent compact collapse.
+
+For example, `{{Lang` followed by `|ja|シエラ}}` on the next line becomes
+`{{Lang|ja|シエラ}}`, while a long positional template stays inline even when
+it exceeds `lineWidth`. The formatter does not convert anonymous parameters to
+explicit numeric parameters.
 
 Eligibility and safety:
 
@@ -111,7 +133,8 @@ and convergence outcomes with precise skip reasons. A convergence or
 equivalence failure returns the original document.
 
 Non-goals: parameters are never reordered, renamed, renumbered, converted
-between named/anonymous state, or semantically rewritten. No site-specific
+between named/anonymous state, or semantically rewritten. Anonymous-to-numbered
+conversion is not enabled implicitly by multiline layout. No site-specific
 template layout policy is inferred.
 
 ## Template parameters compatibility rule

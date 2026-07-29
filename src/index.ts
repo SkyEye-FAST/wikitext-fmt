@@ -21,6 +21,7 @@ export {
   type LocalizationSource,
   type LocalizedSyntaxStyle,
   type TableCellSeparatorStyle,
+  type TemplateParameterLayout,
 } from "./options.js";
 export { ruleLevels, type RuleName } from "./rules/index.js";
 export type { FooterDiagnostics } from "./rules/categories.js";
