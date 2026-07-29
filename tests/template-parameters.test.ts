@@ -121,6 +121,30 @@ describe("unified parser-assisted template formatting", () => {
   });
 
   it.each([
+    [
+      "auto",
+      "{{ a\u3000 | b\u202F = \u00A0value\u202F\u3000 }}\n",
+    ],
+    [
+      "compact",
+      "{{a\u3000|b\u202F=\u00A0value\u202F\u3000}}\n",
+    ],
+    [
+      "spaced",
+      "{{ a\u3000 | b\u202F = \u00A0value\u202F\u3000 }}\n",
+    ],
+  ] as const)(
+    "preserves U+00A0, U+202F, and U+3000 in %s inline mode",
+    (inlineTemplateSpacing, expected) => {
+      expectInlineLayout(
+        "{{ a\u3000 | b\u202F = \u00A0value\u202F\u3000 }}\n",
+        expected,
+        { inlineTemplateSpacing },
+      );
+    },
+  );
+
+  it.each([
     ["already compact", "{{a|b=1}}\n", "{{a|b=1}}\n"],
     ["already spaced", "{{ a | b = 1 }}\n", "{{ a | b = 1 }}\n"],
     ["spaced internals", "{{a| b = 1}}\n", "{{ a | b = 1 }}\n"],
@@ -457,6 +481,32 @@ describe("unified parser-assisted template formatting", () => {
     expect(formatWikitext(input)).toBe(
       "{{Template\n| first = line one\nline two\n| 中文 = 值\n| 日本語 = 値\n}}\n",
     );
+  });
+
+  it.each([
+    ["ASCII indentation", "  * item"],
+    ["tab indentation", "\t* item"],
+  ])(
+    "preserves %s after a line-sensitive named-value boundary",
+    (_name, value) => {
+      const input = `{{Container|content=\n${value}\n}}\n`;
+      const expected = `{{Container\n| content =\n${value}\n}}\n`;
+      const result = formatWikitextSafeDetailed(input);
+      expect(result.failure).toBeUndefined();
+      expect(result.formatted).toBe(expected);
+      expect(formatWikitextSafeDetailed(expected).formatted).toBe(expected);
+    },
+  );
+
+  it("preserves a line break before a parser-confirmed table value", () => {
+    const input =
+      '{{Container|content=\n{| class="wikitable"\n| Cell\n|}\n}}\n';
+    const expected =
+      '{{Container\n| content =\n{| class="wikitable"\n| Cell\n|}\n}}\n';
+    const result = formatWikitextSafeDetailed(input);
+    expect(result.failure).toBeUndefined();
+    expect(result.formatted).toBe(expected);
+    expect(formatWikitextSafeDetailed(expected).formatted).toBe(expected);
   });
 
   it("preserves protected blocks and explicit ignore ranges", () => {

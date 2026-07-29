@@ -21,6 +21,12 @@ here. The project follows the pre-1.0 policy in
 
 ### Fixed
 
+- Restricted heading and template boundary cleanup to parser-confirmed ASCII
+  layout whitespace, preserving non-breaking, narrow no-break, ideographic, and
+  other non-ASCII whitespace in titles, template names, named keys, and values.
+- Normalized eligible `*`, `#`, `:`, and `;` list marker separators, including
+  nested combinations, from zero, multiple, or tab spacing to exactly one ASCII
+  space while keeping empty items free of trailing whitespace.
 - Added the canonical layout space after standalone table data/header markers
   and around parser-confirmed cell attribute separators, without adding
   trailing whitespace to empty cells.

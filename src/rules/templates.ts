@@ -122,23 +122,58 @@ type CanonicalInlineTemplateSpacing = Exclude<
   "auto"
 >;
 
+function trimAsciiLayoutWhitespace(value: string): string {
+  // Template names, named keys, and ordinary named values are exposed at
+  // parser-confirmed syntax boundaries. Newlines are included deliberately so
+  // multiline delimiter layout keeps its existing normalization, while
+  // non-ASCII whitespace remains semantic content.
+  return value
+    .replace(/^[ \t\r\n]+/u, "")
+    .replace(/[ \t\r\n]+$/u, "");
+}
+
+interface NamedArgumentValue {
+  value: string;
+  leadingLineBreak?: string;
+}
+
+const LINE_SENSITIVE_VALUE_START =
+  /^(?:[ \t]*(?:[*#:;]+|\{\||={1,6}(?:[ \t]|$))|\uE100wikitext-fmt-table-)/u;
+
+function normalizeNamedArgumentValue(rawValue: string): NamedArgumentValue {
+  const leadingLineBreak = /^[ \t]*(\r?\n)/u.exec(rawValue);
+  if (leadingLineBreak?.[1]) {
+    const value = rawValue
+      .slice(leadingLineBreak[0].length)
+      .replace(/[ \t\r\n]+$/u, "");
+    if (!value || !LINE_SENSITIVE_VALUE_START.test(value)) return { value };
+    return {
+      leadingLineBreak: leadingLineBreak[1],
+      // The first line break is syntax layout after "=". Preserve indentation
+      // and other value bytes after it, including non-ASCII whitespace.
+      value,
+    };
+  }
+  return { value: trimAsciiLayoutWhitespace(rawValue) };
+}
+
 function renderInlineNamedArgument(
   arg: ParameterToken,
   spacing: CanonicalInlineTemplateSpacing,
 ): string | undefined {
   if (arg.anon) return undefined;
-  const rawValue = arg.lastChild.toString();
-  const value = rawValue.trim();
-  const key = arg.firstChild.toString().trim();
+  const { value, leadingLineBreak } = normalizeNamedArgumentValue(
+    arg.lastChild.toString(),
+  );
+  const key = trimAsciiLayoutWhitespace(arg.firstChild.toString());
   if (!key) return undefined;
-  const lineSensitiveBlock =
-    /^[ \t]*\r?\n/u.test(rawValue) &&
-    /^(?:[*#:;]+|\{\||={1,6}(?:[ \t]|$))/u.test(value);
   if (spacing === "compact") {
-    return lineSensitiveBlock ? `|${key}=\n${value}` : `|${key}=${value}`;
+    return leadingLineBreak
+      ? `|${key}=${leadingLineBreak}${value}`
+      : `|${key}=${value}`;
   }
-  return lineSensitiveBlock
-    ? ` | ${key} =\n${value}`
+  return leadingLineBreak
+    ? ` | ${key} =${leadingLineBreak}${value}`
     : ` | ${key} = ${value}`;
 }
 
@@ -147,17 +182,19 @@ function renderMultilineNamedArgument(
   layout: TemplateParameterLayout,
 ): string | undefined {
   if (arg.anon) return undefined;
-  const rawValue = arg.lastChild.toString();
-  const value = rawValue.trim();
-  const key = arg.firstChild.toString().trim();
+  const { value, leadingLineBreak } = normalizeNamedArgumentValue(
+    arg.lastChild.toString(),
+  );
+  const key = trimAsciiLayoutWhitespace(arg.firstChild.toString());
   if (!key) return undefined;
-  const lineSensitiveBlock =
-    /^[ \t]*\r?\n/u.test(rawValue) &&
-    /^(?:[*#:;]+|\{\||={1,6}(?:[ \t]|$))/u.test(value);
   if (layout === "compact") {
-    return lineSensitiveBlock ? `|${key}=\n${value}` : `|${key}=${value}`;
+    return leadingLineBreak
+      ? `|${key}=${leadingLineBreak}${value}`
+      : `|${key}=${value}`;
   }
-  return lineSensitiveBlock ? `| ${key} =\n${value}` : `| ${key} = ${value}`;
+  return leadingLineBreak
+    ? `| ${key} =${leadingLineBreak}${value}`
+    : `| ${key} = ${value}`;
 }
 
 function renderAnonymousSafeArgument(arg: ParameterToken): string | undefined {
@@ -173,13 +210,18 @@ function normalizeNamedArgumentsInPlace(
   const replacements = args
     .filter((arg) => !arg.anon)
     .map((arg) => {
-      const key = arg.firstChild.toString().trim();
+      const key = trimAsciiLayoutWhitespace(arg.firstChild.toString());
       if (!key) return undefined;
       const start = arg.getAbsoluteIndex() - nodeStart;
+      const normalizedValue = normalizeNamedArgumentValue(
+        arg.lastChild.toString(),
+      );
       return {
         start,
         end: start + arg.toString().length,
-        value: `${key}=${arg.lastChild.toString().trim()}`,
+        value: `${key}=${normalizedValue.leadingLineBreak ?? ""}${
+          normalizedValue.value
+        }`,
       };
     });
   if (replacements.some((replacement) => replacement === undefined)) {
@@ -410,7 +452,7 @@ function anonymousLayoutCandidates(
   const args = node.getAllArgs();
   const start = node.getAbsoluteIndex();
   const firstArgStart = args[0]!.getAbsoluteIndex() - start;
-  const head = raw.slice(2, firstArgStart - 1).trim();
+  const head = trimAsciiLayoutWhitespace(raw.slice(2, firstArgStart - 1));
   const renderedArgs = args.map(renderAnonymousSafeArgument);
   if (renderedArgs.some((arg) => arg === undefined)) {
     return {
@@ -616,7 +658,7 @@ function renderTemplate(
   if (firstDelimiter !== "|" && firstDelimiter !== ":") {
     return { reason: "parser did not expose a stable first-argument delimiter" };
   }
-  const head = raw.slice(2, firstArgStart - 1).trim();
+  const head = trimAsciiLayoutWhitespace(raw.slice(2, firstArgStart - 1));
   if (!head) return { reason: "template name is empty" };
   if (node.type === "magic-word") {
     classifyParserFunction(node.name);

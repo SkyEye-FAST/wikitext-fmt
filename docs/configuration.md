@@ -43,13 +43,13 @@ preset.
 | `profile` | `default` \| `production` \| `aggressive` | `default` | — | `--profile` | Selects preset | Coordinated option preset |
 | `parserConfig` | non-empty string | `mediawiki` | — | `--parser-config` | unchanged | Parser config name or JSON path |
 | `lineWidth` | number > 0 | `120` | — | config/API only | unchanged | Named-template layout threshold; soft for anonymous parameters |
-| `formatHeadings` | boolean | `true` | safe | `--no-format-headings` | unchanged | Normalize eligible heading marker spacing |
+| `formatHeadings` | boolean | `true` | safe | `--no-format-headings` | unchanged | Normalize eligible ASCII heading marker spacing while preserving non-ASCII title whitespace |
 | `formatTemplates` | boolean | `true` | normal | `--no-format-templates` | production/aggressive: `true` | Run unified template engine |
-| `inlineTemplateSpacing` | `auto` \| `compact` \| `spaced` | `auto` | — | `--inline-template-spacing` | unchanged | Choose complete single-line named-template spacing; auto uses weighted syntax-whitespace cost and a compact tie-break |
+| `inlineTemplateSpacing` | `auto` \| `compact` \| `spaced` | `auto` | — | `--inline-template-spacing` | unchanged | Choose complete single-line named-template ASCII syntax spacing; auto uses weighted syntax-whitespace cost and a compact tie-break |
 | `templateParameterLayout` | `compact` \| `flush` \| `indented` | `flush` | — | config/API only | unchanged | Choose multiline named/numbered parameter spacing and indentation |
 | `formatTemplateParameters` | boolean | `false` | experimental | `--format-template-parameters`, `--no-format-template-parameters` | production: `false`; aggressive: `true` | Deprecated compatibility route to unified template engine |
 | `formatCategories` | boolean | `true` | normal | `--no-format-categories` | unchanged | Format eligible footer categories/defaultsort |
-| `formatLists` | boolean | `true` | normal | `--no-format-lists` | unchanged | Normalize safe single-line list spacing |
+| `formatLists` | boolean | `true` | normal | `--no-format-lists` | unchanged | Normalize eligible single-line list marker separators to exactly one ASCII space |
 | `formatFileLinks` | boolean | `true` | normal | `--no-format-file-links` | unchanged | Format eligible whole-line file/image links |
 | `formatExternalLinks` | boolean | `false` | experimental | `--format-external-links`, `--no-format-external-links` | production: `false`; aggressive: `true` | Normalize labelled whole-line external-link spacing |
 | `formatReferences` | boolean | `false` | experimental | `--format-references`, `--no-format-references` | production: `false`; aggressive: `true` | Normalize standalone self-closing ref tags |

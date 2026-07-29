@@ -120,7 +120,8 @@ The package exports:
 `auto`. It controls only single-line named and explicitly numbered templates;
 `templateParameterLayout` independently controls multiline rendering.
 Anonymous values remain byte-preserved, and mixed templates do not receive the
-spaced inline form.
+spaced inline form. Both styles change only parser-confirmed ASCII syntax
+layout; non-ASCII whitespace in template names, keys, and values is preserved.
 
 ## Rule metadata
 

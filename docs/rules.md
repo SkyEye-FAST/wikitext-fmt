@@ -47,10 +47,12 @@ becomes:
 == Title ==
 ```
 
-The rule trims only title-edge whitespace and inserts one marker-adjacent
-space. It has no dedicated parser context or diagnostic object. It does not
-repair mismatched markers, format inline heading-like text, change heading
-level, or rewrite title content. Protected blocks are hidden before it runs.
+The rule removes only ASCII spaces and tabs between the markers and title, then
+inserts one marker-adjacent ASCII space. Non-breaking, narrow no-break,
+ideographic, and other non-ASCII whitespace remains title content. The rule has
+no dedicated parser context or diagnostic object. It does not repair mismatched
+markers, format inline heading-like text, change heading level, or rewrite title
+content. Protected blocks are hidden before it runs.
 
 ## Blank lines
 
@@ -90,6 +92,12 @@ one with the lower syntax-whitespace edit cost. Parameter-internal positions
 around pipes and equals signs have weight 2; outer brace positions have weight
 1. A total-cost tie prefers the lower parameter-internal cost, then `compact`.
 Whitespace inside values is not a style signal.
+
+Only parser-confirmed ASCII layout whitespace is normalized. Template names,
+named keys, and named values retain non-breaking spaces (`U+00A0`), narrow
+no-break spaces (`U+202F`), ideographic spaces (`U+3000`), and other non-ASCII
+whitespace. For multiline values, the delimiter-adjacent line break is handled
+explicitly so line-sensitive content and its indentation remain intact.
 
 For example:
 
@@ -208,9 +216,10 @@ Footer diagnostics report moved/formatted/canonicalized counts.
 
 ## Lists
 
-The list rule handles an ordinary non-empty single line beginning with any
-combination of `*`, `#`, `:`, and `;`. It inserts a missing single space after
-the marker sequence and removes trailing horizontal whitespace:
+The list rule handles an ordinary single line beginning with any combination of
+`*`, `#`, `:`, and `;`. For a non-empty item, it normalizes any run of ASCII
+spaces or tabs after the complete marker sequence to exactly one ASCII space and
+removes trailing ASCII horizontal whitespace:
 
 ```wikitext
 **Item
@@ -221,6 +230,10 @@ becomes:
 ```wikitext
 ** Item
 ```
+
+Marker-only empty items receive no trailing space, and existing horizontal
+whitespace after their markers is removed. Non-ASCII whitespace is not treated
+as a layout separator and is preserved.
 
 Lines containing templates, wikilinks, HTML-like syntax, extension content, or
 protected placeholders are skipped. It does not restructure nesting, merge
