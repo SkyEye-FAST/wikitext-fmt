@@ -27,6 +27,13 @@ here. The project follows the pre-1.0 policy in
   consistency checks.
 - Replaced the one-line CLI synopsis with structured, metadata-assisted
   `--help` output.
+- Added separate GitHub Actions workflows for ordinary checks and core package
+  releases, with npm Trusted Publishing through OIDC and protected-environment
+  approval.
+- Added fail-closed core release metadata, npm registry recovery, GitHub Release
+  conflict, exact tarball content, checksum, and installed-package smoke checks.
+- Added automated GitHub Release notes and assets derived from the matching core
+  changelog section.
 
 ### Changed
 
@@ -52,6 +59,8 @@ here. The project follows the pre-1.0 policy in
 - Separated normal development version checks from release-finalization
   metadata checks so an unpublished development version need not appear as a
   dated release.
+- Reorganized `.gitignore` coverage for package artifacts, release artifacts,
+  local package-manager state, and generated local corpora and reports.
 
 ### Fixed
 

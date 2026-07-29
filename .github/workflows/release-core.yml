@@ -1,0 +1,273 @@
+name: Core release
+
+on:
+  push:
+    tags:
+      - "core-v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Proposed core-v<semver> tag to verify without publishing
+        required: false
+        type: string
+
+concurrency:
+  group: core-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    outputs:
+      artifact_name: core-release-${{ steps.metadata.outputs.version }}
+      npm_dist_tag: ${{ steps.metadata.outputs.npm_dist_tag }}
+      prerelease: ${{ steps.metadata.outputs.prerelease }}
+      release_title: ${{ steps.metadata.outputs.release_title }}
+      tag: ${{ steps.metadata.outputs.tag }}
+      tarball_filename: ${{ steps.metadata.outputs.tarball_filename }}
+      version: ${{ steps.metadata.outputs.version }}
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          ref: ${{ github.sha }}
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          package-manager-cache: false
+      - name: Validate release metadata
+        id: metadata
+        env:
+          REQUESTED_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+        run: |
+          release_tag="$REQUESTED_TAG"
+          if [[ -z "$release_tag" ]]; then
+            release_tag="core-v$(node -p "require('./package.json').version")"
+          fi
+          echo "RELEASE_TAG=$release_tag" >> "$GITHUB_ENV"
+          node scripts/prepare-release.mjs \
+            --component core \
+            --tag "$release_tag" \
+            --commit "$GITHUB_SHA" \
+            --output-dir release-artifacts \
+            --github-output "$GITHUB_OUTPUT"
+      - name: Verify pushed tag and default-branch ancestry
+        if: github.event_name == 'push'
+        env:
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          test "$GITHUB_REF_TYPE" = "tag"
+          test "$GITHUB_REF_NAME" = "$RELEASE_TAG"
+          test "$(git rev-list -n 1 "$RELEASE_TAG")" = "$GITHUB_SHA"
+          git fetch --no-tags origin \
+            "+refs/heads/$DEFAULT_BRANCH:refs/remotes/origin/$DEFAULT_BRANCH"
+          git merge-base --is-ancestor \
+            "$GITHUB_SHA" "refs/remotes/origin/$DEFAULT_BRANCH"
+      - run: corepack enable
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm check
+      - run: pnpm corpus
+      - run: pnpm pack --dry-run
+      - name: Build and verify the exact release artifact
+        env:
+          TARBALL_FILENAME: ${{ steps.metadata.outputs.tarball_filename }}
+        run: |
+          pnpm pack --out "release-artifacts/$TARBALL_FILENAME"
+          node scripts/check-core-package-content.mjs \
+            "release-artifacts/$TARBALL_FILENAME"
+          node scripts/release-smoke.mjs \
+            --tarball "release-artifacts/$TARBALL_FILENAME"
+          (
+            cd release-artifacts
+            sha256sum "$TARBALL_FILENAME" > SHA256SUMS
+          )
+      - uses: actions/upload-artifact@v7
+        with:
+          name: core-release-${{ steps.metadata.outputs.version }}
+          path: release-artifacts/
+          if-no-files-found: error
+          retention-days: 14
+
+  publish-npm:
+    if: github.event_name == 'push' && github.ref_type == 'tag' && startsWith(github.ref, 'refs/tags/core-v')
+    needs: verify
+    environment: npm
+    permissions:
+      contents: read
+      id-token: write
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+          ref: ${{ github.sha }}
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org/
+          package-manager-cache: false
+      - run: corepack enable
+      - name: Confirm npm Trusted Publishing runtime
+        run: |
+          node --input-type=module --eval \
+            'import { execFileSync } from "node:child_process"; const version = execFileSync("npm", ["--version"], { encoding: "utf8" }).trim(); const [major, minor] = version.split(".").map(Number); if (major < 11 || (major === 11 && minor < 5)) throw new Error(`npm ${version} is older than 11.5.1`);'
+      - uses: actions/download-artifact@v8
+        with:
+          name: ${{ needs.verify.outputs.artifact_name }}
+          path: ${{ runner.temp }}/release-artifacts
+      - name: Verify downloaded release artifacts
+        env:
+          ARTIFACT_DIRECTORY: ${{ runner.temp }}/release-artifacts
+          RELEASE_TAG: ${{ needs.verify.outputs.tag }}
+        run: |
+          (
+            cd "$ARTIFACT_DIRECTORY"
+            sha256sum --check SHA256SUMS
+          )
+          node scripts/prepare-release.mjs \
+            --component core \
+            --tag "$RELEASE_TAG" \
+            --commit "$GITHUB_SHA" \
+            > "$RUNNER_TEMP/current-release-metadata.json"
+          cmp \
+            "$RUNNER_TEMP/current-release-metadata.json" \
+            "$ARTIFACT_DIRECTORY/release-metadata.json"
+      - name: Check whether the npm version already exists
+        id: registry
+        env:
+          ARTIFACT_DIRECTORY: ${{ runner.temp }}/release-artifacts
+        run: |
+          node scripts/check-npm-release.mjs \
+            --metadata "$ARTIFACT_DIRECTORY/release-metadata.json" \
+            --commit "$GITHUB_SHA" \
+            --github-output "$GITHUB_OUTPUT"
+      - name: Publish the verified core tarball with OIDC
+        if: steps.registry.outputs.publish_required == 'true'
+        env:
+          ARTIFACT_DIRECTORY: ${{ runner.temp }}/release-artifacts
+          DIST_TAG: ${{ needs.verify.outputs.npm_dist_tag }}
+          TARBALL_FILENAME: ${{ needs.verify.outputs.tarball_filename }}
+        run: |
+          pnpm publish \
+            "$ARTIFACT_DIRECTORY/$TARBALL_FILENAME" \
+            --access public \
+            --tag "$DIST_TAG" \
+            --provenance
+      - name: Verify the published npm version
+        env:
+          ARTIFACT_DIRECTORY: ${{ runner.temp }}/release-artifacts
+        run: |
+          node scripts/check-npm-release.mjs \
+            --metadata "$ARTIFACT_DIRECTORY/release-metadata.json" \
+            --commit "$GITHUB_SHA" \
+            --require-existing \
+            --attempts 12
+
+  github-release:
+    if: github.event_name == 'push' && github.ref_type == 'tag' && startsWith(github.ref, 'refs/tags/core-v')
+    needs:
+      - verify
+      - publish-npm
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          ref: ${{ github.sha }}
+      - uses: actions/download-artifact@v8
+        with:
+          name: ${{ needs.verify.outputs.artifact_name }}
+          path: ${{ runner.temp }}/release-artifacts
+      - name: Verify tag and downloaded artifacts
+        env:
+          ARTIFACT_DIRECTORY: ${{ runner.temp }}/release-artifacts
+          RELEASE_TAG: ${{ needs.verify.outputs.tag }}
+        run: |
+          (
+            cd "$ARTIFACT_DIRECTORY"
+            sha256sum --check SHA256SUMS
+          )
+          remote_commit="$(git ls-remote origin "refs/tags/$RELEASE_TAG^{}" | cut -f1)"
+          if [[ -z "$remote_commit" ]]; then
+            remote_commit="$(git ls-remote origin "refs/tags/$RELEASE_TAG" | cut -f1)"
+          fi
+          test "$remote_commit" = "$GITHUB_SHA"
+      - name: Inspect an existing GitHub Release
+        id: existing-release
+        env:
+          ARTIFACT_DIRECTORY: ${{ runner.temp }}/release-artifacts
+          RELEASE_TAG: ${{ needs.verify.outputs.tag }}
+        run: |
+          if gh release view "$RELEASE_TAG" \
+            --json name,tagName,isDraft,isPrerelease,body,assets \
+            > "$RUNNER_TEMP/existing-release.json" \
+            2> "$RUNNER_TEMP/release-view-error.txt"; then
+            node scripts/check-github-release.mjs \
+              --metadata "$ARTIFACT_DIRECTORY/release-metadata.json" \
+              --release "$RUNNER_TEMP/existing-release.json" \
+              --github-output "$GITHUB_OUTPUT"
+          elif grep -Fq "release not found" \
+            "$RUNNER_TEMP/release-view-error.txt"; then
+            echo "release_state=absent" >> "$GITHUB_OUTPUT"
+          else
+            cat "$RUNNER_TEMP/release-view-error.txt" >&2
+            exit 1
+          fi
+      - name: Create or complete the release draft
+        if: steps.existing-release.outputs.release_state != 'published'
+        env:
+          ARTIFACT_DIRECTORY: ${{ runner.temp }}/release-artifacts
+          PRERELEASE: ${{ needs.verify.outputs.prerelease }}
+          RELEASE_STATE: ${{ steps.existing-release.outputs.release_state }}
+          RELEASE_TAG: ${{ needs.verify.outputs.tag }}
+          RELEASE_TITLE: ${{ needs.verify.outputs.release_title }}
+          TARBALL_FILENAME: ${{ needs.verify.outputs.tarball_filename }}
+        run: |
+          release_flags=(
+            --title "$RELEASE_TITLE"
+            --notes-file "$ARTIFACT_DIRECTORY/release-notes.md"
+            --prerelease="$PRERELEASE"
+          )
+          if [[ "$RELEASE_STATE" = "absent" ]]; then
+            gh release create "$RELEASE_TAG" \
+              --verify-tag \
+              "${release_flags[@]}" \
+              --draft
+          else
+            gh release edit "$RELEASE_TAG" "${release_flags[@]}" --draft
+          fi
+          gh release upload "$RELEASE_TAG" \
+            "$ARTIFACT_DIRECTORY/$TARBALL_FILENAME" \
+            "$ARTIFACT_DIRECTORY/SHA256SUMS" \
+            --clobber
+          gh release edit "$RELEASE_TAG" --draft=false
+      - name: Verify assets on an existing published release
+        if: steps.existing-release.outputs.release_state == 'published'
+        env:
+          ARTIFACT_DIRECTORY: ${{ runner.temp }}/release-artifacts
+          RELEASE_TAG: ${{ needs.verify.outputs.tag }}
+          TARBALL_FILENAME: ${{ needs.verify.outputs.tarball_filename }}
+        run: |
+          mkdir "$RUNNER_TEMP/existing-assets"
+          for asset in "$TARBALL_FILENAME" SHA256SUMS; do
+            if ASSET_NAME="$asset" node --input-type=module --eval \
+              'import { readFileSync } from "node:fs"; const release = JSON.parse(readFileSync(process.env.RUNNER_TEMP + "/existing-release.json", "utf8")); process.exit(release.assets.some((asset) => asset.name === process.env.ASSET_NAME) ? 0 : 1);'; then
+              gh release download "$RELEASE_TAG" \
+                --pattern "$asset" \
+                --dir "$RUNNER_TEMP/existing-assets"
+              cmp \
+                "$ARTIFACT_DIRECTORY/$asset" \
+                "$RUNNER_TEMP/existing-assets/$asset"
+            else
+              gh release upload "$RELEASE_TAG" "$ARTIFACT_DIRECTORY/$asset"
+            fi
+          done

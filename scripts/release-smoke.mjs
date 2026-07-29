@@ -1,6 +1,66 @@
 #!/usr/bin/env node
 import { spawnSync } from "node:child_process";
-import { access, readFile } from "node:fs/promises";
+import { access, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join, resolve } from "node:path";
+
+function run(command, args, options = {}) {
+  const result = spawnSync(command, args, {
+    encoding: "utf8",
+    ...options,
+  });
+  if (result.status !== 0) {
+    throw new Error(
+      `${command} ${args.join(" ")} failed:\n${result.stdout}${result.stderr}`,
+    );
+  }
+  return result;
+}
+
+async function smokeTarball(tarball) {
+  const temporaryDirectory = await mkdtemp(
+    join(tmpdir(), "wikitext-fmt-release-"),
+  );
+  try {
+    await writeFile(
+      join(temporaryDirectory, "package.json"),
+      '{"name":"wikitext-fmt-release-smoke","private":true,"type":"module"}\n',
+    );
+    run(
+      "pnpm",
+      [
+        "--dir",
+        temporaryDirectory,
+        "add",
+        "--ignore-workspace",
+        resolve(tarball),
+      ],
+      { cwd: temporaryDirectory },
+    );
+    const version = run(
+      join(temporaryDirectory, "node_modules/.bin/wikitext-fmt"),
+      ["--version"],
+      { cwd: temporaryDirectory },
+    ).stdout.trim();
+    const packageMetadata = JSON.parse(await readFile("package.json", "utf8"));
+    if (version !== packageMetadata.version) {
+      throw new Error(
+        `installed tarball CLI version ${version} does not match ${packageMetadata.version}`,
+      );
+    }
+    run(
+      process.execPath,
+      [
+        "--input-type=module",
+        "--eval",
+        'import { formatWikitext } from "wikitext-fmt"; if (formatWikitext("==Title==\\n") !== "== Title ==\\n") process.exit(1);',
+      ],
+      { cwd: temporaryDirectory },
+    );
+  } finally {
+    await rm(temporaryDirectory, { recursive: true, force: true });
+  }
+}
 
 const entry = await import("../dist/index.js");
 if (entry.formatWikitext("==Title==\n") !== "== Title ==\n") {
@@ -52,6 +112,13 @@ if (!aliases.default.fileNamespaces.includes("ファイル")) {
 }
 if (!aliases.default.imageOptionAliases.img_thumbnail.includes("サムネイル")) {
   throw new Error("generated image option aliases were not emitted to dist");
+}
+
+const tarballIndex = process.argv.indexOf("--tarball");
+if (tarballIndex !== -1) {
+  const tarball = process.argv[tarballIndex + 1];
+  if (!tarball) throw new Error("--tarball requires a path");
+  await smokeTarball(tarball);
 }
 
 console.log("release smoke ok");

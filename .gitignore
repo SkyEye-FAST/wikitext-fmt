@@ -1,11 +1,26 @@
+# Dependencies and local package-manager state
 node_modules/
+.pnpm-store/
+
+# Build and test output
 dist/
 dist-test/
 coverage/
-*.log
-*.vsix
 .vscode-test/
+*.log
+
+# Package and release artifacts
+*.tgz
+*.vsix
+release-artifacts/
+
+# Generated reports
 corpus-report.json
 corpus-*-report.json
 benchmark-current-report.json
 benchmark-comparison-report.json
+
+# Generated local corpora
+corpus-small/
+corpus-medium/
+corpus-full/

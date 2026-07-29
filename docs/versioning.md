@@ -26,8 +26,8 @@ published. A package version or dated changelog heading alone is insufficient
 publication evidence.
 
 Normal development keeps new work under `Unreleased`. Release finalization
-moves selected items into a version heading; publication and tagging happen
-later as explicit manual operations.
+moves selected items into a version heading. Core publication is initiated
+later by an explicit component tag; extension publication remains independent.
 
 ## Pre-1.0 version selection
 
@@ -105,18 +105,29 @@ The normal offline check validates both SemVer strings, changelog presence, the
 extension's local core dependency, and lockfile linkage. It does not require a
 release heading or imply publication.
 
+For a finalized core release, validate the proposed component tag:
+
 ```sh
-pnpm check:release-metadata
-pnpm check:release-metadata core
-pnpm check:release-metadata vscode
+pnpm check:release-metadata -- \
+  --component core \
+  --tag core-v0.2.0
 ```
 
-Release mode defaults to both components; the optional target preserves
-independent releases. It requires each targeted package version to be the
-newest release heading in its changelog and requires that changelog's
-`Unreleased` section to be empty. It reports expected component-specific tags.
-Run it only after changelog finalization. It does not create or prove a tag,
-publication, or registry release.
+This derives the package name and version, exact tag, stable or prerelease
+status, npm dist-tag, release title, changelog notes, tarball name, and
+repository identity from repository metadata. It requires the core version to
+be the newest changelog release heading and the core `Unreleased` section to be
+empty.
+
+For a finalized extension release, use:
+
+```sh
+pnpm check:vscode-release-metadata
+```
+
+Run release-mode checks only after the relevant changelog is finalized. They do
+not create or prove a tag, publication, Marketplace upload, or registry
+release.
 
 ## Release preparation
 
@@ -126,7 +137,8 @@ publication, or registry release.
 3. Finalize relevant changelogs.
 4. Regenerate the lockfile with pnpm only if dependency/importer metadata
    changes.
-5. Run normal, docs, package, corpus, extension, and release-mode checks.
+5. Run normal, docs, package, corpus, extension, and component-specific
+   release-mode checks.
 6. Review exact npm and VSIX artifacts.
 7. Tag and publish only after approval.
 

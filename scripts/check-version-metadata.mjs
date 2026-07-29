@@ -4,6 +4,12 @@ import { readFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import {
+  changelogMetadata,
+  isSemVer,
+  validateCorePackageMetadata,
+} from "./release-metadata.mjs";
+
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
 async function readText(path) {
@@ -14,35 +20,8 @@ async function readJson(path) {
   return JSON.parse(await readText(path));
 }
 
-function isSemVer(version) {
-  const match =
-    /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/u.exec(
-      version,
-    );
-  if (!match) return false;
-  return !match[4]
-    ?.split(".")
-    .some((identifier) => /^\d+$/u.test(identifier) && /^0\d+/u.test(identifier));
-}
-
 function assert(condition, message) {
   if (!condition) throw new Error(message);
-}
-
-function changelogMetadata(contents, path) {
-  const heading = /^## Unreleased\s*$/mu.exec(contents);
-  assert(heading, `${path} must contain an Unreleased section`);
-  const remainder = contents.slice(heading.index + heading[0].length);
-  const nextHeading = /^## /mu.exec(remainder);
-  const releaseHeadings = [
-    ...contents.matchAll(/^## (?!Unreleased\s*$)([^\s]+)(?: - \d{4}-\d{2}-\d{2})?\s*$/gmu),
-  ];
-  return {
-    currentRelease: releaseHeadings[0]?.[1],
-    unreleased: (
-      nextHeading ? remainder.slice(0, nextHeading.index) : remainder
-    ).trim(),
-  };
 }
 
 const args = process.argv.slice(2);
@@ -60,6 +39,7 @@ assert(
 const corePackage = await readJson("package.json");
 const extensionPackage = await readJson("packages/vscode/package.json");
 
+validateCorePackageMetadata(corePackage);
 assert(
   isSemVer(corePackage.version),
   `package.json version is not valid SemVer: ${corePackage.version}`,

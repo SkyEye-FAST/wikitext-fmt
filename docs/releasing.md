@@ -1,8 +1,9 @@
 # Release guide
 
 This guide covers the independently versioned `wikitext-fmt` npm package and
-`wikitext-formatter` VS Code extension. It describes preparation and manual
-publication; ordinary development does not publish or tag anything.
+`wikitext-formatter` VS Code extension. Core publication is automated after a
+reviewed component tag is pushed. Extension publication remains a separate
+manual process. Ordinary development does not publish or tag anything.
 
 Run from a clean worktree unless a step explicitly inspects release edits.
 
@@ -27,7 +28,8 @@ Run from a clean worktree unless a step explicitly inspects release edits.
   ```
 
 - Review dependency and lockfile changes, especially `wikiparser-node`.
-- Regenerate the lockfile with pnpm only when metadata changed.
+- Regenerate the lockfile with pnpm only when dependency/importer metadata
+  changed.
 
 ## 3. Development verification
 
@@ -100,6 +102,7 @@ Inspect the npm file list:
 
 ```sh
 pnpm pack --dry-run
+pnpm check:core-package-content
 ```
 
 The package must contain:
@@ -130,18 +133,81 @@ For each component being released:
 - remove no unrelated future work;
 - do not invent historical dates.
 
-Then run:
+Then run the relevant component check:
 
 ```sh
-pnpm check:release-metadata              # both components
-pnpm check:release-metadata core         # core only
-pnpm check:release-metadata vscode       # extension only
+pnpm check:release-metadata -- \
+  --component core \
+  --tag "core-v$(node -p "require('./package.json').version")"
+pnpm check:vscode-release-metadata
 ```
 
 This check is intentionally expected to fail during ordinary development while
 current work remains under `Unreleased`.
 
-## 8. Tag and release names
+## 8. Core release automation
+
+Core verification and release operations are deliberately separate workflows:
+
+```text
+.github/workflows/checks.yml       # Checks
+.github/workflows/release-core.yml # Core release
+```
+
+`Checks` handles branch pushes, pull requests, and manual runs with read-only
+repository access. It never reacts to release tags. `Core release` reacts to
+exactly `core-v*` tag pushes and also supports manual verification. A manual
+dispatch never reaches npm publication or GitHub Release creation.
+
+The release workflow has three least-privilege jobs:
+
+- `verify`: `contents: read`; validates the tag, default-branch ancestry,
+  metadata, changelog, package allowlist, checks, corpus, exact tarball,
+  installed-package smoke test, release notes, and checksum;
+- `publish-npm`: `contents: read` and `id-token: write`; uses the protected
+  `npm` environment and publishes only the exact verified core tarball;
+- `github-release`: `contents: write`; creates or completes the matching GitHub
+  Release only after npm succeeds or an existing matching npm version is
+  verified. It has no OIDC permission.
+
+The jobs pass one uploaded `release-artifacts/` directory containing the npm
+tarball, `SHA256SUMS`, `release-notes.md`, and machine-readable release
+metadata. The publication job does not rebuild the package.
+
+The filename `release-core.yml` is part of npm Trusted Publisher identity.
+Renaming it later requires an npm package-settings update.
+
+## 9. One-time npm and GitHub configuration
+
+Create a protected GitHub Environment named exactly `npm`. Restrict deployment
+branches/tags appropriately and require reviewers for production approval.
+
+In the npm package settings, configure:
+
+```text
+Provider: GitHub Actions
+Owner or organization: SkyEye-FAST
+Repository: wikitext-fmt
+Workflow filename: release-core.yml
+Environment: npm
+Allowed action: npm publish
+```
+
+The workflow filename and environment name are case-sensitive trust inputs and
+must match exactly. The workflow uses a GitHub-hosted runner and OIDC only; do
+not configure `NPM_TOKEN` or another long-lived publish secret.
+
+If npm does not allow Trusted Publisher configuration before the package's
+first publication, perform a one-time bootstrap publication from the reviewed
+core tag commit with a maintainer account protected by 2FA. Publish the exact
+reviewed tarball and intended dist-tag, then configure the Trusted Publisher
+before rerunning the tag workflow. There is intentionally no automated token
+fallback.
+
+After OIDC publication works, restrict traditional token publishing where
+appropriate and revoke obsolete npm automation tokens.
+
+## 10. Tag and initiate a core release
 
 Use component-specific names derived from the finalized package versions:
 
@@ -154,16 +220,60 @@ Do not create a shared ambiguous tag. Verify the commit and reviewed artifact
 before creating signed or annotated tags. The metadata check prints expected
 names but does not create or prove tags.
 
-## 9. npm publication
+For a stable `0.2.0` core release:
 
-- Authenticate to the intended registry and verify ownership.
-- Pack once, inspect the exact tarball, and retain its checksum.
-- Publish that reviewed artifact with the intended dist-tag.
-- Verify installation and both CLI version aliases in a clean environment.
+```sh
+git checkout master
+git pull --ff-only
+pnpm check
+pnpm corpus
+git tag -s core-v0.2.0 -m "wikitext-fmt 0.2.0"
+git push origin core-v0.2.0
+```
 
-Publication is a manual, separately authorized action.
+Pushing the component tag starts npm publication and, only after npm succeeds,
+GitHub Release creation. The workflow itself never creates or moves the tag.
+The script enforces the exact `core-v<valid-semver>` format and equality with
+the root package version; the permissive trigger glob is not the validator.
 
-## 10. Marketplace publication
+Stable versions publish with npm dist-tag `latest`. SemVer prereleases such as
+`0.3.0-beta.1` publish with `next` and become GitHub prereleases.
+
+Release notes are the non-empty body of the exact matching core
+`CHANGELOG.md` version section. The GitHub Release title is
+`wikitext-fmt <version>`.
+
+## 11. Partial failures and reruns
+
+npm versions are immutable and cannot be overwritten. Before publishing, the
+workflow queries the exact version. If it exists, registry package identity,
+repository metadata, `gitHead`, and dist-tag must match the release commit. A
+missing or conflicting value fails closed.
+
+Rerun the failed jobs from the original tag workflow. If npm succeeded but the
+GitHub Release step failed, the npm check recognizes the same immutable
+publication and allows recovery to continue. A matching draft is completed; a
+matching published release and its exact assets are verified; a conflicting
+published release fails for maintainer review.
+
+Do not delete or move the tag to retry. Never attempt to overwrite an npm
+version. Fix-forward package changes require the next version under the
+pre-1.0 policy.
+
+## 12. Verify the core registry release
+
+After a successful run:
+
+```sh
+pnpm view wikitext-fmt@0.2.0 version repository gitHead dist-tags
+pnpm dlx wikitext-fmt@0.2.0 --version
+```
+
+Confirm the GitHub Release tag, title, prerelease state, changelog-derived body,
+tarball, and `SHA256SUMS`. Call a version released in documentation only after
+registry and tag/release evidence agree.
+
+## 13. Marketplace publication
 
 - Install the reviewed VSIX in a clean profile.
 - Authenticate the `skyeyefast` publisher.
@@ -171,7 +281,9 @@ Publication is a manual, separately authorized action.
 - Verify Marketplace installation, activation, bundled parser assets, and
   formatting without workspace dependencies.
 
-## 11. Post-release verification
+No VS Code Marketplace workflow is provided by the core automation.
+
+## 14. Post-release verification
 
 - Confirm registry and Marketplace versions independently.
 - Confirm component-specific Git tags/releases point to the published commit.
@@ -180,7 +292,7 @@ Publication is a manual, separately authorized action.
 - Check that docs call the version released only after publication/tag evidence
   is available.
 
-## 12. Rollback
+## 15. Rollback
 
 Record before publication:
 

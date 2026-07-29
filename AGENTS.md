@@ -66,7 +66,10 @@ pnpm check:vsix
 pnpm check:vscode-release
 ```
 
-CI runs `pnpm check` and `pnpm corpus` on Node.js 22 and 24. It separately exercises VS Code extension and VSIX release checks on Node.js 24.
+The `Checks` workflow runs `pnpm check` on Node.js 22 and 24, runs the
+deterministic corpus gate once on Node.js 24, and separately exercises VS Code
+extension and VSIX package checks on Node.js 24. The `Core release` workflow is
+tag-only for publication; manual dispatch is verification-only.
 
 ## TypeScript conventions
 
