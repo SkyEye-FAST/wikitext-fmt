@@ -6,6 +6,8 @@ here. The project follows the pre-1.0 policy in
 
 ## Unreleased
 
+## 0.3.0 - 2026-07-30
+
 ### Added
 
 - Added the default-on normal-level `formatWikilinks` rule and
