@@ -4,6 +4,9 @@ Use this checklist for both the `wikitext-fmt` npm package and the
 `wikitext-formatter` VS Code extension. Run commands from the repository root
 on a clean worktree unless noted otherwise.
 
+Choose versions and compatibility impact according to
+[VERSIONING.md](VERSIONING.md) before editing package metadata.
+
 ## Runtime and dependency baseline
 
 - [ ] Confirm the release is tested on Node.js 22.13 or newer on the 22.x line,
@@ -61,15 +64,26 @@ on a clean worktree unless noted otherwise.
 
 ## Documentation and versions
 
+- [ ] Classify the compatibility impact for the API, CLI, configuration,
+      formatter behavior, package contents, and extension-visible behavior.
+- [ ] Select the core and extension versions independently before changing
+      either `package.json`.
 - [ ] Re-read the root README and extension README against CLI help, API
       defaults, config schema, and VS Code settings.
 - [ ] Confirm production-safe, experimental, siteinfo, diagnostics, and report
       examples are accurate.
 - [ ] Update the root changelog/release notes for user-visible core and CLI
       changes; update `packages/vscode/CHANGELOG.md` for extension changes.
-- [ ] Choose versions according to compatibility impact and update the root
-      package and extension package independently where appropriate.
-- [ ] Confirm git tags and release titles match the package versions.
+- [ ] Confirm no item included in the release remains accidentally under
+      `Unreleased` in either changelog.
+- [ ] Run `pnpm check:versions`.
+- [ ] Build and confirm `node dist/cli.js --version` and
+      `node dist/cli.js -v` print only the core package version.
+- [ ] Check root and extension package versions separately and confirm any
+      bundled core change with extension-visible behavior is reflected in the
+      extension version and changelog.
+- [ ] Prepare component-specific tag and release names such as
+      `core-v0.2.0` and `vscode-v0.2.0`.
 
 ## Manual publishing
 

@@ -1,50 +1,61 @@
 # Changelog
 
+All notable user-visible changes to the core package and CLI are documented
+here. The project follows the pre-1.0 policy in [VERSIONING.md](VERSIONING.md).
+
 ## Unreleased
 
-- Normalize MediaWiki siteinfo through one shared conversion path and persist
-  raw siteinfo separately from executable localization aliases in target
-  corpora.
-- Make corpus manifests executable configuration with explicit CLI precedence
-  and `--no-manifest` isolation.
-- Add structured formatter failure codes and final full-document semantic
-  equivalence to safe mode while retaining compatibility warning text.
-- Correct page structural-coverage denominators and add page/node coverage,
-  byte/line churn, diff percentiles, largest diffs, and optional diff gates.
-- Make the production and aggressive CLI profiles safe by default; add an
-  explicit `--unsafe` development override.
-- Add deterministic parser-work assertions and a release-only versioned
-  timing/RSS benchmark comparison.
-- Record MediaWiki page content models in corpus metadata, exclude
-  non-wikitext models before tier sampling, and make the runner audit and skip
-  explicitly non-wikitext pages instead of parsing or formatting them.
-- Protect parser-confirmed extension bodies and comments from structural
-  formatting, and preserve line-sensitive template values and table-emitting
-  `{{!}}` invocations.
-- Make high-cardinality structural identities, descendant checks, replacement
-  application, and full-document prose masking linear or near-linear.
-- Preserve anonymous template and parser-function argument values byte-for-byte,
-  including leading/trailing and whitespace-only values.
-- Compare anonymous arguments and table cell content exactly in structural
-  equivalence checks.
-- Remove the obsolete line-based table analyzer and exercise the parser-based
-  production path throughout the table matrix.
-- Report unique eligible/changed/canonical/ambiguous structural-node counts and
-  enforce separate corpus coverage thresholds.
-- Separate the graduated `production` profile from the extended `aggressive`
-  profile.
+## 0.2.0 - 2026-07-29
 
-- Replaced the separate simple-template and brace-count parameter passes with
-  one convergent parser-assisted engine. Nested templates, parser functions,
-  Unicode/numeric/anonymous/empty parameters, multiline values, links, refs,
-  HTML, comments, and templates in table cells are supported.
-- Graduated tables to a normal-level rule enabled by default. `auto` now splits
-  every parser-confirmed multi-cell row; `preserve` is the explicit inline
-  layout. Nested tables and tables embedded in template text run deepest-first.
-- Added template and table structural-equivalence fingerprints to the safety
-  gate, with fail-closed warnings and diagnostics.
-- Added production/aggressive profiles, generated structural matrices, a
-  production corpus runner and report, representative corpus coverage, and
-  full core/extension/VSIX CI release gates.
-- Expanded diagnostics for template coverage, convergence, precise skip
-  reasons, table fallbacks, and equivalence verification.
+### Added
+
+- Added `production` and `aggressive` profiles. Both use safe formatting by
+  default in the CLI, while `--unsafe` remains an explicit development and
+  benchmarking override.
+- Added stable structured formatter failure codes, full-document semantic
+  equivalence checks, and JSON diagnostics and batch reports.
+- Added generated MediaWiki localization aliases, siteinfo and custom alias
+  sources, configurable localized-syntax preservation or canonicalization, and
+  alias inspection from the CLI.
+- Added a production corpus workflow with executable manifests, content-model
+  filtering, page and node coverage, precise skip reasons, churn statistics,
+  diff gates, and deterministic parser-work assertions.
+- Added release benchmark comparison and complete core, extension, and VSIX
+  verification gates.
+- Added `wikitext-fmt --version` and `-v`, sourced from package metadata, plus
+  an offline version-consistency check.
+
+### Changed
+
+- Replaced separate template passes with one convergent parser-assisted engine
+  supporting nested and multiline structures while preserving parameter order,
+  anonymous values, and whitespace-sensitive parser-function content.
+- Graduated parser-assisted table formatting to a normal-level rule enabled by
+  default. Parser-confirmed inline cells can be split without reordering or
+  rewriting cell content, including nested tables and tables in templates.
+- Strengthened fail-closed verification with exact template and table
+  fingerprints, bounded convergence checks, final document equivalence, and a
+  second-pass idempotency check in safe mode.
+- Protected parser-confirmed extension bodies, comments, explicit ignore
+  regions, line-sensitive template values, and table-emitting `{{!}}`
+  invocations from rules that do not understand them.
+- Made high-cardinality structural identity checks, descendant checks,
+  replacement application, and document prose masking linear or near-linear.
+- Reorganized project, API, CLI, extension, versioning, and release
+  documentation around the actual pre-1.0 contracts.
+
+### Fixed
+
+- Corrected structural-coverage denominators and separated page coverage from
+  eligible-node coverage.
+- Ensured anonymous template arguments and table-cell contents are compared and
+  preserved exactly during structural verification.
+- Excluded explicitly non-wikitext content models before formatting and report
+  them separately instead of passing them to the parser.
+
+## 0.1.0
+
+### Added
+
+- Initial parser-assisted formatter library and `wikitext-fmt` CLI development
+  version.

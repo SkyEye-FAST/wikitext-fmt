@@ -1,35 +1,41 @@
 # Wikitext Formatter for VS Code
 
-This is the VS Code wrapper for `wikitext-fmt`, a parser-assisted structural MediaWiki wikitext formatter. The extension calls the core API and shares its template, table, final-document equivalence, structured-failure, and idempotency safety gates. The VSIX build is bundled, so installed extensions do not rely on pnpm workspace links being present at runtime.
+This extension is the VS Code wrapper for
+[`wikitext-fmt`](../../README.md), a conservative parser-assisted MediaWiki
+wikitext formatter. It requires VS Code 1.90 or newer.
 
-## Features
+## Installation
 
-- Contributes the `wikitext` language id for `.wiki`, `.wikitext`, and `.mediawiki` files.
-- Registers Format Document support for `wikitext`.
-- Also registers a formatter for the `mediawiki` language id when another extension provides that language.
-- Provides the `wikitext-fmt.formatDocument` command.
+Marketplace publishing is manual and is not implied by this repository. To
+install a locally built release, run:
 
-This wrapper does not provide syntax highlighting, an LSP server, or siteinfo fetching. Packaging metadata is included, but publishing is intentionally manual.
+```sh
+pnpm --filter wikitext-formatter vscode:package
+```
 
-## Usage
+Then choose **Extensions: Install from VSIX...** in VS Code and select the
+generated `.vsix`.
 
-Open a `.wiki`, `.wikitext`, or `.mediawiki` file and run VS Code's Format Document command.
+## Language and formatting support
 
-To enable format-on-save:
+The extension:
+
+- contributes the `wikitext` language id for `.wiki`, `.wikitext`, and
+  `.mediawiki` files;
+- registers a whole-document formatter for `wikitext`;
+- also registers for `mediawiki` when another extension contributes that
+  language id;
+- provides **Wikitext Formatter: Format Document**
+  (`wikitext-fmt.formatDocument`).
+
+Open a supported file and run **Format Document**. To enable format on save:
 
 ```json
 {
   "[wikitext]": {
     "editor.defaultFormatter": "skyeyefast.wikitext-formatter",
     "editor.formatOnSave": true
-  }
-}
-```
-
-If you use another extension that contributes the `mediawiki` language id:
-
-```json
-{
+  },
   "[mediawiki]": {
     "editor.defaultFormatter": "skyeyefast.wikitext-formatter",
     "editor.formatOnSave": true
@@ -37,50 +43,70 @@ If you use another extension that contributes the `mediawiki` language id:
 }
 ```
 
+The `mediawiki` block is useful only when another installed extension assigns
+that language id to the document.
+
+## Safe formatting
+
+Safe formatting is enabled by default. The wrapper uses the core formatter's
+input/output parse checks, exact round-trip checks, template/table/document
+equivalence, bounded convergence, and second-pass idempotency verification. If
+configuration is invalid or the core rejects a candidate, VS Code shows a
+`wikitext-fmt:` warning and applies no edit.
+
+Turning off `wikitextFmt.safe` selects the core's compact single-pass API. This
+is intended for development or controlled investigation; it removes the
+wrapper's fail-closed guarantee.
+
+See the core documentation for
+[formatter behavior](../../README.md#formatter-contract),
+[profiles and reliability](../../README.md#rule-reliability), and
+[known limitations](../../README.md#current-limitations).
+
 ## Settings
 
-```json
-{
-  "wikitextFmt.safe": true,
-  "wikitextFmt.config.enabled": true,
-  "wikitextFmt.config.path": null,
-  "wikitextFmt.profile": "default",
-  "wikitextFmt.level": "normal",
-  "wikitextFmt.htmlVoidTagStyle": "html5",
-  "wikitextFmt.formatTables": true,
-  "wikitextFmt.formatReferences": false,
-  "wikitextFmt.formatExternalLinks": false,
-  "wikitextFmt.formatSectionSpacing": false,
-  "wikitextFmt.formatTemplateParameters": false
-}
-```
+| Setting | Default | Purpose |
+| --- | --- | --- |
+| `wikitextFmt.safe` | `true` | Require the full safe-formatting gate |
+| `wikitextFmt.config.enabled` | `true` | Discover or load core JSON config |
+| `wikitextFmt.config.path` | `null` | Use one explicit config path |
+| `wikitextFmt.profile` | `"default"` | Select `default`, `production`, or `aggressive` |
+| `wikitextFmt.level` | `"normal"` | Select `safe`, `normal`, or `experimental` rule ceiling |
+| `wikitextFmt.htmlVoidTagStyle` | `"html5"` | Select `html5`, `xhtml`, or `preserve` |
+| `wikitextFmt.formatTables` | `true` | Enable normal-level table formatting |
+| `wikitextFmt.formatReferences` | `false` | Enable experimental reference formatting |
+| `wikitextFmt.formatExternalLinks` | `false` | Enable experimental external-link formatting |
+| `wikitextFmt.formatSectionSpacing` | `false` | Enable experimental section spacing |
+| `wikitextFmt.formatTemplateParameters` | `false` | Deprecated compatibility alias for the unified template engine |
 
-When `wikitextFmt.safe` is enabled, formatting uses `formatWikitextSafe()` and returns no edit if the core formatter reports a warning.
+A profile is a preset; a reliability level is the maximum class of rule
+allowed to run. Explicitly configured settings override corresponding values
+from the selected config file.
 
-The `production` profile enables graduated normal-level structural rules.
-`aggressive` additionally enables still-validating reference, external-link,
-and section-spacing formatting. Explicit VS Code settings continue to override
-the selected profile.
+## Workspace configuration
 
-## Configuration files
-
-By default, the extension reuses the same JSON configuration files as the CLI:
+The extension reuses the core CLI's validated JSON filenames:
 
 - `.wikitextfmtrc`
 - `.wikitextfmtrc.json`
 - `wikitext-fmt.config.json`
 
-For file-backed documents, config discovery starts at the document directory and walks upward. In multi-root workspaces, explicit relative `wikitextFmt.config.path` values are resolved from the document's workspace folder. If the document is outside every workspace, relative explicit paths and discovery use the document location. Untitled documents do not use filesystem config discovery and are formatted with VS Code settings only.
+For a file-backed document, discovery starts in the document directory and
+walks upward. In a multi-root workspace, a relative explicit
+`wikitextFmt.config.path` resolves from that document's workspace folder. For a
+document outside the workspace, it resolves from the document directory.
+Untitled documents do not use filesystem discovery.
 
 Precedence is:
 
 ```text
-explicit VS Code settings > config file > formatter defaults
+explicit VS Code setting > selected config file > profile preset > core default
 ```
 
-Only settings exposed by this extension override config values: `profile`, `level`, `htmlVoidTagStyle`, `formatTables`, `formatReferences`, `formatExternalLinks`, `formatSectionSpacing`, and `formatTemplateParameters`. `wikitextFmt.safe` is editor-only and is not part of `FormatOptions`.
+Only settings exposed in the table above override config values.
+`wikitextFmt.safe` is editor-only and is not a core `FormatOptions` key.
 
-Disable config loading:
+To disable config loading:
 
 ```json
 {
@@ -88,7 +114,7 @@ Disable config loading:
 }
 ```
 
-Use an explicit config path:
+To select a workspace-relative file:
 
 ```json
 {
@@ -96,7 +122,42 @@ Use an explicit config path:
 }
 ```
 
+The extension does not fetch MediaWiki siteinfo. Use built-in or custom aliases
+in editor workflows; a config that requests siteinfo without supplying loaded
+aliases fails closed.
+
+## Bundled core and versioning
+
+The VSIX bundles `wikitext-fmt`, its JavaScript runtime dependencies, and the
+minimum `wikiparser-node` config assets under `dist/node_modules/`. An installed
+extension does not need the pnpm workspace or project dependencies.
+
+The extension and core have independent versions. An extension release must
+still account for bundled-core changes that alter editor-visible formatting,
+diagnostics, safety, or runtime behavior. See
+[VERSIONING.md](../../VERSIONING.md).
+
+## Limitations and troubleshooting
+
+- This is a whole-document formatter; it does not provide range formatting,
+  format-on-type, syntax highlighting, an LSP server, or code actions.
+- It replaces the full document only when accepted output differs.
+- `mediawiki` support depends on another extension contributing that language
+  id; this extension itself contributes `wikitext`.
+- It does not expose the CLI's JSON diagnostics or batch report UI. Safety and
+  config failures appear as VS Code warning messages.
+- Site-specific grammar still requires a suitable parser config, and
+  site-specific aliases must be supplied without siteinfo fetching.
+
+If formatting does nothing, check the document language mode, confirm this
+extension is the selected default formatter, and inspect any `wikitext-fmt:`
+warning. Temporarily disable config loading to distinguish config errors from
+parser or formatter safety fallbacks. Keep safe mode enabled when diagnosing
+unfamiliar input.
+
 ## Build and package
+
+Run commands from the repository root:
 
 ```sh
 pnpm --filter wikitext-formatter typecheck
@@ -109,4 +170,6 @@ pnpm --filter wikitext-formatter check:release
 pnpm --filter wikitext-formatter vscode:package
 ```
 
-`build` bundles `src/extension.ts`, `src/format.ts`, `wikitext-fmt`, and its JavaScript runtime dependencies into `dist/extension.js`; the VS Code API and Node built-ins remain external. It also copies the minimum `wikiparser-node` parser config assets needed at runtime under `dist/node_modules/` before `vsce package --no-dependencies` runs. Packaging is for local VSIX preparation only. Publishing is intentionally out of scope for this wrapper phase.
+`build` bundles the wrapper and core into `dist/extension.js`, leaving the VS
+Code API and Node built-ins external, then copies required parser config assets.
+`vsce package --no-dependencies` prepares a local VSIX; it does not publish it.

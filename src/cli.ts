@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { readFile, writeFile } from "node:fs/promises";
+import { createRequire } from "node:module";
 import { stderr, stdin, stdout } from "node:process";
 
 import {
@@ -27,6 +28,10 @@ import {
   formatWikitextSafeDetailed,
 } from "./formatter.js";
 import { type FormatOptions, resolveOptions } from "./options.js";
+
+const packageMetadata = createRequire(import.meta.url)("../package.json") as {
+  version: string;
+};
 
 async function readStdin(): Promise<string> {
   const chunks: Buffer[] = [];
@@ -130,9 +135,15 @@ function reportDiagnostics(
 }
 
 async function main(): Promise<void> {
+  const args = process.argv.slice(2);
+  if (args.includes("--version") || args.includes("-v")) {
+    stdout.write(`${packageMetadata.version}\n`);
+    return;
+  }
+
   let options: CliOptions;
   try {
-    options = parseArgs(process.argv.slice(2));
+    options = parseArgs(args);
   } catch (error) {
     stderr.write(
       `${error instanceof Error ? error.message : String(error)}\n${usage()}\n`,

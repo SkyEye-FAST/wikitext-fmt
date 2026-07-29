@@ -2,22 +2,108 @@
 
 `wikitext-fmt` is a production-oriented, standalone structural formatter for MediaWiki wikitext. It uses [`wikiparser-node`](https://github.com/bhsd-harry/wikiparser-node) to discover and validate structure, but it is not a MediaWiki extension and does not require a running MediaWiki installation.
 
-Eligible parser-confirmed templates and tables are formatted aggressively by default. Nested templates, parser functions, structured parameter values, nested tables, tables embedded in template text, attributes, captions, continuation lines, HTML, refs, comments, and links are supported without reordering semantic content. Protected extension blocks and explicit ignore regions remain unchanged. A structure is preserved when parser boundaries are demonstrably ambiguous or when changing its layout would alter whitespace-sensitive anonymous arguments; diagnostics report parser limitations precisely.
+Eligible parser-confirmed templates and tables use the normal-level structural
+rules by default. Nested templates, parser functions, structured parameter
+values, nested tables, tables embedded in template text, attributes, captions,
+continuation lines, HTML, refs, comments, and links are supported without
+reordering semantic content. Protected extension blocks and explicit ignore
+regions remain unchanged. A structure is preserved when parser boundaries are
+demonstrably ambiguous or when changing its layout would alter
+whitespace-sensitive anonymous arguments; diagnostics report parser
+limitations precisely.
 
 It does not perform site-specific semantic rewrites: parameters, rows, cells, attributes, categories, titles, and values are never reordered or translated. HTML5-style `<br>` remains the default rather than XHTML-style `<br />`.
 
-## Install and build
+## Project status
 
-Supported runtimes are Node.js 22.13+ on the 22.x line, or Node.js 24.11+. pnpm is required.
+The project is pre-1.0. The documented entry points, CLI stream separation,
+configuration validation, conservative formatting rules, and fail-closed safety
+behavior are tested and suitable for controlled automation. Safe mode never
+emits a candidate when parsing, exact round-tripping, structural equivalence,
+convergence, or idempotency cannot be demonstrated; it returns the original
+source with a structured failure instead.
+
+Before 1.0, rule eligibility, defaults, report schemas, configuration, and
+public API details may still change in a versioned release. Breaking changes are
+identified even during the `0.x` period. See [VERSIONING.md](VERSIONING.md) for
+the compatibility policy and the criteria for declaring 1.0.
+
+## Documentation map
+
+- [Installation and quick start](#installation-and-quick-start)
+- [Formatter contract](#formatter-contract)
+- [CLI contract](#cli)
+- [Configuration files](#configuration-files)
+- [VS Code extension](#vs-code-extension-wrapper)
+- [JavaScript API and stability](#api)
+- [Rule reliability and detailed behavior](#rule-reliability)
+- [Current limitations](#current-limitations)
+- [Development and verification](#development)
+- [Versioning](VERSIONING.md) and [release checklist](RELEASE_CHECKLIST.md)
+
+## Installation and quick start
+
+Supported runtimes are Node.js 22.13+ on the 22.x line, or Node.js 24.11+.
+Repository development uses pnpm; npm users do not need pnpm to invoke the
+installed package.
+
+Install the CLI globally, or add the library to an application:
 
 ```sh
-pnpm install
+npm install --global wikitext-fmt
+npm install wikitext-fmt
+```
+
+Format to stdout, check without changing a file, or write in place:
+
+```sh
+wikitext-fmt page.wiki
+wikitext-fmt --check page.wiki
+wikitext-fmt --write page.wiki
+```
+
+The smallest library example is:
+
+```ts
+import { formatWikitextSafe } from "wikitext-fmt";
+
+const result = formatWikitextSafe("==Title==\n");
+if (result.failure) console.error(result.failure.code, result.warning);
+else console.log(result.formatted);
+```
+
+For repository development, use the pinned pnpm version through Corepack:
+
+```sh
+corepack enable
+pnpm install --frozen-lockfile
 pnpm build
 ```
+
+The separately versioned
+[`wikitext-formatter`](packages/vscode/README.md) extension bundles this core
+formatter and provides Format Document integration for VS Code.
+
+## Formatter contract
+
+| The formatter does | The formatter deliberately does not |
+| --- | --- |
+| Normalize documented spacing and layout for eligible parser-confirmed structures | Reorder parameters, rows, cells, categories, links, attributes, or titles |
+| Preserve opaque values and whitespace-sensitive anonymous arguments | Translate prose, names, targets, captions, or values |
+| Protect extension blocks, HTML, comments, refs, tables, templates, and links from rules that do not understand them | Guess across ambiguous parser boundaries or infer site-specific semantics |
+| Verify template, table, and final document structure before accepting safe output | Emit a partial rewrite after a safety check fails |
+
+Protected tags include `nowiki`, `pre`, `syntaxhighlight`, `source`,
+`templatedata`, `math`, `chem`, `ref`, and `gallery`. Explicit
+`wikitext-fmt-ignore` markers are described under
+[Current limitations](#current-limitations). Unsupported, malformed, or
+ambiguous structures remain byte-for-byte unchanged where the formatter cannot
+prove a safe transformation.
 
 ## CLI
 
 ```sh
+wikitext-fmt --version
 wikitext-fmt page.wiki
 wikitext-fmt page.wiki --write
 wikitext-fmt page.wiki --check
@@ -39,9 +125,8 @@ wikitext-fmt --print-localization-aliases --localization-source builtin
 ### Production usage profiles
 
 The `production` and `aggressive` CLI profiles run with the full safety gate by
-default. A file
-that would change or any file that falls back with a warning makes the command
-fail:
+default. `--check` fails when a file would change; add `--fail-on-warning` to
+also fail when safe formatting returns the original input with a warning:
 
 ```sh
 wikitext-fmt "pages/**/*.wiki" --profile production --check --fail-on-warning
@@ -56,7 +141,8 @@ wikitext-fmt "pages/**/*.wiki" --profile production --write --report report.json
 
 `production` enables the graduated normal-level rules, including unified
 template normalization and aggressive table splitting. `aggressive` extends it
-with the still-validating reference, external-link, and section-spacing rules.
+with the still-validating template-parameter compatibility option, reference,
+external-link, and section-spacing rules.
 Both profiles use template, table, and final full-document structural
 equivalence plus idempotency verification. `--unsafe` is an explicit
 development/benchmark override; it is never selected implicitly for a
@@ -82,54 +168,35 @@ parse the input) and returned the original source unchanged. In CI, use
 stderr, or `--report` for one aggregate JSON file. Formatted text and diffs stay
 on stdout, so diagnostic output does not corrupt either stream.
 
-Without `--write`, formatted wikitext is written to stdout. `--check` writes nothing and exits with status 1 when a file would change. Available switches are:
+Without `--write`, formatted wikitext is written to stdout. Run
+`wikitext-fmt --help` for the complete generated usage line; the main CLI
+contract is:
 
-```text
---write
---check
---stdin
---safe
---unsafe
---debug
---diff
---diagnostics-json
---fail-on-warning
---report <path>
---config <path>
---no-config
---profile default|production|aggressive
---level safe|normal|experimental
---html-void-tag-style html5|xhtml|preserve
---parser-config <name-or-json-path>
---no-format-headings
---no-format-templates
---format-template-parameters
---no-format-template-parameters
---no-format-categories
---no-format-lists
---no-format-file-links
---format-external-links
---no-format-external-links
---format-references
---no-format-references
---format-interlanguage-links
---no-format-interlanguage-links
---interlanguage-placement preserve|footer
---interlanguage-prefixes en,ja,zh
---format-section-spacing
---no-format-section-spacing
---no-format-redirects
---no-format-behavior-switches
---behavior-switch-placement preserve|footer
---localization-source builtin|siteinfo|custom
---site-api <url>
---localized-syntax-style preserve|canonical-english
---print-localization-aliases
---format-tables
---no-format-tables
---table-cell-separator-style auto|split|preserve
---no-normalize-blank-lines
-```
+| Option | Behavior |
+| --- | --- |
+| `--version`, `-v` | Print only the core package version and exit before config or input processing |
+| `--help` | Print usage and exit successfully |
+| `--stdin` | Read one UTF-8 input from stdin; cannot be combined with paths or `--write` |
+| `--write` | Replace each input file with accepted output |
+| `--check` | Write no formatted text; exit 1 when an input would change |
+| `--diff` | Write unified diffs without modifying files; exit 1 when an input would change |
+| `--safe`, `--unsafe` | Select full verification or the development-oriented single-pass path |
+| `--profile`, `--level` | Select a preset or cumulative rule reliability ceiling |
+| `--debug` | Write human-readable mode and rule diagnostics to stderr |
+| `--diagnostics-json` | Write one JSON diagnostic record per input to stderr |
+| `--report <path>` | Write an aggregate JSON batch report to a file |
+| `--fail-on-warning` | Make a structured safe fallback exit nonzero |
+| `--config <path>`, `--no-config` | Select a config explicitly or disable discovery |
+
+Rule-specific formatting and localization flags are documented in the relevant
+sections below; `--help` provides the current usage synopsis.
+
+Exit status 0 means the requested operation completed without a selected
+failure condition. Status 1 means `--check` or `--diff` found a change, or
+`--fail-on-warning` observed a structured formatter fallback. Status 2 is used
+for invalid arguments, config/path expansion errors, unsafe option
+combinations, and output-report failures. Formatted text and diffs use stdout;
+warnings, debug output, and JSON diagnostics use stderr.
 
 Explicit files and glob patterns can be mixed. Expanded paths are deduplicated and processed in stable sorted order. Directories are not formatted, and an unmatched glob exits with status 2 and a clear error.
 
@@ -173,6 +240,14 @@ that routes to the same template engine. External links, references,
 interlanguage links, and section spacing remain explicit experimental rules;
 the aggressive profile enables the relevant set together.
 
+A profile and a reliability level are different controls. A profile is a
+preset that chooses a level and a coordinated set of rule options.
+`default` uses normal defaults, `production` selects the graduated normal
+feature set, and `aggressive` enables selected experimental rules. A level is
+only the maximum reliability class allowed to run (`safe`, `normal`, or
+`experimental`); a rule must also be enabled by its option. Explicit options
+override values supplied by a profile.
+
 The default parser configuration name is `mediawiki`, which maps to `wikiparser-node`'s generic `default` configuration. Names shipped by the parser, such as `enwiki` or `zhwiki`, and paths to custom JSON configurations are also accepted.
 
 ## Configuration files
@@ -185,10 +260,14 @@ The CLI searches from the current working directory upward for the first support
 wikitext-fmt.config.json
 ```
 
-Use `--config <path>` to select a file explicitly or `--no-config` to disable discovery. The precedence is:
+Use `--config <path>` to select one file explicitly, or `--no-config` to
+disable discovery. An explicit file replaces discovery rather than merging with
+a discovered file. For the same option key, an explicit CLI value overrides the
+selected config. A profile supplies preset values only where no individual
+option was supplied by the CLI or config:
 
 ```text
-CLI options > explicit --config file > discovered config file > defaults
+explicit option > selected profile preset > default
 ```
 
 Configuration keys match `FormatOptions`:
@@ -236,7 +315,13 @@ Configuration keys match `FormatOptions`:
 }
 ```
 
-Unknown keys and invalid option values are rejected instead of being silently ignored. Configuration discovery and loading are CLI concerns; the formatter core does not read files or inspect the working directory.
+Unknown keys and invalid option values are rejected instead of being silently
+ignored. Discovery starts at the CLI working directory and walks upward,
+checking the filenames in the order shown above. Configuration discovery and
+loading are CLI concerns; the formatter core does not read files or inspect the
+working directory. The core also does not fetch siteinfo: API callers load
+aliases explicitly, while the CLI performs the network request only when
+`--localization-source siteinfo --site-api <url>` is requested.
 
 ## VS Code extension wrapper
 
@@ -298,6 +383,19 @@ Use VS Code's Format Document command, or enable format-on-save for wikitext fil
 ```
 
 ## API
+
+The package exports the compact `formatWikitext()` string API, result-returning
+`formatWikitextResult()` and `formatWikitextDetailedResult()`, and the
+fail-closed `formatWikitextSafe()` and `formatWikitextSafeDetailed()` APIs. It
+also exports the documented option/result/failure types, `ruleLevels`,
+structural-equivalence helpers, configuration loaders, and localization
+helpers through the package root. Internal parser contexts and `resolveOptions`
+are not public entry points.
+
+These exports are usable today but remain under the pre-1.0 compatibility
+policy. In particular, diagnostics and JSON report shapes may gain or change
+fields in a minor release; breaking changes will be called out in the
+changelog.
 
 ```ts
 import {
@@ -683,6 +781,11 @@ The formatter intentionally does not provide site-specific template layouts,
 sort categories, reorder template parameters, rewrite arbitrary prose, or
 align table columns with padding. These are product boundaries.
 
+- Inputs that the parser cannot round-trip exactly are returned unchanged in
+  safe mode; line endings and parser token boundaries can trigger this guard.
+- Ambiguous or unbalanced parser boundaries are preserved rather than guessed.
+- Site-specific template semantics, Lua module behavior, and custom namespace
+  meaning cannot be inferred from syntax alone.
 - Template parameters are not reordered.
 - Template names, parameter names, anonymous/named state, and values are not rewritten.
 - Only standalone category namespace aliases backed by the selected localization data are moved; categories are never sorted.
@@ -711,14 +814,20 @@ content left unchanged
 ## Development
 
 ```sh
-pnpm test
-pnpm test:run
 pnpm build
+pnpm typecheck
+pnpm typecheck:tests
+pnpm exec vitest run tests/<relevant-file>.test.ts
+pnpm test:run
+pnpm check:versions
 pnpm check
 pnpm corpus
 pnpm benchmark
 pnpm benchmark:release
 pnpm smoke
+pnpm check:extension
+pnpm check:vsix
+pnpm check:vscode-release
 pnpm localization:update /path/to/mediawiki/languages/messages
 ```
 
@@ -736,12 +845,16 @@ is a release-review artifact; optional ratio thresholds can be supplied to the
 comparison script, while ordinary CI remains deterministic and
 machine-independent.
 
-`pnpm smoke` expects `pnpm build` to have run. It imports `dist/index.js`, runs `dist/cli.js --help`, checks that `loadSiteInfoAliases` is exported, verifies generated MediaWiki alias data is available from `dist`, and exercises `--print-localization-aliases --localization-source builtin` without network access.
+`pnpm smoke` expects `pnpm build` to have run. It imports `dist/index.js`, runs
+`dist/cli.js --help`, checks the compiled CLI version, verifies that
+`loadSiteInfoAliases` and generated MediaWiki alias data are available from
+`dist`, and exercises built-in alias printing without network access.
 
 GitHub Actions runs frozen installs, `pnpm check`, and both production corpus profiles on Node.js 22 and 24. A separate Node.js 24 release job runs extension-host, VSIX, and complete VS Code release checks.
 
-Use [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md) before publishing the npm
-package or VS Code extension.
+Use [VERSIONING.md](VERSIONING.md) to select component versions and
+[RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md) before publishing the npm package
+or VS Code extension.
 
 The repository is a pnpm workspace. The root package contains the formatter core and CLI; `packages/vscode` is a thin VS Code wrapper that depends on the root package and does not duplicate formatter rules. Core modules do not import the CLI or the editor wrapper.
 

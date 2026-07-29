@@ -22,7 +22,7 @@ export interface CliOptions extends FormatOptions {
 }
 
 export function usage(): string {
-  return "Usage: wikitext-fmt [--write | --check | --diff] [--stdin] [--safe | --unsafe] [--profile default|production|aggressive] [--fail-on-warning] [--report <path>] [--debug | --diagnostics-json] [--config <path> | --no-config] [--level safe|normal|experimental] [options] <file-or-glob...>";
+  return "Usage: wikitext-fmt [--help | --version | -v] [--write | --check | --diff] [--stdin] [--safe | --unsafe] [--profile default|production|aggressive] [--fail-on-warning] [--report <path>] [--debug | --diagnostics-json] [--config <path> | --no-config] [--level safe|normal|experimental] [options] <file-or-glob...>";
 }
 
 export function parseArgs(args: string[]): CliOptions {

@@ -56,6 +56,36 @@ afterEach(async () => {
 });
 
 describe("CLI production behavior", () => {
+  it("reports the package version before processing irrelevant arguments", async () => {
+    const packageMetadata = JSON.parse(
+      await readFile(resolve("package.json"), "utf8"),
+    ) as { version: string };
+    const expected = `${packageMetadata.version}\n`;
+
+    const longAlias = await runCli([
+      "--version",
+      "--config",
+      "missing-config.json",
+      "missing-input.wiki",
+    ]);
+    expect(longAlias).toEqual({ code: 0, stdout: expected, stderr: "" });
+
+    const shortAlias = await runCli([
+      "missing-input.wiki",
+      "--write",
+      "--check",
+      "-v",
+    ]);
+    expect(shortAlias).toEqual({ code: 0, stdout: expected, stderr: "" });
+  });
+
+  it("advertises version reporting in CLI help", async () => {
+    const result = await runCli(["--help"]);
+    expect(result.code).toBe(0);
+    expect(result.stdout).toContain("[--help | --version | -v]");
+    expect(result.stderr).toBe("");
+  });
+
   it("uses safe mode by default for production writes and allows an explicit unsafe override", async () => {
     const root = await temporaryDirectory();
     const file = join(root, "page.wiki");

@@ -1,5 +1,6 @@
 #!/usr/bin/env node
-import { access } from "node:fs/promises";
+import { spawnSync } from "node:child_process";
+import { access, readFile } from "node:fs/promises";
 
 const entry = await import("../dist/index.js");
 if (entry.formatWikitext("==Title==\n") !== "== Title ==\n") {
@@ -7,6 +8,20 @@ if (entry.formatWikitext("==Title==\n") !== "== Title ==\n") {
 }
 if (typeof entry.loadSiteInfoAliases !== "function") {
   throw new Error("loadSiteInfoAliases is not exported from dist/index.js");
+}
+
+const packageMetadata = JSON.parse(await readFile("package.json", "utf8"));
+for (const flag of ["--version", "-v"]) {
+  const result = spawnSync(process.execPath, ["dist/cli.js", flag], {
+    encoding: "utf8",
+  });
+  if (
+    result.status !== 0 ||
+    result.stdout !== `${packageMetadata.version}\n` ||
+    result.stderr !== ""
+  ) {
+    throw new Error(`dist/cli.js ${flag} version smoke failed`);
+  }
 }
 
 await access("dist/localization/generated/mediawiki-aliases.json");
