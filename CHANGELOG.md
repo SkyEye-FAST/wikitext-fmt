@@ -4,7 +4,7 @@ All notable user-visible changes to the core package and CLI are documented
 here. The project follows the pre-1.0 policy in
 [docs/versioning.md](docs/versioning.md).
 
-## Unreleased
+## 0.2.0 - 2026-07-29
 
 ### Added
 

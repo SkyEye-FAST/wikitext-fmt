@@ -3,7 +3,7 @@
 All notable user-visible changes to the VS Code extension are documented here.
 Core-only changes remain in the root changelog.
 
-## Unreleased
+## 0.2.0 - 2026-07-29
 
 ### Added
 
