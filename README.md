@@ -1,5 +1,10 @@
 # wikitext-fmt
 
+[![Checks](https://github.com/SkyEye-FAST/wikitext-fmt/actions/workflows/checks.yml/badge.svg)](https://github.com/SkyEye-FAST/wikitext-fmt/actions/workflows/checks.yml)
+[![npm version](https://img.shields.io/npm/v/wikitext-fmt)](https://www.npmjs.com/package/wikitext-fmt)
+[![npm downloads](https://img.shields.io/npm/dm/wikitext-fmt)](https://www.npmjs.com/package/wikitext-fmt)
+[![License: GPL-3.0-or-later](https://img.shields.io/badge/license-GPL--3.0--or--later-blue.svg)](LICENSE)
+
 `wikitext-fmt` is a conservative, parser-assisted structural formatter for
 MediaWiki wikitext. It is a standalone npm package and CLI, not a MediaWiki
 extension, and it does not require a running wiki for ordinary formatting.
