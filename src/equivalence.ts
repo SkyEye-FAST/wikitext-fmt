@@ -397,14 +397,42 @@ function semanticTableCellContent(
   return parts;
 }
 
+function removeTableCellLayoutPrefix(
+  content: string | TableContentPart[],
+): string | TableContentPart[] {
+  if (typeof content === "string") {
+    return content.startsWith(" ") ? content.slice(1) : content;
+  }
+  const [first, ...rest] = content;
+  if (typeof first !== "string" || !first.startsWith(" ")) return content;
+  const normalized = first.slice(1);
+  return normalized ? [normalized, ...rest] : rest;
+}
+
+function removeTableAttributeLayoutSpaces(attributes: string): string {
+  const withoutLeading = attributes.startsWith(" ")
+    ? attributes.slice(1)
+    : attributes;
+  return withoutLeading.endsWith(" ")
+    ? withoutLeading.slice(0, -1)
+    : withoutLeading;
+}
+
 function cellFingerprint(
   cell: ParserTableNode & { subtype?: string },
   owner: ParserTableNode,
 ): TableCellFingerprint {
+  const layoutAware = cell.subtype !== "caption";
   return {
     subtype: cell.subtype ?? "td",
-    attributes: cell.childNodes[1]?.toString() ?? "",
-    content: semanticTableCellContent(cell, owner),
+    attributes: layoutAware
+      ? removeTableAttributeLayoutSpaces(
+          cell.childNodes[1]?.toString() ?? "",
+        )
+      : (cell.childNodes[1]?.toString() ?? ""),
+    content: layoutAware
+      ? removeTableCellLayoutPrefix(semanticTableCellContent(cell, owner))
+      : semanticTableCellContent(cell, owner),
   };
 }
 

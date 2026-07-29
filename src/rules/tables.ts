@@ -111,6 +111,12 @@ interface LexicalSeparators {
   unbalancedLines: number[];
 }
 
+interface TableSourceReplacement {
+  start: number;
+  end: number;
+  value: string;
+}
+
 function emptySummary(): TableFormatDiagnostics {
   return {
     tablesInspected: 0,
@@ -465,6 +471,79 @@ function arraysEqual(a: readonly number[], b: readonly number[]): boolean {
   return a.length === b.length && a.every((value, index) => value === b[index]);
 }
 
+function removeLeadingLayoutSpace(value: string): string {
+  return value.startsWith(" ") ? value.slice(1) : value;
+}
+
+function removeTrailingLayoutSpace(value: string): string {
+  return value.endsWith(" ") ? value.slice(0, -1) : value;
+}
+
+function renderCellContent(content: string): string {
+  if (!content) return "";
+  const withoutLayoutSpace = removeLeadingLayoutSpace(content);
+  return withoutLayoutSpace ? ` ${withoutLayoutSpace}` : "";
+}
+
+function renderCellAttributes(attributes: string): string {
+  const withoutLayoutSpaces = removeTrailingLayoutSpace(
+    removeLeadingLayoutSpace(attributes),
+  );
+  return ` ${withoutLayoutSpaces} `;
+}
+
+function standaloneCellLayoutReplacements(
+  table: ParserTableNode,
+): TableSourceReplacement[] {
+  const tableStart = table.getAbsoluteIndex();
+  const replacements: TableSourceReplacement[] = [];
+  for (const cell of table
+    .querySelectorAll<ParserTableNode>("td")
+    .filter((candidate) => nearestTable(candidate.parentNode) === table)) {
+    if (cell.subtype === "caption") continue;
+    const syntax = cell.childNodes[0]?.toString() ?? "";
+    if (!/\n[\t ]*[!|]$/u.test(syntax)) continue;
+    const attributes = cell.childNodes[1]?.toString() ?? "";
+    const contentNode = cell.childNodes[2];
+    if (contentNode?.querySelectorAll<ParserTableNode>("table").length) {
+      continue;
+    }
+    const content = contentNode?.toString() ?? "";
+    const rendered =
+      attributes.length > 0
+        ? `${syntax}${renderCellAttributes(attributes)}|${renderCellContent(content)}`
+        : `${syntax}${renderCellContent(content)}`;
+    const raw = cell.toString();
+    if (rendered === raw) continue;
+    const start = cell.getAbsoluteIndex() - tableStart;
+    replacements.push({ start, end: start + raw.length, value: rendered });
+  }
+  return replacements;
+}
+
+function applyTableSourceReplacements(
+  raw: string,
+  replacements: readonly TableSourceReplacement[],
+): string {
+  const parts: string[] = [];
+  let cursor = 0;
+  for (const replacement of [...replacements].sort(
+    (a, b) => a.start - b.start,
+  )) {
+    if (
+      replacement.start < cursor ||
+      replacement.end < replacement.start ||
+      replacement.end > raw.length
+    ) {
+      return raw;
+    }
+    parts.push(raw.slice(cursor, replacement.start), replacement.value);
+    cursor = replacement.end;
+  }
+  parts.push(raw.slice(cursor));
+  return parts.join("");
+}
+
 function analyzeParserTable(
   source: string,
   table: ParserTableNode,
@@ -567,16 +646,23 @@ function analyzeParserTable(
         ),
     );
   const positions = separators.map(({ position }) => position);
-  const valueParts: string[] = [];
-  let cursor = 0;
-  for (const { position, marker } of separators) {
-    valueParts.push(raw.slice(cursor, position), "\n", marker);
-    cursor = position + 2;
-  }
-  valueParts.push(raw.slice(cursor));
-  const value = valueParts.join("");
+  const layoutReplacements = standaloneCellLayoutReplacements(table);
+  const separatorReplacements = separators.map(({ position, marker }) => ({
+    start: position,
+    end: position + 2,
+    value: `\n${marker}`,
+  }));
+  const value = applyTableSourceReplacements(raw, [
+    ...layoutReplacements,
+    ...separatorReplacements,
+  ]);
   const lineDiagnostics: TableLineDiagnostic[] = [
-    ...new Set(lineNumbersAtPositions(raw, positions)),
+    ...new Set(
+      lineNumbersAtPositions(raw, [
+        ...positions,
+        ...layoutReplacements.map(({ start }) => start),
+      ]),
+    ),
   ].map((tableLine) => ({ tableLine, changed: true }));
   const changed = value !== raw;
   const fallbackReason = parserBoundariesReliable

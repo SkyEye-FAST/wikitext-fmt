@@ -80,6 +80,91 @@ describe("production parser table formatter", () => {
     expectProductionTable(`${input}\n`);
   });
 
+  it("adds canonical spacing to standalone data cells", () => {
+    const result = expectProductionTable("{|\n|-\n|A\n|B\n|}\n");
+    expect(result.formatted).toBe("{|\n|-\n| A\n| B\n|}\n");
+  });
+
+  it("adds canonical spacing to standalone header cells", () => {
+    const result = expectProductionTable("{|\n|-\n!A\n!B\n|}\n");
+    expect(result.formatted).toBe("{|\n|-\n! A\n! B\n|}\n");
+  });
+
+  it("does not add trailing whitespace to empty cells", () => {
+    const input = "{|\n|-\n|\n!\n|}\n";
+    const result = formatWikitextSafeDetailed(input, production);
+    expect(result.warning).toBeUndefined();
+    expect(result.formatted).toBe(input);
+    expect(result.formatted).not.toMatch(/[ \t]+$/mu);
+  });
+
+  it("removes an existing lone layout space from empty cells", () => {
+    const result = expectProductionTable("{|\n|-\n| \n! \n|}\n");
+    expect(result.formatted).toBe("{|\n|-\n|\n!\n|}\n");
+    expect(result.formatted).not.toMatch(/[ \t]+$/mu);
+  });
+
+  it("normalizes cell attribute boundary spacing without changing attributes", () => {
+    const result = expectProductionTable(
+      '{|\n|-\n|style="text-align:center"|A\n!scope="col"|B\n|}\n',
+    );
+    expect(result.formatted).toBe(
+      '{|\n|-\n| style="text-align:center" | A\n! scope="col" | B\n|}\n',
+    );
+  });
+
+  it("adds canonical spacing while splitting inline cells", () => {
+    const result = expectProductionTable("{|\n|-\n|A||B\n!C!!D\n|}\n");
+    expect(result.formatted).toBe(
+      "{|\n|-\n| A\n| B\n! C\n! D\n|}\n",
+    );
+  });
+
+  it("leaves canonical standalone cell spacing unchanged", () => {
+    const input = "{|\n|-\n| A\n! B\n|}\n";
+    const result = formatWikitextSafeDetailed(input, production);
+    expect(result.warning).toBeUndefined();
+    expect(result.formatted).toBe(input);
+  });
+
+  it("keeps additional leading cell whitespace structurally significant", () => {
+    const compact = "{|\n|A\n|}\n";
+    const canonical = "{|\n| A\n|}\n";
+    const intentional = "{|\n|  A\n|}\n";
+    expect(tableStructuralFingerprint(compact, config)).toBe(
+      tableStructuralFingerprint(canonical, config),
+    );
+    expect(tableStructuralFingerprint(canonical, config)).not.toBe(
+      tableStructuralFingerprint(intentional, config),
+    );
+  });
+
+  it.each([
+    ["wikilink", "[[Page|label]]"],
+    ["template", "{{T|value}}"],
+    ["parser function", "{{#if:x|yes|no}}"],
+    ["comment", "<!--keep-->value"],
+    ["HTML", "<span>value</span>"],
+    ["multiline content", "first\ncontinued"],
+  ])("formats safe standalone %s cell content", (_name, content) => {
+    const result = expectProductionTable(`{|\n|${content}\n|}\n`);
+    expect(result.formatted).toBe(`{|\n| ${content}\n|}\n`);
+  });
+
+  it("preserves an outer cell containing a nested table", () => {
+    const input = "{|\n|\n{|\n| A\n|}\n|}\n";
+    const result = formatWikitextSafeDetailed(input, production);
+    expect(result.warning).toBeUndefined();
+    expect(result.formatted).toBe(input);
+  });
+
+  it("preserves intentional leading whitespace after the layout space", () => {
+    const input = "{|\n|  intentional\n|}\n";
+    const result = formatWikitextSafeDetailed(input, production);
+    expect(result.warning).toBeUndefined();
+    expect(result.formatted).toBe(input);
+  });
+
   it("formats nested tables deepest-first", () => {
     const result = expectProductionTable(
       "{|\n| outer\n{|\n| A || B\n|}\n| tail || end\n|}\n",
@@ -201,7 +286,9 @@ describe("production parser table formatter", () => {
     const input = "{|\n|1||--||--\n|-\n|2||50||50\n|}\n";
     const result = formatWikitextSafeDetailed(input, production);
     expect(result.warning).toBeUndefined();
-    expect(result.formatted).toBe("{|\n|1||--||--\n|-\n|2\n|50\n|50\n|}\n");
+    expect(result.formatted).toBe(
+      "{|\n| 1||--||--\n|-\n| 2\n| 50\n| 50\n|}\n",
+    );
     expect(tableStructuralFingerprint(result.formatted, config)).toBe(
       tableStructuralFingerprint(input, config),
     );

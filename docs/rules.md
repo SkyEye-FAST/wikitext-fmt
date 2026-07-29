@@ -379,14 +379,36 @@ becomes:
 | B
 ```
 
+In one-cell-per-line layout, non-empty data and header cells use one layout
+space after the parser-confirmed marker:
+
+```wikitext
+| Cell
+! Header
+```
+
+Empty cells remain `|` or `!` with no trailing whitespace. Parser-confirmed
+cell attributes use one layout space after the marker and on both sides of the
+attribute/content separator:
+
+```wikitext
+| style="text-align:center" | Cell
+! scope="col" | Header
+```
+
+Quoting, attribute order and values, and cell content are otherwise preserved.
+Only the first parser-confirmed layout space is syntax; additional leading or
+attribute-boundary whitespace remains structurally significant.
+
 `preserve` leaves inline layout unchanged. Nested tables, tables in template
 text, captions, attributes, continuation lines, comments, links, HTML,
 extensions, refs, templates, parser functions, and multiline cell contents are
 handled as parser-confirmed or protected opaque content.
 
-Cell contents and whitespace, row/cell type, attributes, order, and nesting are
-fingerprinted. Rows, cells, and columns are never reordered or padded for
-alignment. Unbalanced or ambiguous candidates remain original.
+Semantic cell contents and whitespace beyond the single layout space,
+row/cell type, attributes, order, and nesting are fingerprinted. Rows, cells,
+and columns are never reordered or padded for alignment. Unbalanced or
+ambiguous candidates remain original.
 
 Diagnostics provide per-table line, nesting, separator policy and reason,
 changed/ambiguous state, parser fallback, line outcomes, skip reason, and

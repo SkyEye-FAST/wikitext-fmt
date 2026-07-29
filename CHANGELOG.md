@@ -15,6 +15,12 @@ here. The project follows the pre-1.0 policy in
   modes for multiline named and explicitly numbered parameters. The default is
   `flush`.
 
+### Fixed
+
+- Added the canonical layout space after standalone table data/header markers
+  and around parser-confirmed cell attribute separators, without adding
+  trailing whitespace to empty cells.
+
 ## 0.2.1 - 2026-07-29
 
 ### Fixed
