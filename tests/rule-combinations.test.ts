@@ -194,7 +194,7 @@ describe("rule interaction hardening", () => {
       expect(result.formatted).toContain(fragment);
     }
     expect(result.formatted).toContain(
-      '{| class="wikitable"\n| <ref name="table"/> || {{T| a = b}}\n|}',
+      '{| class="wikitable"\n| <ref name="table"/> || {{ T | a = b }}\n|}',
     );
     expect(result.formatted).toContain("== Outer ==");
     expect(result.formatted).toContain("[https://example.test Label]");

@@ -8,6 +8,10 @@ here. The project follows the pre-1.0 policy in
 
 ### Changed
 
+- Added `inlineTemplateSpacing` with `auto`, `compact`, and `spaced` modes so
+  single-line named templates use one coherent brace/pipe/equals spacing style.
+  The default `auto` mode uses deterministic syntax-whitespace cost, while
+  multiline layout remains controlled separately by `templateParameterLayout`.
 - Made anonymous template line width a soft constraint: short, structurally
   equivalent templates can collapse inline, while positional argument
   whitespace is never introduced to force multiline output.

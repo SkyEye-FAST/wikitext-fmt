@@ -45,6 +45,7 @@ preset.
 | `lineWidth` | number > 0 | `120` | — | config/API only | unchanged | Named-template layout threshold; soft for anonymous parameters |
 | `formatHeadings` | boolean | `true` | safe | `--no-format-headings` | unchanged | Normalize eligible heading marker spacing |
 | `formatTemplates` | boolean | `true` | normal | `--no-format-templates` | production/aggressive: `true` | Run unified template engine |
+| `inlineTemplateSpacing` | `auto` \| `compact` \| `spaced` | `auto` | — | `--inline-template-spacing` | unchanged | Choose complete single-line named-template spacing; auto uses weighted syntax-whitespace cost and a compact tie-break |
 | `templateParameterLayout` | `compact` \| `flush` \| `indented` | `flush` | — | config/API only | unchanged | Choose multiline named/numbered parameter spacing and indentation |
 | `formatTemplateParameters` | boolean | `false` | experimental | `--format-template-parameters`, `--no-format-template-parameters` | production: `false`; aggressive: `true` | Deprecated compatibility route to unified template engine |
 | `formatCategories` | boolean | `true` | normal | `--no-format-categories` | unchanged | Format eligible footer categories/defaultsort |

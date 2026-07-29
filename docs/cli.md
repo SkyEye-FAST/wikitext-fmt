@@ -65,6 +65,7 @@ profile-based choice.
 | `--parser-config <value>` | Bundled parser name or JSON path | `parserConfig` |
 | `--html-void-tag-style <value>` | `html5`, `xhtml`, `preserve` | `htmlVoidTagStyle` |
 | `--table-cell-separator-style <value>` | `auto`, `split`, `preserve` | `tableCellSeparatorStyle` |
+| `--inline-template-spacing <value>` | `auto`, `compact`, `spaced` | `inlineTemplateSpacing` |
 | `--interlanguage-placement <value>` | `preserve`, `footer` | `interlanguagePlacement` |
 | `--interlanguage-prefixes <a,b,...>` | Non-empty comma-separated list | `interlanguagePrefixes` |
 | `--behavior-switch-placement <value>` | `preserve`, `footer` | `behaviorSwitchPlacement` |

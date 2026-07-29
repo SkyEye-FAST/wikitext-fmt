@@ -209,6 +209,12 @@ function templateNodeFingerprint(
   };
 }
 
+export function templateTokenStructuralFingerprint(
+  node: TranscludeToken,
+): string {
+  return JSON.stringify(templateNodeFingerprint(node as TransclusionNode));
+}
+
 function outermostParserConfirmedTables(source: string, config: Config) {
   const context = createParserContext(source, config);
   return collectParserTableCandidates(source, context, config)

@@ -16,6 +16,7 @@ export {
   type FormatOptions,
   type FormatProfile,
   type HtmlVoidTagStyle,
+  type InlineTemplateSpacing,
   type InterlanguagePlacement,
   type LocalizationAliases,
   type LocalizationSource,

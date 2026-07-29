@@ -74,8 +74,33 @@ The unified template engine operates on parser template and supported
 magic-word argument nodes, deepest first, with at most 64 passes.
 
 It can normalize named-parameter spacing and choose inline or multiline
-layout. Multiline named and explicitly numbered parameters use the configured
-`templateParameterLayout`; the default `flush` layout is:
+layout. Single-line named and explicitly numbered templates use
+`inlineTemplateSpacing`. The canonical forms are:
+
+```wikitext
+{{a|b=1|c=2}}
+{{ a | b = 1 | c = 2 }}
+```
+
+`compact` removes syntax whitespace at the braces, pipes, and equals signs.
+`spaced` uses one space at every one of those positions. The default `auto`
+mode safely generates both candidates, rejects any candidate that does not
+round-trip or preserve the template structural fingerprint, and chooses the
+one with the lower syntax-whitespace edit cost. Parameter-internal positions
+around pipes and equals signs have weight 2; outer brace positions have weight
+1. A total-cost tie prefers the lower parameter-internal cost, then `compact`.
+Whitespace inside values is not a style signal.
+
+For example:
+
+```wikitext
+{{a| b = 1}}  →  {{ a | b = 1 }}
+{{ a|b=1 }}   →  {{a|b=1}}
+```
+
+The engine decides whether the template remains inline before applying this
+policy. Multiline named and explicitly numbered parameters instead use the
+separate `templateParameterLayout`; the default `flush` layout is:
 
 ```wikitext
 {{Infobox|name=Example|value=42}}
@@ -91,8 +116,8 @@ may become:
 ```
 
 The other multiline modes are `compact`, which emits `|name=value`, and
-`indented`, which emits a leading space before each parameter pipe. The option
-affects multiline named parameters only.
+`indented`, which emits a leading space before each parameter pipe. Multiline
+templates never gain spaces after `{{` or before `}}`.
 
 Anonymous parameters are whitespace-sensitive in MediaWiki. For templates
 containing any anonymous parameter, `lineWidth` is therefore a soft constraint:
@@ -105,6 +130,9 @@ containing any anonymous parameter, `lineWidth` is therefore a soft constraint:
 - existing multiline anonymous values are preserved byte-for-byte unless an
   exactly equivalent compact candidate exists;
 - nested structures, comments, and embedded tables prevent compact collapse.
+- mixed named/anonymous templates never use the spaced inline style; safe
+  compact candidates preserve anonymous bytes and compact only named syntax,
+  otherwise the original boundary spelling is retained.
 
 For example, `{{Lang` followed by `|ja|シエラ}}` on the next line becomes
 `{{Lang|ja|シエラ}}`, while a long positional template stays inline even when
@@ -135,7 +163,7 @@ equivalence failure returns the original document.
 Non-goals: parameters are never reordered, renamed, renumbered, converted
 between named/anonymous state, or semantically rewritten. Anonymous-to-numbered
 conversion is not enabled implicitly by multiline layout. No site-specific
-template layout policy is inferred.
+template layout policy or page-wide style learner is inferred.
 
 ## Template parameters compatibility rule
 

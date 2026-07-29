@@ -73,6 +73,16 @@
           ],
           "type": "string"
         },
+        "wikitextFmt.inlineTemplateSpacing": {
+          "default": "auto",
+          "description": "Canonical spacing for single-line named templates.",
+          "enum": [
+            "auto",
+            "compact",
+            "spaced"
+          ],
+          "type": "string"
+        },
         "wikitextFmt.level": {
           "default": "normal",
           "description": "Formatter rule level.",

@@ -3,12 +3,18 @@ import type {
   ParameterToken,
   TranscludeToken,
 } from "wikiparser-node";
-import type { TemplateParameterLayout } from "../options.js";
+import type {
+  InlineTemplateSpacing,
+  TemplateParameterLayout,
+} from "../options.js";
 import {
   createParserContext,
   type ParsedDocumentContext,
 } from "../parserContext.js";
-import { templateStructuralFingerprint } from "../equivalence.js";
+import {
+  templateStructuralFingerprint,
+  templateTokenStructuralFingerprint,
+} from "../equivalence.js";
 import { isRoundTripSafe, parseWikitext } from "../parser.js";
 import { semanticRangeIdentities } from "../semanticIdentity.js";
 import { classifyParserFunction } from "../parserFunctionPolicy.js";
@@ -60,6 +66,7 @@ export interface TemplateFormatOptions {
   lineWidth: number;
   layout: "auto" | "preserve";
   parameterSpacing: boolean;
+  inlineTemplateSpacing: InlineTemplateSpacing;
   parameterLayout: TemplateParameterLayout;
   maxPasses?: number;
 }
@@ -110,9 +117,14 @@ function collectTemplateNodes(
   ].sort((a, b) => a.getAbsoluteIndex() - b.getAbsoluteIndex());
 }
 
-function renderNamedArgument(
+type CanonicalInlineTemplateSpacing = Exclude<
+  InlineTemplateSpacing,
+  "auto"
+>;
+
+function renderInlineNamedArgument(
   arg: ParameterToken,
-  spacing: "compact" | "spaced",
+  spacing: CanonicalInlineTemplateSpacing,
 ): string | undefined {
   if (arg.anon) return undefined;
   const rawValue = arg.lastChild.toString();
@@ -125,12 +137,32 @@ function renderNamedArgument(
   if (spacing === "compact") {
     return lineSensitiveBlock ? `|${key}=\n${value}` : `|${key}=${value}`;
   }
+  return lineSensitiveBlock
+    ? ` | ${key} =\n${value}`
+    : ` | ${key} = ${value}`;
+}
+
+function renderMultilineNamedArgument(
+  arg: ParameterToken,
+  layout: TemplateParameterLayout,
+): string | undefined {
+  if (arg.anon) return undefined;
+  const rawValue = arg.lastChild.toString();
+  const value = rawValue.trim();
+  const key = arg.firstChild.toString().trim();
+  if (!key) return undefined;
+  const lineSensitiveBlock =
+    /^[ \t]*\r?\n/u.test(rawValue) &&
+    /^(?:[*#:;]+|\{\||={1,6}(?:[ \t]|$))/u.test(value);
+  if (layout === "compact") {
+    return lineSensitiveBlock ? `|${key}=\n${value}` : `|${key}=${value}`;
+  }
   return lineSensitiveBlock ? `| ${key} =\n${value}` : `| ${key} = ${value}`;
 }
 
-function renderArgument(arg: ParameterToken): string | undefined {
+function renderAnonymousSafeArgument(arg: ParameterToken): string | undefined {
   if (arg.anon) return `|${arg.lastChild.toString()}`;
-  return renderNamedArgument(arg, "spaced");
+  return renderInlineNamedArgument(arg, "compact");
 }
 
 function normalizeNamedArgumentsInPlace(
@@ -147,7 +179,7 @@ function normalizeNamedArgumentsInPlace(
       return {
         start,
         end: start + arg.toString().length,
-        value: `${key} = ${arg.lastChild.toString().trim()}`,
+        value: `${key}=${arg.lastChild.toString().trim()}`,
       };
     });
   if (replacements.some((replacement) => replacement === undefined)) {
@@ -195,6 +227,179 @@ function renderMultilineArguments(
   return appendLine(output.replace(/[\t ]+$/u, ""), "}}");
 }
 
+function renderInlineTemplate(
+  head: string,
+  args: readonly ParameterToken[],
+  spacing: CanonicalInlineTemplateSpacing,
+): string | undefined {
+  const renderedArgs = args.map((arg) =>
+    renderInlineNamedArgument(arg, spacing),
+  );
+  if (renderedArgs.some((arg) => arg === undefined)) return undefined;
+  const rendered = renderedArgs.filter(
+    (arg): arg is string => arg !== undefined,
+  );
+  return spacing === "compact"
+    ? `{{${head}${rendered.join("")}}}`
+    : `{{ ${head}${rendered.join("")} }}`;
+}
+
+interface InlineSyntaxWhitespace {
+  outer: string[];
+  parameterInternal: string[];
+}
+
+function horizontalWhitespaceBefore(source: string, index: number): string {
+  let start = index;
+  while (
+    start > 0 &&
+    (source[start - 1] === " " || source[start - 1] === "\t")
+  ) {
+    start--;
+  }
+  return source.slice(start, index);
+}
+
+function horizontalWhitespaceAfter(source: string, index: number): string {
+  let end = index;
+  while (end < source.length && (source[end] === " " || source[end] === "\t")) {
+    end++;
+  }
+  return source.slice(index, end);
+}
+
+function collectInlineSyntaxWhitespace(
+  node: TemplateNode,
+  raw: string,
+  args: readonly ParameterToken[],
+): InlineSyntaxWhitespace | undefined {
+  const nodeStart = node.getAbsoluteIndex();
+  const parameterInternal: string[] = [];
+  for (const arg of args) {
+    const argStart = arg.getAbsoluteIndex() - nodeStart;
+    const pipe = argStart - 1;
+    const equals = argStart + arg.firstChild.toString().length;
+    if (raw[pipe] !== "|" || raw[equals] !== "=") return undefined;
+    parameterInternal.push(
+      horizontalWhitespaceBefore(raw, pipe),
+      horizontalWhitespaceAfter(raw, pipe + 1),
+      horizontalWhitespaceBefore(raw, equals),
+      horizontalWhitespaceAfter(raw, equals + 1),
+    );
+  }
+  return {
+    outer: [
+      horizontalWhitespaceAfter(raw, 2),
+      horizontalWhitespaceBefore(raw, raw.length - 2),
+    ],
+    parameterInternal,
+  };
+}
+
+function whitespaceEditCount(
+  whitespace: string,
+  spacing: CanonicalInlineTemplateSpacing,
+): number {
+  if (spacing === "compact") return whitespace.length;
+  if (whitespace.length === 0) return 1;
+  return whitespace.includes(" ") ? whitespace.length - 1 : whitespace.length;
+}
+
+function inlineSyntaxWhitespaceCost(
+  syntax: InlineSyntaxWhitespace,
+  spacing: CanonicalInlineTemplateSpacing,
+): { total: number; parameterInternal: number } {
+  const outer = syntax.outer.reduce(
+    (cost, whitespace) => cost + whitespaceEditCount(whitespace, spacing),
+    0,
+  );
+  const parameterInternal =
+    syntax.parameterInternal.reduce(
+      (cost, whitespace) => cost + whitespaceEditCount(whitespace, spacing),
+      0,
+    ) * 2;
+  return { total: outer + parameterInternal, parameterInternal };
+}
+
+function selectInlineNamedCandidate(
+  node: TemplateNode,
+  config: Config,
+  head: string,
+  args: readonly ParameterToken[],
+  requestedSpacing: InlineTemplateSpacing,
+): { value?: string; reason?: string; multiline: false } {
+  const raw = node.toString();
+  const syntax = collectInlineSyntaxWhitespace(node, raw, args);
+  if (!syntax) {
+    return {
+      reason: "parser did not expose stable inline template syntax boundaries",
+      multiline: false,
+    };
+  }
+
+  let originalFingerprint: string;
+  try {
+    originalFingerprint = templateTokenStructuralFingerprint(node);
+  } catch {
+    return {
+      reason: "template candidate could not be structurally fingerprinted",
+      multiline: false,
+    };
+  }
+
+  const safeCandidates = (["compact", "spaced"] as const)
+    .map((spacing) => {
+      const value = renderInlineTemplate(head, args, spacing);
+      if (value === undefined) return undefined;
+      try {
+        if (value !== raw) {
+          const reparsed = findOwningTemplate(value, config);
+          if (
+            !reparsed ||
+            templateTokenStructuralFingerprint(reparsed) !== originalFingerprint
+          ) {
+            return undefined;
+          }
+        }
+      } catch {
+        return undefined;
+      }
+      return {
+        spacing,
+        value,
+        cost: inlineSyntaxWhitespaceCost(syntax, spacing),
+      };
+    })
+    .filter((candidate): candidate is NonNullable<typeof candidate> =>
+      Boolean(candidate),
+    );
+
+  if (requestedSpacing !== "auto") {
+    const candidate = safeCandidates.find(
+      ({ spacing }) => spacing === requestedSpacing,
+    );
+    return candidate
+      ? { value: candidate.value, multiline: false }
+      : {
+          reason: `no structurally equivalent ${requestedSpacing} inline template candidate`,
+          multiline: false,
+        };
+  }
+
+  const candidate = safeCandidates.sort(
+    (left, right) =>
+      left.cost.total - right.cost.total ||
+      left.cost.parameterInternal - right.cost.parameterInternal ||
+      (left.spacing === "compact" ? -1 : 1),
+  )[0];
+  return candidate
+    ? { value: candidate.value, multiline: false }
+    : {
+        reason: "no structurally equivalent inline template spacing candidate",
+        multiline: false,
+      };
+}
+
 const INLINE_ANONYMOUS_ARGUMENT_LIMIT = 3;
 
 function anonymousLayoutCandidates(
@@ -206,7 +411,7 @@ function anonymousLayoutCandidates(
   const start = node.getAbsoluteIndex();
   const firstArgStart = args[0]!.getAbsoluteIndex() - start;
   const head = raw.slice(2, firstArgStart - 1).trim();
-  const renderedArgs = args.map(renderArgument);
+  const renderedArgs = args.map(renderAnonymousSafeArgument);
   if (renderedArgs.some((arg) => arg === undefined)) {
     return {
       candidates: [],
@@ -235,8 +440,13 @@ function anonymousLayoutCandidates(
   return { candidates: [...new Set(candidates)] };
 }
 
-function findOwningTemplate(source: string, config: Config): TemplateNode | undefined {
-  return parseWikitext(source, config)
+function findOwningTemplate(
+  source: string,
+  config: Config,
+): TemplateNode | undefined {
+  const root = parseWikitext(source, config);
+  if (root.toString() !== source) return undefined;
+  return root
     .querySelectorAll<TemplateNode>("template")
     .find(
       (candidate) =>
@@ -425,31 +635,39 @@ function renderTemplate(
     );
   }
 
-  const multilineSpacing =
-    options.parameterLayout === "compact" ? "compact" : "spaced";
-  const renderedArgs = args.map((arg) =>
-    renderNamedArgument(arg, multilineSpacing),
-  );
-  if (renderedArgs.some((arg) => arg === undefined)) {
+  const compactBaseline = renderInlineTemplate(head, args, "compact");
+  if (compactBaseline === undefined) {
     return { reason: "parser exposed an empty named-parameter key" };
   }
 
   const wasMultiline = raw.includes("\n");
   const nestedStructure = args.some(containsNestedStructure);
-  const compact = `{{${head}${renderedArgs.join("")}}}`;
   const autoMultiline =
     options.layout === "auto" &&
     (args.length > 1 ||
       nestedStructure ||
       raw.length > options.lineWidth ||
-      compact.length > options.lineWidth);
+      compactBaseline.length > options.lineWidth);
   const multiline = wasMultiline || autoMultiline;
 
   if (!multiline) {
-    if (options.layout === "preserve" || !options.parameterSpacing) {
+    if (!options.parameterSpacing) {
       return { value: raw, multiline: false };
     }
-    return { value: compact, multiline: false };
+    return selectInlineNamedCandidate(
+      node,
+      config,
+      head,
+      args,
+      options.inlineTemplateSpacing,
+    );
+  }
+
+  const renderedArgs = args.map((arg) =>
+    renderMultilineNamedArgument(arg, options.parameterLayout),
+  );
+  if (renderedArgs.some((arg) => arg === undefined)) {
+    return { reason: "parser exposed an empty named-parameter key" };
   }
 
   return {
@@ -663,6 +881,7 @@ export function formatTemplates(
       lineWidth,
       layout: "auto",
       parameterSpacing: true,
+      inlineTemplateSpacing: "auto",
       parameterLayout: "flush",
     },
     context,

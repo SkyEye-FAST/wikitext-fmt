@@ -6,6 +6,7 @@ import {
   type FormatOptions,
   type FormatResult,
   type HtmlVoidTagStyle,
+  type InlineTemplateSpacing,
   loadConfig,
 } from "wikitext-fmt";
 import { dirname, isAbsolute, resolve } from "node:path";
@@ -96,6 +97,12 @@ export function buildFormatOptions(
 
   applySetting<FormatLevel>(options, config, "level", "normal");
   applySetting<HtmlVoidTagStyle>(options, config, "htmlVoidTagStyle", "html5");
+  applySetting<InlineTemplateSpacing>(
+    options,
+    config,
+    "inlineTemplateSpacing",
+    "auto",
+  );
   applySetting<FormatOptions["profile"]>(options, config, "profile", "default");
   applySetting<boolean>(options, config, "formatTables", true);
   applySetting<boolean>(options, config, "formatReferences", false);

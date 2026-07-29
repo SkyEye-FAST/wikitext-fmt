@@ -47,6 +47,12 @@ export const optionSchema: readonly OptionSchemaEntry[] = [
     ruleLevel: "normal",
   },
   {
+    name: "inlineTemplateSpacing",
+    type: "enum",
+    defaultValue: "auto",
+    enumValues: ["auto", "compact", "spaced"],
+  },
+  {
     name: "templateParameterLayout",
     type: "enum",
     defaultValue: "flush",

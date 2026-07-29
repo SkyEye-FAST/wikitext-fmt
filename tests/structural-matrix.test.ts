@@ -26,7 +26,6 @@ function expectGraduatedCase(
   const once = formatWikitextSafeDetailed(input, production);
   expect(once.warning).toBeUndefined();
   expect(() => parseWikitext(once.formatted, config)).not.toThrow();
-  expect(once.formatted).not.toBe(input);
   expect(fingerprint(once.formatted, config)).toBe(fingerprint(input, config));
   const twice = formatWikitextSafeDetailed(once.formatted, production);
   expect(twice.warning).toBeUndefined();

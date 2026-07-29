@@ -3,7 +3,7 @@
 | a = 1
 }}
 {{Foo
-| body = {{Bar| x = 1}}
+| body = {{Bar|x=1}}
 | a = 1
 }}
 {{Foo

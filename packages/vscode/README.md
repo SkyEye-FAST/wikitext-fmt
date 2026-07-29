@@ -74,6 +74,7 @@ Core details:
 | `wikitextFmt.profile` | `"default"` | Select `default`, `production`, or `aggressive` |
 | `wikitextFmt.level` | `"normal"` | Select the `safe`, `normal`, or `experimental` ceiling |
 | `wikitextFmt.htmlVoidTagStyle` | `"html5"` | Select `html5`, `xhtml`, or `preserve` |
+| `wikitextFmt.inlineTemplateSpacing` | `"auto"` | Select `auto`, `compact`, or `spaced` for single-line named templates |
 | `wikitextFmt.formatTables` | `true` | Enable normal-level table formatting |
 | `wikitextFmt.formatReferences` | `false` | Enable experimental reference formatting |
 | `wikitextFmt.formatExternalLinks` | `false` | Enable experimental external-link formatting |

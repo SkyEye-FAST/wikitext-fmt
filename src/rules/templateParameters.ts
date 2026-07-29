@@ -23,6 +23,7 @@ export function formatTemplateParameters(
     lineWidth: 120,
     layout: "preserve",
     parameterSpacing: true,
+    inlineTemplateSpacing: "auto",
     parameterLayout: "flush",
   });
 }

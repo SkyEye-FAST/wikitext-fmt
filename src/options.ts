@@ -2,6 +2,7 @@ export type FormatLevel = "safe" | "normal" | "experimental";
 export type HtmlVoidTagStyle = "html5" | "xhtml" | "preserve";
 export type TableCellSeparatorStyle = "auto" | "split" | "preserve";
 export type TemplateParameterLayout = "compact" | "flush" | "indented";
+export type InlineTemplateSpacing = "auto" | "compact" | "spaced";
 export type BehaviorSwitchPlacement = "preserve" | "footer";
 export type InterlanguagePlacement = "preserve" | "footer";
 export type LocalizationSource = "builtin" | "siteinfo" | "custom";
@@ -23,6 +24,7 @@ export interface FormatOptions {
   lineWidth?: number;
   formatHeadings?: boolean;
   formatTemplates?: boolean;
+  inlineTemplateSpacing?: InlineTemplateSpacing;
   templateParameterLayout?: TemplateParameterLayout;
   formatTemplateParameters?: boolean;
   formatCategories?: boolean;
@@ -53,6 +55,7 @@ export interface ResolvedFormatOptions {
   lineWidth: number;
   formatHeadings: boolean;
   formatTemplates: boolean;
+  inlineTemplateSpacing: InlineTemplateSpacing;
   templateParameterLayout: TemplateParameterLayout;
   formatTemplateParameters: boolean;
   formatCategories: boolean;
@@ -83,6 +86,7 @@ export const defaultOptions: Readonly<ResolvedFormatOptions> = {
   lineWidth: 120,
   formatHeadings: true,
   formatTemplates: true,
+  inlineTemplateSpacing: "auto",
   templateParameterLayout: "flush",
   formatTemplateParameters: false,
   formatCategories: true,

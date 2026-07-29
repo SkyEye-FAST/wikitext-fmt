@@ -22,6 +22,6 @@ describe("simple template formatting parser context", () => {
         120,
         createParserContext("Plain text\n", config),
       ),
-    ).toBe("{{Foo| a = 1}}\n");
+    ).toBe("{{Foo|a=1}}\n");
   });
 });

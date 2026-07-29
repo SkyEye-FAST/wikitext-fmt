@@ -13,6 +13,7 @@ describe("CLI argument parsing", () => {
       "--parser-config",
       "--html-void-tag-style",
       "--table-cell-separator-style",
+      "--inline-template-spacing",
       "--interlanguage-placement",
       "--interlanguage-prefixes",
       "--behavior-switch-placement",
@@ -71,5 +72,17 @@ describe("CLI argument parsing", () => {
     expect(() => parseArgs(["--profile", "unsafe", "page.wiki"])).toThrow(
       /default, production, or aggressive/u,
     );
+  });
+
+  it("parses inline template spacing", () => {
+    expect(
+      parseArgs(["--inline-template-spacing", "spaced", "page.wiki"]),
+    ).toMatchObject({
+      inlineTemplateSpacing: "spaced",
+      files: ["page.wiki"],
+    });
+    expect(() =>
+      parseArgs(["--inline-template-spacing", "preserve", "page.wiki"]),
+    ).toThrow(/auto, compact, or spaced/u);
   });
 });

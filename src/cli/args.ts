@@ -63,6 +63,11 @@ const formatterValueHelp: readonly FormatterValueHelp[] = [
     description: "Choose parser-confirmed inline table-cell layout.",
   },
   {
+    name: "inlineTemplateSpacing",
+    syntax: "--inline-template-spacing <auto|compact|spaced>",
+    description: "Choose canonical single-line named-template spacing.",
+  },
+  {
     name: "interlanguagePlacement",
     syntax: "--interlanguage-placement <preserve|footer>",
     description: "Preserve or move eligible interlanguage links.",
@@ -424,6 +429,16 @@ export function parseArgs(args: string[]): CliOptions {
           );
         }
         options.tableCellSeparatorStyle = value;
+        break;
+      }
+      case "--inline-template-spacing": {
+        const value = args[++index];
+        if (value !== "auto" && value !== "compact" && value !== "spaced") {
+          throw new Error(
+            "--inline-template-spacing must be auto, compact, or spaced",
+          );
+        }
+        options.inlineTemplateSpacing = value;
         break;
       }
       case "--help":

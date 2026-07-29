@@ -11,6 +11,11 @@ import {
 } from "../src/index.js";
 import { getParserConfig, parseWikitext } from "../src/parser.js";
 import { formatTemplatesWithDiagnostics } from "../src/rules/templates.js";
+import type {
+  FormatOptions,
+  InlineTemplateSpacing,
+  TemplateParameterLayout,
+} from "../src/options.js";
 
 const config = getParserConfig("mediawiki");
 
@@ -38,6 +43,25 @@ function expectAnonymousLayout(input: string, expected: string): void {
     templateStructuralFingerprint(input, config),
   );
   expect(formatWikitextSafeDetailed(result.formatted).formatted).toBe(expected);
+}
+
+function expectInlineLayout(
+  input: string,
+  expected: string,
+  options: FormatOptions = {},
+): void {
+  const result = formatWikitextSafeDetailed(input, options);
+  expect(result.warning).toBeUndefined();
+  expect(result.formatted).toBe(expected);
+  expect(parseWikitext(result.formatted, config).toString()).toBe(
+    result.formatted,
+  );
+  expect(templateStructuralFingerprint(result.formatted, config)).toBe(
+    templateStructuralFingerprint(input, config),
+  );
+  expect(formatWikitextSafeDetailed(result.formatted, options).formatted).toBe(
+    expected,
+  );
 }
 
 function expectEmbeddedTableLayout(input: string, expected: string): void {
@@ -84,7 +108,42 @@ describe("unified parser-assisted template formatting", () => {
   });
 
   it("keeps a clearly compact single parameter inline", () => {
-    expect(formatWikitext("{{Template|a=b}}\n")).toBe("{{Template| a = b}}\n");
+    expectInlineLayout("{{Template|a=b}}\n", "{{Template|a=b}}\n");
+  });
+
+  it.each([
+    ["compact", "{{a| b = 1}}\n", "{{a|b=1}}\n"],
+    ["spaced", "{{a|b=1}}\n", "{{ a | b = 1 }}\n"],
+  ] as const)("supports explicit %s inline spacing", (spacing, input, expected) => {
+    expectInlineLayout(input, expected, {
+      inlineTemplateSpacing: spacing,
+    });
+  });
+
+  it.each([
+    ["already compact", "{{a|b=1}}\n", "{{a|b=1}}\n"],
+    ["already spaced", "{{ a | b = 1 }}\n", "{{ a | b = 1 }}\n"],
+    ["spaced internals", "{{a| b = 1}}\n", "{{ a | b = 1 }}\n"],
+    ["compact internals", "{{ a|b=1 }}\n", "{{a|b=1}}\n"],
+    [
+      "multiple spaced internals",
+      "{{a| b = 1| c = 2}}\n",
+      "{{ a | b = 1 | c = 2 }}\n",
+    ],
+    [
+      "multiple compact internals",
+      "{{ a|b=1|c=2 }}\n",
+      "{{a|b=1|c=2}}\n",
+    ],
+    ["compact majority", "{{a|b = 1|c=2}}\n", "{{a|b=1|c=2}}\n"],
+    ["deterministic tie", "{{ a|b = 1}}\n", "{{a|b=1}}\n"],
+  ] as const)("infers %s in auto mode", (_name, input, expected) => {
+    expectInlineLayout(input, expected, {
+      level: "experimental",
+      formatTemplates: false,
+      formatTemplateParameters: true,
+      inlineTemplateSpacing: "auto",
+    });
   });
 
   it.each([
@@ -102,17 +161,116 @@ describe("unified parser-assisted template formatting", () => {
     ],
   ] as const)("supports the %s named-parameter layout", (layout, expected) => {
     const input = "{{a|b=c|d=e}}\n";
-    const result = formatWikitextSafeDetailed(input, {
-      templateParameterLayout: layout,
-    });
-    expect(result.warning).toBeUndefined();
-    expect(result.formatted).toBe(expected);
-    expect(
-      formatWikitextSafeDetailed(result.formatted, {
+    for (const inlineTemplateSpacing of [
+      "auto",
+      "compact",
+      "spaced",
+    ] as const) {
+      const result = formatWikitextSafeDetailed(input, {
         templateParameterLayout: layout,
-      }).formatted,
-    ).toBe(expected);
+        inlineTemplateSpacing,
+      });
+      expect(result.warning).toBeUndefined();
+      expect(result.formatted).toBe(expected);
+      expect(
+        formatWikitextSafeDetailed(result.formatted, {
+          templateParameterLayout: layout,
+          inlineTemplateSpacing,
+        }).formatted,
+      ).toBe(expected);
+    }
   });
+
+  it.each([
+    "compact",
+    "flush",
+    "indented",
+  ] as const)(
+    "keeps inline spacing independent of the %s multiline layout",
+    (templateParameterLayout) => {
+      expectInlineLayout("{{a| b = 1}}\n", "{{ a | b = 1 }}\n", {
+        templateParameterLayout,
+        inlineTemplateSpacing: "spaced",
+      });
+    },
+  );
+
+  it.each([
+    ["compact", "{{a|1=x|2=y}}\n"],
+    ["spaced", "{{ a | 1 = x | 2 = y }}\n"],
+  ] as const)(
+    "formats explicitly numbered inline parameters as %s",
+    (inlineTemplateSpacing, expected) => {
+      expectInlineLayout("{{a|1=x|2=y}}\n", expected, {
+        level: "experimental",
+        formatTemplates: false,
+        formatTemplateParameters: true,
+        inlineTemplateSpacing,
+      });
+    },
+  );
+
+  it.each([
+    ["auto", "{{Lang|ja|シエラ}}\n"],
+    ["compact", "{{Lang|ja|シエラ}}\n"],
+    ["spaced", "{{Lang|ja|シエラ}}\n"],
+  ] as const)(
+    "does not apply %s named-template spacing to anonymous parameters",
+    (inlineTemplateSpacing, expected) => {
+      expectAnonymousLayout("{{Lang|ja|シエラ}}\n", expected);
+      const result = formatWikitextSafeDetailed(expected, {
+        inlineTemplateSpacing,
+      });
+      expect(result.formatted).toBe(expected);
+      expect(anonymousValues(result.formatted)).toEqual(["ja", "シエラ"]);
+    },
+  );
+
+  it.each([
+    "auto",
+    "compact",
+    "spaced",
+  ] as readonly InlineTemplateSpacing[])(
+    "keeps mixed anonymous values safe in %s mode",
+    (inlineTemplateSpacing) => {
+      const cases = [
+        ["{{a|foo|name=bar}}\n", "{{a|foo|name=bar}}\n", ["foo"]],
+        ["{{a| foo |name=bar}}\n", "{{a| foo |name=bar}}\n", [" foo "]],
+        ["{{ a|\tfoo| name = bar }}\n", "{{a|\tfoo|name=bar}}\n", ["\tfoo"]],
+      ] as const;
+      for (const [input, expected, expectedAnonymousValues] of cases) {
+        const result = formatWikitextSafeDetailed(input, {
+          inlineTemplateSpacing,
+        });
+        expect(result.warning).toBeUndefined();
+        expect(result.formatted).toBe(expected);
+        expect(anonymousValues(result.formatted)).toEqual(
+          expectedAnonymousValues,
+        );
+        expect(templateStructuralFingerprint(result.formatted, config)).toBe(
+          templateStructuralFingerprint(input, config),
+        );
+        expect(
+          formatWikitextSafeDetailed(result.formatted, {
+            inlineTemplateSpacing,
+          }).formatted,
+        ).toBe(expected);
+      }
+    },
+  );
+
+  it.each([
+    "compact",
+    "flush",
+    "indented",
+  ] as readonly TemplateParameterLayout[])(
+    "uses auto inline inference independently from %s layout",
+    (templateParameterLayout) => {
+      expectInlineLayout("{{ a|b=1 }}\n", "{{a|b=1}}\n", {
+        templateParameterLayout,
+      });
+    },
+  );
 
   it("collapses a short multiline anonymous template without changing values", () => {
     expectAnonymousLayout(
@@ -124,7 +282,7 @@ describe("unified parser-assisted template formatting", () => {
   it("preserves meaningful trailing whitespace in anonymous values", () => {
     expectAnonymousLayout(
       "{{Template|one |named=value}}\n",
-      "{{Template|one | named = value}}\n",
+      "{{Template|one |named=value}}\n",
     );
   });
 
@@ -143,17 +301,17 @@ describe("unified parser-assisted template formatting", () => {
     [
       "named then anonymous",
       "{{T|name=value|tail }}\n",
-      "{{T| name = value|tail }}\n",
+      "{{T|name=value|tail }}\n",
     ],
     [
       "anonymous then named",
       "{{T| head |name=value}}\n",
-      "{{T| head | name = value}}\n",
+      "{{T| head |name=value}}\n",
     ],
     [
       "alternating named and anonymous",
       "{{T|one|a=1|two|b=2}}\n",
-      "{{T|one|a = 1|two|b = 2}}\n",
+      "{{T|one|a=1|two|b=2}}\n",
     ],
     ["empty", "{{T||foo}}\n", "{{T||foo}}\n"],
     ["whitespace-only", "{{T| |foo}}\n", "{{T| |foo}}\n"],
@@ -178,7 +336,7 @@ describe("unified parser-assisted template formatting", () => {
     const input = "{{T| first | named = value |2= numeric |last }}\n";
     expectAnonymousLayout(
       input,
-      "{{T| first |named = value|2 = numeric|last }}\n",
+      "{{T| first |named=value|2=numeric|last }}\n",
     );
   });
 
@@ -343,7 +501,7 @@ describe("unified parser-assisted template formatting", () => {
   it("formats tables inside nested templates independently", () => {
     expectEmbeddedTableLayout(
       "{{Outer|one|nested={{Inner|{|\n| A || B\n|}\n}}|last}}\n",
-      "{{Outer|one|nested = {{Inner|{|\n| A \n| B\n|}\n}}|last}}\n",
+      "{{Outer|one|nested={{Inner|{|\n| A \n| B\n|}\n}}|last}}\n",
     );
   });
 
@@ -394,11 +552,11 @@ describe("unified parser-assisted template formatting", () => {
     expect(result.templateParameterDiagnostics).toMatchObject({
       templatesInspected: 2,
       templatesEligible: 2,
-      templatesChanged: 2,
-      templatesAlreadyCanonical: 0,
+      templatesChanged: 1,
+      templatesAlreadyCanonical: 1,
       templatesSkippedAmbiguous: 0,
-      uniqueTemplatesFormatted: 2,
-      templatesFormatted: 2,
+      uniqueTemplatesFormatted: 1,
+      templatesFormatted: 1,
       templatesExpandedToMultiline: 1,
       templatesSkipped: 0,
       convergenceLimitReached: false,
@@ -426,6 +584,7 @@ describe("unified parser-assisted template formatting", () => {
         lineWidth: 120,
         layout: "auto",
         parameterSpacing: true,
+        inlineTemplateSpacing: "auto",
         parameterLayout: "flush",
         maxPasses: 0,
       },

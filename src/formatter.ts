@@ -248,6 +248,7 @@ export function formatWikitextDetailedResult(
           lineWidth: resolved.lineWidth,
           layout: templateLayoutEnabled ? "auto" : "preserve",
           parameterSpacing: true,
+          inlineTemplateSpacing: resolved.inlineTemplateSpacing,
           parameterLayout: resolved.templateParameterLayout,
         },
         templateContext,

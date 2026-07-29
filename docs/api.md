@@ -107,13 +107,20 @@ The package exports:
 
 - `FormatOptions`;
 - `FormatProfile` and `FormatLevel`;
-- `HtmlVoidTagStyle`, `TableCellSeparatorStyle`, `TemplateParameterLayout`,
-  `BehaviorSwitchPlacement`, and `InterlanguagePlacement`;
+- `HtmlVoidTagStyle`, `TableCellSeparatorStyle`, `InlineTemplateSpacing`,
+  `TemplateParameterLayout`, `BehaviorSwitchPlacement`, and
+  `InterlanguagePlacement`;
 - `LocalizationSource`, `LocalizedSyntaxStyle`, and `LocalizationAliases`;
 - read-only `defaultOptions`.
 
 `ResolvedFormatOptions` and `resolveOptions` are internal. See
 [Configuration](configuration.md) for the complete option contract.
+
+`inlineTemplateSpacing` accepts `auto`, `compact`, or `spaced` and defaults to
+`auto`. It controls only single-line named and explicitly numbered templates;
+`templateParameterLayout` independently controls multiline rendering.
+Anonymous values remain byte-preserved, and mixed templates do not receive the
+spaced inline form.
 
 ## Rule metadata
 

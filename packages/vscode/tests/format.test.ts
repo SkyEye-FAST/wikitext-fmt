@@ -39,6 +39,7 @@ describe("VS Code formatter wrapper options", () => {
     expect(settings.options).toMatchObject({
       level: "normal",
       htmlVoidTagStyle: "html5",
+      inlineTemplateSpacing: "auto",
       formatTables: true,
       formatReferences: false,
       formatExternalLinks: false,
@@ -52,6 +53,7 @@ describe("VS Code formatter wrapper options", () => {
       config({
         level: "experimental",
         htmlVoidTagStyle: "preserve",
+        inlineTemplateSpacing: "spaced",
         formatTables: true,
         formatReferences: true,
         formatExternalLinks: true,
@@ -63,6 +65,7 @@ describe("VS Code formatter wrapper options", () => {
     expect(options).toMatchObject({
       level: "experimental",
       htmlVoidTagStyle: "preserve",
+      inlineTemplateSpacing: "spaced",
       formatTables: true,
       formatReferences: true,
       formatExternalLinks: true,

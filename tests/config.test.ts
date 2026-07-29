@@ -202,6 +202,21 @@ describe("CLI configuration", () => {
     ).toThrow(/compact, flush, indented/u);
   });
 
+  it("accepts and validates inline template spacing", () => {
+    expect(validateConfig({ inlineTemplateSpacing: "auto" })).toEqual({
+      inlineTemplateSpacing: "auto",
+    });
+    expect(validateConfig({ inlineTemplateSpacing: "compact" })).toEqual({
+      inlineTemplateSpacing: "compact",
+    });
+    expect(validateConfig({ inlineTemplateSpacing: "spaced" })).toEqual({
+      inlineTemplateSpacing: "spaced",
+    });
+    expect(() =>
+      validateConfig({ inlineTemplateSpacing: "preserve" }),
+    ).toThrow(/auto, compact, spaced/u);
+  });
+
   it("accepts experimental reference formatting configuration", () => {
     expect(validateConfig({ formatReferences: true })).toEqual({
       formatReferences: true,
