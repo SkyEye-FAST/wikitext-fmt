@@ -38,6 +38,11 @@
           "description": "Enable experimental external link formatting.",
           "type": "boolean"
         },
+        "wikitextFmt.formatWikilinks": {
+          "default": true,
+          "description": "Normalize parser-confirmed internal page-link targets to use spaces instead of underscores.",
+          "type": "boolean"
+        },
         "wikitextFmt.formatSectionSpacing": {
           "default": false,
           "description": "Enable experimental section spacing formatting.",

@@ -26,6 +26,12 @@ export interface DiagnosticsSummary {
   fileLinksFormatted: number;
   localizedFileNamespaceAliasesCanonicalized: number;
   localizedImageOptionsCanonicalized: number;
+  wikilinksInspected: number;
+  wikilinksEligible: number;
+  wikilinksFormatted: number;
+  underscoresReplaced: number;
+  wikilinksWithFragmentsFormatted: number;
+  wikilinksSkippedUnsafe: number;
   externalLinksFormatted: number;
   externalLinksSkippedUnsafe: number;
   referencesFormatted: number;
@@ -85,6 +91,12 @@ export function emptyDiagnosticsSummary(): DiagnosticsSummary {
     fileLinksFormatted: 0,
     localizedFileNamespaceAliasesCanonicalized: 0,
     localizedImageOptionsCanonicalized: 0,
+    wikilinksInspected: 0,
+    wikilinksEligible: 0,
+    wikilinksFormatted: 0,
+    underscoresReplaced: 0,
+    wikilinksWithFragmentsFormatted: 0,
+    wikilinksSkippedUnsafe: 0,
     externalLinksFormatted: 0,
     externalLinksSkippedUnsafe: 0,
     referencesFormatted: 0,
@@ -153,6 +165,14 @@ export function createDiagnosticsSummary(
     ...result.footerDiagnostics,
     ...result.redirectDiagnostics,
     ...result.fileLinkDiagnostics,
+    wikilinksInspected: result.wikilinkDiagnostics.wikilinksInspected,
+    wikilinksEligible: result.wikilinkDiagnostics.wikilinksEligible,
+    wikilinksFormatted: result.wikilinkDiagnostics.wikilinksFormatted,
+    underscoresReplaced: result.wikilinkDiagnostics.underscoresReplaced,
+    wikilinksWithFragmentsFormatted:
+      result.wikilinkDiagnostics.wikilinksWithFragmentsFormatted,
+    wikilinksSkippedUnsafe:
+      result.wikilinkDiagnostics.wikilinksSkippedUnsafe,
     ...result.externalLinkDiagnostics,
     ...result.referenceDiagnostics,
     ...result.sectionSpacingDiagnostics,

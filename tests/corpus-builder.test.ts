@@ -220,6 +220,13 @@ describe("read-only target corpus builder", () => {
         pagesStructurallyCovered: number;
         structuralNodesEligible: number;
         structuralNodesCovered: number;
+        wikilinksInspected: number;
+        wikilinksEligible: number;
+        wikilinksChanged: number;
+        wikilinkUnderscoresReplaced: number;
+        wikilinksWithFragmentsChanged: number;
+        wikilinksSkippedUnsafe: number;
+        wikilinkSkipReasons: Record<string, number>;
         totalBytes: number;
         totalBytesBefore: number;
         totalBytesAfter: number;
@@ -241,6 +248,20 @@ describe("read-only target corpus builder", () => {
       expect(report.structuralNodesCovered).toBeLessThanOrEqual(
         report.structuralNodesEligible,
       );
+      expect(report.wikilinksChanged).toBeLessThanOrEqual(
+        report.wikilinksEligible,
+      );
+      expect(report.wikilinksEligible).toBeLessThanOrEqual(
+        report.wikilinksInspected,
+      );
+      expect(report.wikilinkUnderscoresReplaced).toBeGreaterThanOrEqual(
+        report.wikilinksChanged,
+      );
+      expect(report.wikilinksWithFragmentsChanged).toBeLessThanOrEqual(
+        report.wikilinksChanged,
+      );
+      expect(report.wikilinksSkippedUnsafe).toBeGreaterThanOrEqual(0);
+      expect(report.wikilinkSkipReasons).toBeTypeOf("object");
       expect(report.totalBytesBefore).toBe(report.totalBytes);
       expect(report.totalBytesAfter).toBeGreaterThan(0);
       expect(report.pageDiffs).toHaveLength(report.pagesProcessed);

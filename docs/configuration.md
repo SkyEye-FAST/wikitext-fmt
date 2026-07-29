@@ -51,6 +51,7 @@ preset.
 | `formatCategories` | boolean | `true` | normal | `--no-format-categories` | unchanged | Format eligible footer categories/defaultsort |
 | `formatLists` | boolean | `true` | normal | `--no-format-lists` | unchanged | Normalize eligible single-line list marker separators to exactly one ASCII space |
 | `formatFileLinks` | boolean | `true` | normal | `--no-format-file-links` | unchanged | Format eligible whole-line file/image links |
+| `formatWikilinks` | boolean | `true` | normal | `--no-format-wikilinks` | unchanged | Replace ASCII underscores with spaces only in eligible parser-confirmed internal page-title components |
 | `formatExternalLinks` | boolean | `false` | experimental | `--format-external-links`, `--no-format-external-links` | production: `false`; aggressive: `true` | Normalize labelled whole-line external-link spacing |
 | `formatReferences` | boolean | `false` | experimental | `--format-references`, `--no-format-references` | production: `false`; aggressive: `true` | Normalize standalone self-closing ref tags |
 | `formatInterlanguageLinks` | boolean | `false` | experimental | `--format-interlanguage-links`, `--no-format-interlanguage-links` | unchanged | Recognize eligible interlanguage footer links |

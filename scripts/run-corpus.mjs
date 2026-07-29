@@ -319,6 +319,13 @@ async function main() {
     templatesSkippedAmbiguous: 0,
     uniqueTemplatesFormatted: 0,
     templateCoveragePercentage: null,
+    wikilinksInspected: 0,
+    wikilinksEligible: 0,
+    wikilinksChanged: 0,
+    wikilinkUnderscoresReplaced: 0,
+    wikilinksWithFragmentsChanged: 0,
+    wikilinksSkippedUnsafe: 0,
+    wikilinkSkipReasons: {},
     tablesInspected: 0,
     tablesEligible: 0,
     tablesChanged: 0,
@@ -453,6 +460,17 @@ async function main() {
     report.templatesAlreadyCanonical += templates.templatesAlreadyCanonical;
     report.templatesSkippedAmbiguous += templates.templatesSkippedAmbiguous;
     report.uniqueTemplatesFormatted += templates.uniqueTemplatesFormatted;
+    const wikilinks = result.wikilinkDiagnostics;
+    report.wikilinksInspected += wikilinks.wikilinksInspected;
+    report.wikilinksEligible += wikilinks.wikilinksEligible;
+    report.wikilinksChanged += wikilinks.wikilinksFormatted;
+    report.wikilinkUnderscoresReplaced += wikilinks.underscoresReplaced;
+    report.wikilinksWithFragmentsChanged +=
+      wikilinks.wikilinksWithFragmentsFormatted;
+    report.wikilinksSkippedUnsafe += wikilinks.wikilinksSkippedUnsafe;
+    for (const [reason, count] of Object.entries(wikilinks.skipReasons)) {
+      increment(report.wikilinkSkipReasons, reason, count);
+    }
     const tables = result.tableFormatDiagnostics;
     report.tablesInspected += tables.tablesInspected;
     report.tablesEligible += tables.tablesEligible;
@@ -504,6 +522,7 @@ async function main() {
       Object.values(result.footerDiagnostics).some((value) => value > 0) ||
       Object.values(result.redirectDiagnostics).some((value) => value > 0) ||
       Object.values(result.fileLinkDiagnostics).some((value) => value > 0) ||
+      result.wikilinkDiagnostics.wikilinksFormatted > 0 ||
       Object.values(result.externalLinkDiagnostics).some((value) => value > 0) ||
       Object.values(result.referenceDiagnostics).some((value) => value > 0);
     if (pageChangedStructurally) report.pagesChangedStructurally++;

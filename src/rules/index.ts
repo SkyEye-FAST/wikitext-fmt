@@ -8,6 +8,7 @@ export type RuleName =
   | "categories"
   | "lists"
   | "fileLinks"
+  | "wikilinks"
   | "externalLinks"
   | "references"
   | "interlanguageLinks"
@@ -25,6 +26,7 @@ export const ruleLevels = {
   categories: "normal",
   lists: "normal",
   fileLinks: "normal",
+  wikilinks: "normal",
   externalLinks: "experimental",
   references: "experimental",
   interlanguageLinks: "experimental",

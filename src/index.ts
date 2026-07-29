@@ -28,6 +28,7 @@ export { ruleLevels, type RuleName } from "./rules/index.js";
 export type { FooterDiagnostics } from "./rules/categories.js";
 export type { ExternalLinkDiagnostics } from "./rules/externalLinks.js";
 export type { FileLinkDiagnostics } from "./rules/fileLinks.js";
+export type { WikilinkDiagnostics } from "./rules/wikilinks.js";
 export type { ReferenceDiagnostics } from "./rules/references.js";
 export type { RedirectDiagnostics } from "./rules/redirects.js";
 export type { SectionSpacingDiagnostics } from "./rules/sectionSpacing.js";

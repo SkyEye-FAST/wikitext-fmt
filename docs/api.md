@@ -92,7 +92,7 @@ should branch on `failure` and its stable code rather than parse warning text.
 
 - `tableDiagnostics` and aggregate `tableFormatDiagnostics`;
 - `footerDiagnostics`;
-- redirect, file-link, external-link, reference, and section-spacing
+- redirect, file-link, wikilink, external-link, reference, and section-spacing
   diagnostics;
 - template and template-parameter diagnostics;
 - structural-equivalence diagnostics.
@@ -100,6 +100,11 @@ should branch on `failure` and its stable code rather than parse warning text.
 The package exports `FormatResult`, `FormatDetailedResult`, `FormatFailure`,
 `FormatFailureCode`, `DiagnosticsSummary`, and the public per-rule diagnostic
 types.
+
+`WikilinkDiagnostics` distinguishes inspected and eligible parser nodes,
+formatted links, replaced underscores, fragment-containing changes, unsafe
+skips, and their reason histogram. Only the page-title component is normalized;
+labels and fragments are not counted as replacements.
 
 ## Options and profiles
 
@@ -161,7 +166,10 @@ parser-config loader.
 Document fingerprints compare templates, tables, ordinary and file links,
 external links, references, categories, defaultsort, redirects, headings,
 behavior switches, interlanguage links, extension and HTML nodes, comments, and
-ordinary prose. `equivalent: false` includes a category-specific reason.
+ordinary prose. When `formatWikilinks` is enabled, underscore/space equivalence
+is narrowed to eligible parser-confirmed page-title components; labels,
+fragments, category sort keys, file options, and remote targets remain strict.
+`equivalent: false` includes a category-specific reason.
 
 ## Localization
 

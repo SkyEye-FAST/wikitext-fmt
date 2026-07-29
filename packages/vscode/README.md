@@ -76,6 +76,7 @@ Core details:
 | `wikitextFmt.htmlVoidTagStyle` | `"html5"` | Select `html5`, `xhtml`, or `preserve` |
 | `wikitextFmt.inlineTemplateSpacing` | `"auto"` | Select `auto`, `compact`, or `spaced` for single-line named templates |
 | `wikitextFmt.formatTables` | `true` | Enable normal-level table formatting |
+| `wikitextFmt.formatWikilinks` | `true` | Use spaces instead of underscores in eligible internal page-link targets |
 | `wikitextFmt.formatReferences` | `false` | Enable experimental reference formatting |
 | `wikitextFmt.formatExternalLinks` | `false` | Enable experimental external-link formatting |
 | `wikitextFmt.formatSectionSpacing` | `false` | Enable experimental section spacing |

@@ -105,6 +105,7 @@ export function buildFormatOptions(
   );
   applySetting<FormatOptions["profile"]>(options, config, "profile", "default");
   applySetting<boolean>(options, config, "formatTables", true);
+  applySetting<boolean>(options, config, "formatWikilinks", true);
   applySetting<boolean>(options, config, "formatReferences", false);
   applySetting<boolean>(options, config, "formatExternalLinks", false);
   applySetting<boolean>(options, config, "formatSectionSpacing", false);

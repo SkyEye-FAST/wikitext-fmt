@@ -92,6 +92,14 @@ export const optionSchema: readonly OptionSchemaEntry[] = [
     ruleLevel: "normal",
   },
   {
+    name: "formatWikilinks",
+    type: "boolean",
+    defaultValue: true,
+    negativeFlag: "--no-format-wikilinks",
+    ruleName: "wikilinks",
+    ruleLevel: "normal",
+  },
+  {
     name: "formatExternalLinks",
     type: "boolean",
     defaultValue: false,

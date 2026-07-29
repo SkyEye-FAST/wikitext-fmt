@@ -28,6 +28,7 @@ describe("CLI argument parsing", () => {
     const options = parseArgs([
       "--format-template-parameters",
       "--no-format-file-links",
+      "--no-format-wikilinks",
       "--format-interlanguage-links",
       "--format-references",
       "--format-external-links",
@@ -38,6 +39,7 @@ describe("CLI argument parsing", () => {
     expect(options).toMatchObject({
       formatTemplateParameters: true,
       formatFileLinks: false,
+      formatWikilinks: false,
       formatInterlanguageLinks: true,
       formatReferences: true,
       formatExternalLinks: true,

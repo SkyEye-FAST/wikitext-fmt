@@ -88,6 +88,7 @@ validation:
 | `--no-format-categories` | `formatCategories: false` |
 | `--no-format-lists` | `formatLists: false` |
 | `--no-format-file-links` | `formatFileLinks: false` |
+| `--no-format-wikilinks` | `formatWikilinks: false` |
 | `--format-external-links`, `--no-format-external-links` | `formatExternalLinks` |
 | `--format-references`, `--no-format-references` | `formatReferences` |
 | `--format-interlanguage-links`, `--no-format-interlanguage-links` | `formatInterlanguageLinks` |

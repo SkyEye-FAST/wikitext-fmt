@@ -97,6 +97,8 @@ Reports separate:
 - pages with/without structural nodes;
 - eligible and covered structural pages;
 - eligible, changed, canonical, and ambiguous template/table nodes;
+- inspected, eligible, changed, fragment-containing and excluded wikilinks,
+  replaced underscores, and wikilink skip reasons;
 - page structural coverage;
 - template/table page coverage;
 - eligible-node coverage.

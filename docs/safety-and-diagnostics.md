@@ -73,7 +73,8 @@ Detailed results expose structured information for rules that need it:
   equivalence;
 - footer metadata: moved/formatted/canonicalized categories, defaultsort,
   switches, and interlanguage links;
-- redirect, file-link, external-link, reference, and section-spacing counters;
+- redirect, file-link, wikilink, external-link, reference, and section-spacing
+  counters;
 - structural equivalence decisions.
 
 Rules such as simple heading, blank-line, list, and HTML void-tag normalization
@@ -95,7 +96,7 @@ do not expose dedicated diagnostic objects.
 ```
 
 `summary` contains rule counters grouped around files, table lines and nodes,
-templates, footer metadata, redirects, file/external links, references,
+templates, footer metadata, redirects, file/internal/external links, references,
 section spacing, and localization canonicalization. `tableDiagnostics`
 contains the complete per-table records.
 

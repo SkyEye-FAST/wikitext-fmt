@@ -6,6 +6,17 @@ here. The project follows the pre-1.0 policy in
 
 ## Unreleased
 
+### Added
+
+- Added the default-on normal-level `formatWikilinks` rule and
+  `--no-format-wikilinks` switch. Eligible parser-confirmed internal page-link
+  and redirect targets now use ASCII spaces instead of underscores in their
+  page-title component while preserving labels, fragments, file options,
+  category sort keys, and configured remote targets.
+- Added focused wikilink diagnostics and corpus counters for inspected,
+  eligible, changed, fragment-containing and excluded links, replaced
+  underscores, and skip reasons.
+
 ## 0.2.2 - 2026-07-30
 
 ### Changed

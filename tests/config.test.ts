@@ -168,6 +168,12 @@ describe("CLI configuration", () => {
     });
   });
 
+  it("accepts ordinary wikilink formatting configuration", () => {
+    expect(validateConfig({ formatWikilinks: false })).toEqual({
+      formatWikilinks: false,
+    });
+  });
+
   it("accepts experimental interlanguage and section spacing configuration", () => {
     expect(
       validateConfig({

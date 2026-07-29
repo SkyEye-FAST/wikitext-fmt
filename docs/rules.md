@@ -14,6 +14,7 @@ level allow them. The default level is `normal`.
 | `categories` | normal | on | `formatCategories`; `--no-format-categories` | Standalone categories and defaultsort | Titles, sort keys, order, and nested metadata |
 | `lists` | normal | on | `formatLists`; `--no-format-lists` | Ordinary single-line list items | Structured/nested content is skipped |
 | `fileLinks` | normal | on | `formatFileLinks`; `--no-format-file-links` | One whole-line file/image link | Target, caption, values, and option order |
+| `wikilinks` | normal | on | `formatWikilinks`; `--no-format-wikilinks` | Parser-confirmed ordinary internal links and redirect targets | Labels, fragments, file options, category sort keys, and remote targets |
 | `externalLinks` | experimental | off | `formatExternalLinks`; positive/negative flags | Whole-line labelled external links | URL and label text |
 | `references` | experimental | off | `formatReferences`; positive/negative flags | Whole-line self-closing ref tags | Attributes, order, quoting, and values |
 | `interlanguageLinks` | experimental | off | `formatInterlanguageLinks`; positive/negative flags | Configured whole-line language links | Target, prefix spelling, and relative order |
@@ -258,6 +259,46 @@ Inline or multiple file links, nested links, templates, parser-like syntax,
 HTML/extensions, multiline links, gallery contents, and table lines are
 skipped. Diagnostics count formatted, canonicalized, and unsafe-skipped lines.
 
+## Ordinary internal links
+
+The normal-level `wikilinks` rule is enabled by default. It uses parser
+`link-target` ranges for ordinary internal links and redirect targets, replacing
+each ASCII underscore in the page-title component with exactly one ASCII space:
+
+```wikitext
+[[Page_Name/sub_page|display_text]]
+[[Page_Name#Section_Name|label]]
+```
+
+becomes:
+
+```wikitext
+[[Page Name/sub page|display_text]]
+[[Page Name#Section_Name|label]]
+```
+
+Only text before the first parser-confirmed `#` is eligible. The target title is
+normalized; an explicit display label and section fragment are preserved
+byte-for-byte. Empty pipe-trick labels, leading colons, namespace spelling,
+capitalization, slashes, link trails, and surrounding prose are preserved.
+Consecutive underscores become consecutive ASCII spaces and are not collapsed
+or trimmed.
+
+Embedded file/image nodes and category assignments remain owned by their
+specialized rules. Configured interlanguage prefixes and links classified as
+interwiki by the active parser configuration are excluded. Fragment-only links,
+complex targets containing nested parser structure, stale or unstable target
+ranges, and links inside protected or unsafe parent nodes are left unchanged.
+Links in table cells, refs, comments, and opaque extension blocks follow the
+existing protection policy.
+
+Diagnostics count inspected, eligible, formatted, fragment-containing, skipped
+links and replaced underscores, with skip reasons for files, categories, remote
+targets, pure fragments, unstable targets, and unsafe parents. Final document
+equivalence treats underscores and ASCII spaces as identical only for an
+eligible parser-confirmed page-title component; labels, fragments, category
+sort keys, file options, external links, and ordinary text remain strict.
+
 ## External links
 
 This parser-assisted experimental rule handles one labelled external link on a
@@ -363,8 +404,9 @@ becomes:
 ```
 
 Alias spelling is preserved by default; certainly recognized localized
-keywords may become `#REDIRECT` in canonical-English mode. Target bytes remain
-unchanged.
+keywords may become `#REDIRECT` in canonical-English mode. The separate
+default-on `wikilinks` rule may normalize underscores in the redirect's
+parser-confirmed page-title component; its fragment remains unchanged.
 
 Redirect-like later lines, unbalanced/multiple links, templates in targets,
 pipe/trailing text, comments, HTML, or unsafe target characters are skipped.

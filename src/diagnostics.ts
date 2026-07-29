@@ -15,6 +15,7 @@ import type {
   TableFormatDiagnostics,
 } from "./rules/tables.js";
 import type { TemplateParameterDiagnostics } from "./rules/templateParameters.js";
+import type { WikilinkDiagnostics } from "./rules/wikilinks.js";
 
 export interface DetailedDiagnostics {
   tableDiagnostics: TableDiagnostic[];
@@ -22,6 +23,7 @@ export interface DetailedDiagnostics {
   footerDiagnostics: FooterDiagnostics;
   redirectDiagnostics: RedirectDiagnostics;
   fileLinkDiagnostics: FileLinkDiagnostics;
+  wikilinkDiagnostics: WikilinkDiagnostics;
   externalLinkDiagnostics: ExternalLinkDiagnostics;
   referenceDiagnostics: ReferenceDiagnostics;
   sectionSpacingDiagnostics: SectionSpacingDiagnostics;
@@ -62,6 +64,15 @@ export function emptyDetailedDiagnostics(): DetailedDiagnostics {
       fileLinksFormatted: 0,
       localizedFileNamespaceAliasesCanonicalized: 0,
       localizedImageOptionsCanonicalized: 0,
+    },
+    wikilinkDiagnostics: {
+      wikilinksInspected: 0,
+      wikilinksEligible: 0,
+      wikilinksFormatted: 0,
+      underscoresReplaced: 0,
+      wikilinksWithFragmentsFormatted: 0,
+      wikilinksSkippedUnsafe: 0,
+      skipReasons: {},
     },
     externalLinkDiagnostics: {
       externalLinksFormatted: 0,
@@ -107,6 +118,7 @@ export function stripDiagnostics(result: FormatDetailedResult): FormatResult {
     footerDiagnostics: _footerDiagnostics,
     redirectDiagnostics: _redirectDiagnostics,
     fileLinkDiagnostics: _fileLinkDiagnostics,
+    wikilinkDiagnostics: _wikilinkDiagnostics,
     externalLinkDiagnostics: _externalLinkDiagnostics,
     referenceDiagnostics: _referenceDiagnostics,
     sectionSpacingDiagnostics: _sectionSpacingDiagnostics,

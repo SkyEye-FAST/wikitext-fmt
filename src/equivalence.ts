@@ -12,6 +12,11 @@ import { formatLists } from "./rules/lists.js";
 import { formatRedirects } from "./rules/redirects.js";
 import { formatReferences } from "./rules/references.js";
 import { formatSectionSpacing } from "./rules/sectionSpacing.js";
+import {
+  classifyWikilinkNode,
+  normalizeWikilinkPageTitleTarget,
+  type WikilinkParserNode,
+} from "./rules/wikilinks.js";
 import { protectBlocks } from "./utils/protectBlocks.js";
 import {
   collectParserTableCandidates,
@@ -37,12 +42,15 @@ type TransclusionNode = TranscludeToken & {
 interface GenericNode {
   type: string;
   name?: string;
+  interwiki?: string;
   parentNode?: GenericNode;
   childNodes: readonly GenericNode[];
   getAbsoluteIndex(): number;
   toString(): string;
   querySelectorAll<T = GenericNode>(selector: string): T[];
 }
+
+type WikilinkTargetNormalizer = (node: GenericNode, target: string) => string;
 
 interface DocumentFingerprint {
   templates: unknown;
@@ -106,6 +114,7 @@ function semanticTransclusionValue(
   valueNode: GenericNode,
   owner: TransclusionNode,
   trim: boolean,
+  normalizeWikilinkTarget?: WikilinkTargetNormalizer,
 ): string | TemplateValuePart[] {
   const base = valueNode.getAbsoluteIndex();
   const raw = valueNode.toString();
@@ -120,7 +129,7 @@ function semanticTransclusionValue(
       end: node.getAbsoluteIndex() - base + node.toString().length,
       part: {
         kind: "template" as const,
-        value: templateNodeFingerprint(node),
+        value: templateNodeFingerprint(node, normalizeWikilinkTarget),
       },
     }))
     .filter(
@@ -139,7 +148,7 @@ function semanticTransclusionValue(
         };
       case "link":
         return {
-          target: childText(node, "link-target"),
+          target: semanticWikilinkTarget(node, normalizeWikilinkTarget),
           label: semanticChildText(node, "link-text"),
         };
       case "ext-link":
@@ -193,6 +202,7 @@ function semanticTransclusionValue(
 
 function templateNodeFingerprint(
   node: TransclusionNode,
+  normalizeWikilinkTarget?: WikilinkTargetNormalizer,
 ): Omit<TemplateFingerprint, "parent"> {
   return {
     type: node.type,
@@ -204,6 +214,7 @@ function templateNodeFingerprint(
         arg.lastChild as unknown as GenericNode,
         node,
         !arg.anon,
+        normalizeWikilinkTarget,
       ),
     })),
   };
@@ -247,6 +258,7 @@ function maskParserConfirmedTables(
 
 function templatesInsideParserConfirmedTables(
   candidates: ReturnType<typeof outermostParserConfirmedTables>,
+  normalizeWikilinkTarget?: WikilinkTargetNormalizer,
 ): TemplateFingerprint[][] {
   return candidates.map((candidate) => {
     const nodes = [
@@ -257,16 +269,17 @@ function templatesInsideParserConfirmedTables(
     return nodes.map((node) => {
       const parent = nearestTransclusion(node.parentNode);
       return {
-        ...templateNodeFingerprint(node),
+        ...templateNodeFingerprint(node, normalizeWikilinkTarget),
         parent: parent ? (indices.get(parent) ?? null) : null,
       };
     });
   });
 }
 
-export function templateStructuralFingerprint(
+function templateStructuralFingerprintWithNormalizer(
   source: string,
   config: Config,
+  normalizeWikilinkTarget?: WikilinkTargetNormalizer,
 ): string {
   const hasTableOpener = source.includes("{|");
   const tables = hasTableOpener
@@ -280,14 +293,24 @@ export function templateStructuralFingerprint(
   const fingerprint: TemplateFingerprint[] = nodes.map((node) => {
     const parent = nearestTransclusion(node.parentNode);
     return {
-      ...templateNodeFingerprint(node),
+      ...templateNodeFingerprint(node, normalizeWikilinkTarget),
       parent: parent ? (indices.get(parent) ?? null) : null,
     };
   });
   return JSON.stringify({
     templates: fingerprint,
-    templatesInsideTables: templatesInsideParserConfirmedTables(tables),
+    templatesInsideTables: templatesInsideParserConfirmedTables(
+      tables,
+      normalizeWikilinkTarget,
+    ),
   });
+}
+
+export function templateStructuralFingerprint(
+  source: string,
+  config: Config,
+): string {
+  return templateStructuralFingerprintWithNormalizer(source, config);
 }
 
 interface TableCellFingerprint {
@@ -518,6 +541,28 @@ function childText(node: GenericNode, type: string): string | null {
   );
 }
 
+function semanticWikilinkTarget(
+  node: GenericNode,
+  normalizeWikilinkTarget?: WikilinkTargetNormalizer,
+): string | null {
+  const target = childText(node, "link-target");
+  return target === null || !normalizeWikilinkTarget
+    ? target
+    : normalizeWikilinkTarget(node, target);
+}
+
+function semanticRedirectTarget(
+  node: GenericNode,
+  normalizeWikilinkTarget?: WikilinkTargetNormalizer,
+): string | null {
+  const target = node
+    .querySelectorAll<GenericNode>("redirect-target")
+    .at(0);
+  return target
+    ? semanticWikilinkTarget(target, normalizeWikilinkTarget)
+    : null;
+}
+
 function isDirectTransclusionWithin(
   node: TransclusionNode,
   boundary: GenericNode,
@@ -535,6 +580,7 @@ function isDirectTransclusionWithin(
 function semanticNodeText(
   node: GenericNode,
   trim: "none" | "leading" | "both" = "none",
+  normalizeWikilinkTarget?: WikilinkTargetNormalizer,
 ): string | TemplateValuePart[] {
   const raw = node.toString();
   const contentStart =
@@ -554,7 +600,7 @@ function semanticNodeText(
         candidate.toString().length,
       part: {
         kind: "template" as const,
-        value: templateNodeFingerprint(candidate),
+        value: templateNodeFingerprint(candidate, normalizeWikilinkTarget),
       },
     }))
     .filter(
@@ -562,10 +608,33 @@ function semanticNodeText(
         replacement.start >= contentStart && replacement.end <= contentEnd,
     )
     .sort((a, b) => a.start - b.start);
-  if (nested.length === 0) return raw.slice(contentStart, contentEnd);
+  const wikilinks = normalizeWikilinkTarget
+    ? node.querySelectorAll<GenericNode>("link").map((candidate) => ({
+        start: candidate.getAbsoluteIndex() - node.getAbsoluteIndex(),
+        end:
+          candidate.getAbsoluteIndex() -
+          node.getAbsoluteIndex() +
+          candidate.toString().length,
+        part: {
+          kind: "structure" as const,
+          type: "link",
+          value: {
+            target: semanticWikilinkTarget(candidate, normalizeWikilinkTarget),
+            label: semanticChildText(candidate, "link-text"),
+          },
+        },
+      }))
+    : [];
+  const replacements = outermostSourceRanges([...nested, ...wikilinks])
+    .filter(
+      (replacement) =>
+        replacement.start >= contentStart && replacement.end <= contentEnd,
+    )
+    .sort((a, b) => a.start - b.start);
+  if (replacements.length === 0) return raw.slice(contentStart, contentEnd);
   const parts: TemplateValuePart[] = [];
   let cursor = contentStart;
-  for (const replacement of nested) {
+  for (const replacement of replacements) {
     if (replacement.start > cursor) {
       parts.push(raw.slice(cursor, replacement.start));
     }
@@ -580,9 +649,10 @@ function semanticChildText(
   node: GenericNode,
   type: string,
   trim: "none" | "leading" | "both" = "none",
+  normalizeWikilinkTarget?: WikilinkTargetNormalizer,
 ): string | TemplateValuePart[] | null {
   const child = node.childNodes.find((candidate) => candidate.type === type);
-  return child ? semanticNodeText(child, trim) : null;
+  return child ? semanticNodeText(child, trim, normalizeWikilinkTarget) : null;
 }
 
 function isInside(node: GenericNode, types: ReadonlySet<string>): boolean {
@@ -767,8 +837,25 @@ export function documentStructuralFingerprint(
   source = canonicalizeDocumentSyntax(source, config, options);
   const context = createParserContext(source, config);
   const root = context.root as unknown as GenericNode;
+  const normalizeDocumentWikilinkTarget: WikilinkTargetNormalizer = (
+    node,
+    target,
+  ) => {
+    if (!options.formatWikilinks) return target;
+    const classification = classifyWikilinkNode(
+      node as unknown as WikilinkParserNode,
+      { interlanguagePrefixes: options.interlanguagePrefixes },
+    );
+    return classification.eligible && classification.target === target
+      ? normalizeWikilinkPageTitleTarget(target)
+      : target;
+  };
   const templates = JSON.parse(
-    templateStructuralFingerprint(source, config),
+    templateStructuralFingerprintWithNormalizer(
+      source,
+      config,
+      normalizeDocumentWikilinkTarget,
+    ),
   ) as unknown;
   const tables = JSON.parse(
     tableStructuralFingerprint(source, config),
@@ -785,20 +872,27 @@ export function documentStructuralFingerprint(
   const html = structuralNodes(root, "html");
   const comments = structuralNodes(root, "comment");
   const excludedParents = new Set(["template", "magic-word", "table", "ext"]);
-  const interlanguagePrefixes = new Set(
-    options.interlanguagePrefixes.map((prefix) => prefix.toLowerCase()),
-  );
   const ordinaryLinks = links.filter((node) => {
     if (isInside(node, excludedParents)) return false;
-    const target = childText(node, "link-target") ?? "";
-    const prefix = target.split(":", 1)[0]?.toLowerCase();
-    return !prefix || !interlanguagePrefixes.has(prefix);
+    const classification = classifyWikilinkNode(
+      node as unknown as WikilinkParserNode,
+      { interlanguagePrefixes: options.interlanguagePrefixes },
+    );
+    return (
+      classification.eligible ||
+      classification.reason !== "interwiki-or-interlanguage"
+    );
   });
   const interlanguageLinks = links.filter((node) => {
     if (isInside(node, excludedParents)) return false;
-    const target = childText(node, "link-target") ?? "";
-    const prefix = target.split(":", 1)[0]?.toLowerCase();
-    return Boolean(prefix && interlanguagePrefixes.has(prefix));
+    const classification = classifyWikilinkNode(
+      node as unknown as WikilinkParserNode,
+      { interlanguagePrefixes: options.interlanguagePrefixes },
+    );
+    return (
+      !classification.eligible &&
+      classification.reason === "interwiki-or-interlanguage"
+    );
   });
   const defaultsort = magicWords.filter((node) =>
     /^(?:defaultsort|defaultsortkey)$/iu.test(node.name ?? ""),
@@ -911,7 +1005,7 @@ export function documentStructuralFingerprint(
     templates,
     tables,
     links: ordinaryLinks.map((node) => ({
-      target: childText(node, "link-target"),
+      target: semanticWikilinkTarget(node, normalizeDocumentWikilinkTarget),
       label: semanticChildText(node, "link-text"),
     })),
     files: files.map(semanticFile),
@@ -931,13 +1025,17 @@ export function documentStructuralFingerprint(
         .map((parameter) => parameter.toString()),
     })),
     redirects: redirects.map((node) => ({
-      target:
-        node.querySelectorAll<GenericNode>("link-target").at(0)?.toString() ??
-        null,
+      target: semanticRedirectTarget(node, normalizeDocumentWikilinkTarget),
     })),
     headings: headings.map((node) => ({
       level: /^=+/u.exec(node.toString())?.[0].length ?? 0,
-      text: semanticChildText(node, "heading-title", "both") ?? "",
+      text:
+        semanticChildText(
+          node,
+          "heading-title",
+          "both",
+          normalizeDocumentWikilinkTarget,
+        ) ?? "",
     })),
     behaviorSwitches: [
       ...new Set(

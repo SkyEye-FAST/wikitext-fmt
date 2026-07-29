@@ -29,6 +29,7 @@ import { formatReferences } from "./rules/references.js";
 import { formatSectionSpacing } from "./rules/sectionSpacing.js";
 import { formatTablesWithDiagnostics, lineNumberAt } from "./rules/tables.js";
 import { formatTemplatesWithDiagnostics } from "./rules/templates.js";
+import { formatWikilinks } from "./rules/wikilinks.js";
 import { protectBlocks } from "./utils/protectBlocks.js";
 
 export interface FormatResult {
@@ -76,6 +77,7 @@ export interface FormatDetailedResult extends FormatResult {
   footerDiagnostics: DetailedDiagnostics["footerDiagnostics"];
   redirectDiagnostics: DetailedDiagnostics["redirectDiagnostics"];
   fileLinkDiagnostics: DetailedDiagnostics["fileLinkDiagnostics"];
+  wikilinkDiagnostics: DetailedDiagnostics["wikilinkDiagnostics"];
   externalLinkDiagnostics: DetailedDiagnostics["externalLinkDiagnostics"];
   referenceDiagnostics: DetailedDiagnostics["referenceDiagnostics"];
   sectionSpacingDiagnostics: DetailedDiagnostics["sectionSpacingDiagnostics"];
@@ -214,10 +216,7 @@ export function formatWikitextDetailedResult(
       const referenceBlocks = protectBlocks(tableOutput, {
         protectTables: true,
         protectReferenceTags: false,
-        additionalRanges: parserExtensionRanges(
-          contextFor(tableOutput),
-          false,
-        ),
+        additionalRanges: parserExtensionRanges(contextFor(tableOutput), false),
       });
       const referenceContext = contextFor(referenceBlocks.text);
       const references = formatReferences(
@@ -352,6 +351,21 @@ export function formatWikitextDetailedResult(
       const externalLinks = formatExternalLinks(output, externalLinkContext);
       output = externalLinks.formatted;
       diagnostics.externalLinkDiagnostics = externalLinks.diagnostics;
+      if (output !== previous) invalidateContext();
+    }
+    if (
+      resolved.formatWikilinks &&
+      isRuleEnabled("wikilinks", resolved.level)
+    ) {
+      const wikilinkContext = contextFor(output);
+      const previous = output;
+      const wikilinks = formatWikilinks(
+        output,
+        { interlanguagePrefixes: resolved.interlanguagePrefixes },
+        wikilinkContext,
+      );
+      output = wikilinks.formatted;
+      diagnostics.wikilinkDiagnostics = wikilinks.diagnostics;
       if (output !== previous) invalidateContext();
     }
     if (resolved.formatLists && isRuleEnabled("lists", resolved.level)) {
@@ -525,6 +539,7 @@ export function formatWikitextSafeDetailed(
       footerDiagnostics: first.footerDiagnostics,
       redirectDiagnostics: first.redirectDiagnostics,
       fileLinkDiagnostics: first.fileLinkDiagnostics,
+      wikilinkDiagnostics: first.wikilinkDiagnostics,
       externalLinkDiagnostics: first.externalLinkDiagnostics,
       referenceDiagnostics: first.referenceDiagnostics,
       sectionSpacingDiagnostics: first.sectionSpacingDiagnostics,
