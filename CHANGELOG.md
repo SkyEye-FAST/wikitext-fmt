@@ -6,6 +6,11 @@ here. The project follows the pre-1.0 policy in
 
 ## Unreleased
 
+### Fixed
+
+- Made npm release recovery verify the exact published tarball integrity and
+  shasum while accepting a missing registry `gitHead` when the artifact matches.
+
 ## 0.2.0 - 2026-07-29
 
 ### Added
