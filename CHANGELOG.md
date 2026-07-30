@@ -6,6 +6,8 @@ here. The project follows the pre-1.0 policy in
 
 ## Unreleased
 
+## 0.4.0 - 2026-07-30
+
 ### Changed
 
 - Parser-confirmed ordinary template invocation names now use ASCII spaces
