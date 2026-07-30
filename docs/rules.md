@@ -77,7 +77,19 @@ The unified template engine operates on parser template and supported
 magic-word argument nodes, deepest first, with at most 64 passes.
 
 It can normalize named-parameter spacing and choose inline or multiline
-layout. Single-line named and explicitly numbered templates use
+layout. It also replaces every ASCII underscore in a parser-confirmed ordinary
+template invocation title with one ASCII space:
+
+```wikitext
+{{a_b_c|x=1}}  →  {{a b c|x=1}}
+```
+
+The actual parameter spacing still follows the existing inline or multiline
+layout policy. Consecutive underscores remain consecutive spaces. Recognized
+`subst:` and `safesubst:` modifiers retain their exact spelling, casing, and
+colon while only the title after the modifier is normalized.
+
+Single-line named and explicitly numbered templates use
 `inlineTemplateSpacing`. The canonical forms are:
 
 ```wikitext
@@ -150,7 +162,8 @@ explicit numeric parameters.
 
 Eligibility and safety:
 
-- balanced parser-confirmed delimiters and a non-empty stable name;
+- balanced parser-confirmed delimiters and a non-empty stable ordinary
+  `template-name` range containing only plain title text;
 - parser argument ranges for order and named/anonymous state;
 - exact anonymous argument bytes, including empty, whitespace-only, leading,
   trailing, tab, and newline values;
@@ -163,7 +176,13 @@ Eligibility and safety:
 Parser functions use an explicit policy. Whitespace-sensitive core functions
 such as `#if`, `#ifeq`, `#switch`, `#expr`, `#tag`, and `#invoke` are
 opaque-preserve; unknown `#` functions are unsupported-ambiguous unless a
-specific policy says otherwise.
+specific policy says otherwise. Magic words, triple-brace parameters, and
+magic-word-like configured variables are also preserved. Dynamic or composed
+template names are skipped because a stable title boundary cannot be proven;
+nested ordinary templates may still be formatted independently. Title
+normalization never touches parameter keys, parameter values, anonymous
+arguments, parser-function arguments, links, comments, HTML, extensions, or
+ordinary prose.
 
 Diagnostics count inspected, eligible, changed, canonical, ambiguous, fallback,
 and convergence outcomes with precise skip reasons. A convergence or

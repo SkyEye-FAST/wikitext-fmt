@@ -44,7 +44,7 @@ preset.
 | `parserConfig` | non-empty string | `mediawiki` | — | `--parser-config` | unchanged | Parser config name or JSON path |
 | `lineWidth` | number > 0 | `120` | — | config/API only | unchanged | Named-template layout threshold; soft for anonymous parameters |
 | `formatHeadings` | boolean | `true` | safe | `--no-format-headings` | unchanged | Normalize eligible ASCII heading marker spacing while preserving non-ASCII title whitespace |
-| `formatTemplates` | boolean | `true` | normal | `--no-format-templates` | production/aggressive: `true` | Run unified template engine |
+| `formatTemplates` | boolean | `true` | normal | `--no-format-templates` | production/aggressive: `true` | Run the unified template engine, including ASCII underscore-to-space normalization in stable ordinary invocation titles |
 | `inlineTemplateSpacing` | `auto` \| `compact` \| `spaced` | `auto` | — | `--inline-template-spacing` | unchanged | Choose complete single-line named-template ASCII syntax spacing; auto uses weighted syntax-whitespace cost and a compact tie-break |
 | `templateParameterLayout` | `compact` \| `flush` \| `indented` | `flush` | — | config/API only | unchanged | Choose multiline named/numbered parameter spacing and indentation |
 | `formatTemplateParameters` | boolean | `false` | experimental | `--format-template-parameters`, `--no-format-template-parameters` | production: `false`; aggressive: `true` | Deprecated compatibility route to unified template engine |
@@ -69,6 +69,12 @@ preset.
 | `normalizeBlankLines` | boolean | `true` | safe | `--no-normalize-blank-lines` | unchanged | Collapse 3+ blank lines to 2 |
 | `level` | `safe` \| `normal` \| `experimental` | `normal` | — | `--level` | production: `normal`; aggressive: `experimental` | Maximum cumulative rule reliability |
 | `htmlVoidTagStyle` | `html5` \| `xhtml` \| `preserve` | `html5` | safe | `--html-void-tag-style` | unchanged | Spell simple `br`/`hr`/`wbr` tags |
+
+Template-title normalization has no separate option. With the template engine
+enabled, `{{a_b_c|x=1}}` becomes `{{a b c|x=1}}`, subject to
+`inlineTemplateSpacing`, `templateParameterLayout`, and `lineWidth`. Parser
+functions, magic words, triple-brace parameters, dynamic template names, and
+parameter keys and values are excluded.
 
 ## Profiles versus levels
 

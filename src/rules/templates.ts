@@ -132,6 +132,55 @@ function trimAsciiLayoutWhitespace(value: string): string {
     .replace(/[ \t\r\n]+$/u, "");
 }
 
+function normalizeTemplateInvocationTitle(title: string): string {
+  return title.replaceAll("_", " ");
+}
+
+interface StableTemplateInvocation {
+  normalizedRaw: string;
+  title: string;
+}
+
+function stableTemplateInvocation(
+  node: TemplateNode,
+): StableTemplateInvocation | { reason: string } {
+  const raw = node.toString();
+  const title = node.firstChild;
+  if (title.type !== "template-name") {
+    return { reason: "unstable invocation title" };
+  }
+  if (title.childNodes.some((child) => child.type !== "text")) {
+    return { reason: "dynamic template name" };
+  }
+
+  const nodeStart = node.getAbsoluteIndex();
+  const start = title.getAbsoluteIndex() - nodeStart;
+  const source = title.toString();
+  const end = start + source.length;
+  if (
+    start < 2 ||
+    end > raw.length - 2 ||
+    raw.slice(start, end) !== source
+  ) {
+    return { reason: "unstable invocation title" };
+  }
+
+  return {
+    normalizedRaw:
+      raw.slice(0, start) +
+      normalizeTemplateInvocationTitle(source) +
+      raw.slice(end),
+    title: source,
+  };
+}
+
+function isConfiguredMagicWordLikeTitle(title: string, config: Config): boolean {
+  const trimmed = trimAsciiLayoutWhitespace(title);
+  if (!/^[A-Z][A-Z0-9_]*$/u.test(trimmed)) return false;
+  const collapsed = trimmed.replaceAll("_", "").toLowerCase();
+  return config.variable.includes(collapsed);
+}
+
 interface NamedArgumentValue {
   value: string;
   leadingLineBreak?: string;
@@ -448,7 +497,11 @@ function anonymousLayoutCandidates(
   node: TemplateNode,
   collapseAnonymous: boolean,
 ): { candidates: string[]; reason?: string } {
-  const raw = node.toString();
+  const invocation = stableTemplateInvocation(node);
+  if ("reason" in invocation) {
+    return { candidates: [], reason: invocation.reason };
+  }
+  const raw = invocation.normalizedRaw;
   const args = node.getAllArgs();
   const start = node.getAbsoluteIndex();
   const firstArgStart = args[0]!.getAbsoluteIndex() - start;
@@ -646,28 +699,41 @@ function renderTemplate(
   if (!raw.startsWith("{{") || !raw.endsWith("}}")) {
     return { reason: "parser node does not have balanced template delimiters" };
   }
-  const args = node.getAllArgs();
-  if (args.length === 0) return { value: raw, multiline: false };
-  if (potentialParserTableOpenerPositions(raw).length > 0) {
-    return renderTemplateWithOpaqueTables(raw, config, options);
-  }
-
-  const start = node.getAbsoluteIndex();
-  const firstArgStart = args[0]!.getAbsoluteIndex() - start;
-  const firstDelimiter = raw[firstArgStart - 1];
-  if (firstDelimiter !== "|" && firstDelimiter !== ":") {
-    return { reason: "parser did not expose a stable first-argument delimiter" };
-  }
-  const head = trimAsciiLayoutWhitespace(raw.slice(2, firstArgStart - 1));
-  if (!head) return { reason: "template name is empty" };
   if (node.type === "magic-word") {
     classifyParserFunction(node.name);
     return { value: raw, multiline: raw.includes("\n") };
   }
+  const invocation = stableTemplateInvocation(node);
+  if ("reason" in invocation) return { reason: invocation.reason };
+  if (isConfiguredMagicWordLikeTitle(invocation.title, config)) {
+    return { value: raw, multiline: raw.includes("\n") };
+  }
+  const normalizedRaw = invocation.normalizedRaw;
+  const args = node.getAllArgs();
+  if (args.length === 0) {
+    return { value: normalizedRaw, multiline: normalizedRaw.includes("\n") };
+  }
+  if (potentialParserTableOpenerPositions(normalizedRaw).length > 0) {
+    return renderTemplateWithOpaqueTables(normalizedRaw, config, options);
+  }
+
+  const start = node.getAbsoluteIndex();
+  const firstArgStart = args[0]!.getAbsoluteIndex() - start;
+  const firstDelimiter = normalizedRaw[firstArgStart - 1];
+  if (firstDelimiter !== "|" && firstDelimiter !== ":") {
+    return { reason: "parser did not expose a stable first-argument delimiter" };
+  }
+  const head = trimAsciiLayoutWhitespace(
+    normalizedRaw.slice(2, firstArgStart - 1),
+  );
+  if (!head) return { reason: "template name is empty" };
 
   if (args.some((arg) => arg.anon)) {
     if (options.layout === "preserve" || !options.parameterSpacing) {
-      return { value: raw, multiline: raw.includes("\n") };
+      return {
+        value: normalizedRaw,
+        multiline: normalizedRaw.includes("\n"),
+      };
     }
     return selectAnonymousLayoutCandidate(
       node,
@@ -694,7 +760,7 @@ function renderTemplate(
 
   if (!multiline) {
     if (!options.parameterSpacing) {
-      return { value: raw, multiline: false };
+      return { value: normalizedRaw, multiline: false };
     }
     return selectInlineNamedCandidate(
       node,
@@ -765,6 +831,7 @@ export function formatTemplatesWithDiagnostics(
   const expandedNodeIds = new Set<string>();
   const normalizedNodeIds = new Set<string>();
   const canonicalNodeIds = new Set<string>();
+  const recordedSkipReasons = new Set<string>();
 
   const finalize = (formatted: string): TemplateFormatResult => {
     diagnostics.templatesChanged = changedNodeIds.size;
@@ -854,7 +921,11 @@ export function formatTemplatesWithDiagnostics(
       }
       const rendered = renderTemplate(node, config, options);
       if (rendered.reason) {
-        if (pass === 0) incrementReason(diagnostics, rendered.reason);
+        const reasonIdentity = `${semanticId}\u0000${rendered.reason}`;
+        if (!recordedSkipReasons.has(reasonIdentity)) {
+          incrementReason(diagnostics, rendered.reason);
+          recordedSkipReasons.add(reasonIdentity);
+        }
         continue;
       }
       if (rendered.value === undefined || rendered.value === raw) {
@@ -907,6 +978,7 @@ export function formatTemplatesWithDiagnostics(
   expandedNodeIds.clear();
   normalizedNodeIds.clear();
   canonicalNodeIds.clear();
+  recordedSkipReasons.clear();
   return finalize(source);
 }
 

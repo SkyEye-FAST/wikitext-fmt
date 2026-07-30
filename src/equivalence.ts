@@ -73,7 +73,7 @@ interface DocumentFingerprint {
 
 interface TemplateFingerprint {
   type: string;
-  name: string;
+  name: string | TemplateValuePart[];
   parent: number | null;
   parameters: Array<{
     anon: boolean;
@@ -200,13 +200,59 @@ function semanticTransclusionValue(
   return parts;
 }
 
+function semanticTemplateInvocationName(
+  node: TransclusionNode,
+  normalizeWikilinkTarget?: WikilinkTargetNormalizer,
+): string | TemplateValuePart[] {
+  if (node.type !== "template") return node.name;
+  const title = node.firstChild as unknown as GenericNode;
+  if (
+    title.type === "template-name" &&
+    title.childNodes.every((child) => child.type === "text")
+  ) {
+    return node.name;
+  }
+
+  const base = title.getAbsoluteIndex();
+  const raw = title.toString();
+  const nested = title
+    .querySelectorAll<TransclusionNode>("template, magic-word")
+    .filter((candidate) => nearestTransclusion(candidate.parentNode) === node)
+    .map((candidate) => ({
+      start: candidate.getAbsoluteIndex() - base,
+      end: candidate.getAbsoluteIndex() - base + candidate.toString().length,
+      part: {
+        kind: "template" as const,
+        value: templateNodeFingerprint(candidate, normalizeWikilinkTarget),
+      },
+    }))
+    .filter(
+      (replacement) =>
+        replacement.start >= 0 && replacement.end <= raw.length,
+    )
+    .sort((a, b) => a.start - b.start);
+  if (nested.length === 0) return raw;
+
+  const parts: TemplateValuePart[] = [];
+  let cursor = 0;
+  for (const replacement of nested) {
+    if (replacement.start > cursor) {
+      parts.push(raw.slice(cursor, replacement.start));
+    }
+    parts.push(replacement.part);
+    cursor = replacement.end;
+  }
+  if (cursor < raw.length) parts.push(raw.slice(cursor));
+  return parts;
+}
+
 function templateNodeFingerprint(
   node: TransclusionNode,
   normalizeWikilinkTarget?: WikilinkTargetNormalizer,
 ): Omit<TemplateFingerprint, "parent"> {
   return {
     type: node.type,
-    name: node.name,
+    name: semanticTemplateInvocationName(node, normalizeWikilinkTarget),
     parameters: node.getAllArgs().map((arg: ParameterToken) => ({
       anon: arg.anon,
       name: arg.anon ? arg.name : arg.name.trim(),

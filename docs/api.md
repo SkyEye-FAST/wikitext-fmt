@@ -127,6 +127,12 @@ The package exports:
 Anonymous values remain byte-preserved, and mixed templates do not receive the
 spaced inline form. Both styles change only parser-confirmed ASCII syntax
 layout; non-ASCII whitespace in template names, keys, and values is preserved.
+Independently of those layout choices, the enabled template engine renders
+ASCII underscores in stable parser-confirmed ordinary invocation titles as
+ASCII spaces. Thus `{{a_b_c|x=1}}` uses the title `a b c` while retaining the
+selected parameter layout. Parser functions, magic words, triple-brace
+parameters, dynamic names, parameter keys, and parameter values are not title
+normalization targets.
 
 ## Rule metadata
 
@@ -169,6 +175,10 @@ behavior switches, interlanguage links, extension and HTML nodes, comments, and
 ordinary prose. When `formatWikilinks` is enabled, underscore/space equivalence
 is narrowed to eligible parser-confirmed page-title components; labels,
 fragments, category sort keys, file options, and remote targets remain strict.
+Template fingerprints use the parser's semantic ordinary invocation title, so
+ASCII underscore and space spellings compare equally there while dynamic
+titles, magic words, parser-function arguments, and all parameter content
+remain strict.
 `equivalent: false` includes a category-specific reason.
 
 ## Localization

@@ -46,7 +46,7 @@ describe("ordinary wikilink formatting", () => {
     expect(formatWikitext(input)).toBe(expected);
   });
 
-  it("preserves non-target semantic fields and excluded structures", () => {
+  it("preserves non-target wikilink fields and excluded structures", () => {
     const input = [
       "[[File:Example_Name.png|thumb|Caption_text]]",
       "[[Category:Some_Name|Sort_key]]",
@@ -56,7 +56,8 @@ describe("ordinary wikilink formatting", () => {
       '<span id="Section_Name">',
       "",
     ].join("\n");
-    expect(formatWikitext(input, { formatCategories: false })).toBe(input);
+    const expected = input.replace("{{Template_Name", "{{Template Name");
+    expect(formatWikitext(input, { formatCategories: false })).toBe(expected);
   });
 
   it("formats ordinary links in supported surrounding structures", () => {

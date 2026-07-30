@@ -6,6 +6,13 @@ here. The project follows the pre-1.0 policy in
 
 ## Unreleased
 
+### Changed
+
+- Parser-confirmed ordinary template invocation names now use ASCII spaces
+  instead of underscores by default, including recognized `subst:` and
+  `safesubst:` calls. Parser functions, magic words, triple-brace parameters,
+  dynamic names, and parameter content remain unchanged.
+
 ## 0.3.0 - 2026-07-30
 
 ### Added
