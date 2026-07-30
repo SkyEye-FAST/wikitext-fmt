@@ -56,6 +56,18 @@ describe("VS Code release workflow", () => {
     expect(githubReleaseJob).not.toContain("--clobber");
   });
 
+  it("builds workspace core declarations before extension typechecking", () => {
+    const verifyJob = vscodeReleaseWorkflow.slice(
+      vscodeReleaseWorkflow.indexOf("\n  verify:"),
+      vscodeReleaseWorkflow.indexOf("\n  vscode-tests:"),
+    );
+    expect(
+      verifyJob.indexOf("pnpm --filter wikitext-formatter build"),
+    ).toBeLessThan(
+      verifyJob.indexOf("pnpm --filter wikitext-formatter typecheck"),
+    );
+  });
+
   it("separates read-only verification from GitHub Release writes", () => {
     expect(vscodeReleaseWorkflow).toMatch(
       /verify:[\s\S]*?permissions:\n      contents: read[\s\S]*?\n  vscode-tests:/u,

@@ -69,9 +69,9 @@ jobs:
       - run: corepack enable
       - run: pnpm install --frozen-lockfile
       - run: pnpm check:vscode-release-metadata
+      - run: pnpm --filter wikitext-formatter build
       - run: pnpm --filter wikitext-formatter typecheck
       - run: pnpm --filter wikitext-formatter test
-      - run: pnpm --filter wikitext-formatter build
       - run: pnpm --filter wikitext-formatter check:package-content
       - name: Build the single reviewed VSIX and checksum
         env:
