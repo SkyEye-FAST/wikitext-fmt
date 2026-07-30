@@ -195,7 +195,9 @@ function normalizeNamedArgumentValue(rawValue: string): NamedArgumentValue {
     const value = rawValue
       .slice(leadingLineBreak[0].length)
       .replace(/[ \t\r\n]+$/u, "");
-    if (!value || !LINE_SENSITIVE_VALUE_START.test(value)) return { value };
+    if (!value || !LINE_SENSITIVE_VALUE_START.test(value)) {
+      return { value: trimAsciiLayoutWhitespace(value) };
+    }
     return {
       leadingLineBreak: leadingLineBreak[1],
       // The first line break is syntax layout after "=". Preserve indentation
@@ -830,7 +832,7 @@ export function formatTemplatesWithDiagnostics(
   const changedNodeIds = new Set<string>();
   const expandedNodeIds = new Set<string>();
   const normalizedNodeIds = new Set<string>();
-  const canonicalNodeIds = new Set<string>();
+  const canonicalNodeValues = new Map<string, string>();
   const recordedSkipReasons = new Set<string>();
 
   const finalize = (formatted: string): TemplateFormatResult => {
@@ -906,8 +908,8 @@ export function formatTemplatesWithDiagnostics(
       );
     for (const { nodeIndex, node } of visitOrder) {
       const semanticId = semanticIds[nodeIndex]!;
-      if (canonicalNodeIds.has(semanticId)) continue;
       const raw = node.toString();
+      if (canonicalNodeValues.get(semanticId) === raw) continue;
       const start = node.getAbsoluteIndex();
       const end = start + raw.length;
       if (changedAncestors.has(node)) continue;
@@ -916,7 +918,7 @@ export function formatTemplatesWithDiagnostics(
         node.parentNode?.closest("table") &&
         hasTableSyntaxMagicWord(node)
       ) {
-        canonicalNodeIds.add(semanticId);
+        canonicalNodeValues.set(semanticId, raw);
         continue;
       }
       const rendered = renderTemplate(node, config, options);
@@ -929,7 +931,7 @@ export function formatTemplatesWithDiagnostics(
         continue;
       }
       if (rendered.value === undefined || rendered.value === raw) {
-        canonicalNodeIds.add(semanticId);
+        canonicalNodeValues.set(semanticId, raw);
         continue;
       }
       changed.push({
@@ -957,7 +959,6 @@ export function formatTemplatesWithDiagnostics(
     output = applyReplacements(output, changed);
     for (const replacement of changed) {
       changedNodeIds.add(replacement.semanticId);
-      canonicalNodeIds.add(replacement.semanticId);
       diagnostics.templateParameterLinesFormatted +=
         replacement.value
           .split("\n")
@@ -977,7 +978,7 @@ export function formatTemplatesWithDiagnostics(
   changedNodeIds.clear();
   expandedNodeIds.clear();
   normalizedNodeIds.clear();
-  canonicalNodeIds.clear();
+  canonicalNodeValues.clear();
   recordedSkipReasons.clear();
   return finalize(source);
 }

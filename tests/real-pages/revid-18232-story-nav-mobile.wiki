@@ -1,0 +1,98 @@
+#REDIRECT [[Template:故事模式剧情详表导航]]
+{{navbox
+| name = 故事模式剧情详表导航(移动版)
+| title = [[故事模式]]
+| group1 = [[:分类:属于Act I的故事|Act I: Creation]]
+| list1 =
+
+{{navbox subgroup
+| group1 = [[:分类:属于Act I, Part I的故事|Part I]]
+| list1 =
+
+{{navbox subgroup
+| group1 = [[:分类:主线故事|主线]]
+| list1 =
+[[故事模式剧情详表 (移动版)/Arcaea|Arcaea]]{{·}}[[故事模式剧情详表 (移动版)/Eternal Core|Eternal Core]]{{·}}[[故事模式剧情详表 (移动版)/Luminous Sky|Luminous Sky]]{{·}}[[故事模式剧情详表 (移动版)/Vicious Labyrinth|Vicious Labyrinth]]{{·}}[[故事模式剧情详表 (移动版)/Adverse Prelude|Adverse Prelude]]
+| group2 = [[:分类:支线故事|支线]]
+| list2 =
+[[故事模式剧情详表 (移动版)/Crimson Solace|Crimson Solace]]{{·}}[[故事模式剧情详表 (移动版)/Ambivalent Vision|Ambivalent Vision]]{{·}}[[故事模式剧情详表 (移动版)/Absolute Reason|Absolute Reason]]
+}}
+
+| group2 = [[:分类:属于Act I, Part II的故事|Part II]]
+| list2 =
+
+{{navbox subgroup
+| group1 = [[:分类:主线故事|主线]]
+| list1 =
+[[故事模式剧情详表 (移动版)/Black Fate|Black Fate]]
+| group2 = [[:分类:支线故事|支线]]
+| list2 =
+[[故事模式剧情详表 (移动版)/Ephemeral Page|Ephemeral Page]]{{·}}[[故事模式剧情详表 (移动版)/Divided Heart|Divided Heart]]
+| group3 = [[:分类:档案故事|档案]]
+| list3 =
+[[故事模式剧情详表 (移动版)/Scarlet Cage|Scarlet Cage]]{{·}}[[故事模式剧情详表 (移动版)/Colorful Dream|Colorful Dream]]{{·}}[[故事模式剧情详表 (移动版)/Obsidian Blade |Obsidian Blade]]{{·}}[[故事模式剧情详表 (移动版)/Vermillion Shield|Vermillion Shield]]
+}}
+
+| group3 = [[:分类:属于Act I, Part III的故事|Part III]]
+| list3 =
+
+{{navbox subgroup
+| group1 = [[:分类:主线故事|主线]]
+| list1 =
+[[故事模式剧情详表 (移动版)/Final Verdict|Final Verdict]]
+| group2 = [[:分类:支线故事|支线]]
+| list2 =
+[[故事模式剧情详表 (移动版)/Binary Enfold|Binary Enfold]]{{·}}[[故事模式剧情详表 (移动版)/Esoteric Order|Esoteric Order]]
+| group3 = [[:分类:档案故事|档案]]
+| list3 =
+[[故事模式剧情详表 (移动版)/Dark Ambition|Dark Ambition]]{{·}}[[故事模式剧情详表 (移动版)/Unseeing Eyes|Unseeing Eyes]]
+}}
+}}
+
+| group2 = [[:分类:属于Act II的故事|Act II: Catastrophe]]
+| list2 =
+
+{{navbox subgroup
+| group1 = [[:分类:属于Act II, Part I的故事|Part I]]
+| list1 =
+
+{{navbox subgroup
+| group1 = [[:分类:主线故事|主线]]
+| list1 =
+[[故事模式剧情详表 (移动版)/Absolute Nihil|Absolute Nihil]]{{·}}[[故事模式剧情详表 (移动版)/Lasting Eden|Lasting Eden]]{{·}}[[故事模式剧情详表 (移动版)/Severed Eden|Severed Eden]]
+| group2 = [[:分类:支线故事|支线]]
+| list2 =
+[[故事模式剧情详表 (移动版)/Ambivalent Vision|Ambivalent Vision]]{{·}}[[故事模式剧情详表 (移动版)/Colorful Dream|Colorful Dream]]{{·}}[[故事模式剧情详表 (移动版)/Sunset Radiance|Sunset Radiance]]
+| group3 = [[:分类:档案故事|档案]]
+| list3 =
+[[故事模式剧情详表 (移动版)/Colorful Dream|Colorful Dream]]{{·}}[[故事模式剧情详表 (移动版)/Unseeing Eyes|Unseeing Eyes]]
+}}
+
+| group2 = [[:分类:属于Act II, Part II的故事|Part II]]
+| list2 =
+
+{{navbox subgroup
+| group1 = [[:分类:主线故事|主线]]
+| list1 =
+[[故事模式剧情详表 (移动版)/Lucent Historia|Lucent Historia]]{{·}}[[故事模式剧情详表 (移动版)/Liminal Eclipse|Liminal Eclipse]]
+| group2 = [[:分类:支线故事|支线]]
+| list2 =
+[[故事模式剧情详表 (移动版)/Extant Anima|Extant Anima]]{{·}}[[故事模式剧情详表 (移动版)/Extant Anima|Chapter Experientia]]
+<!--
+| group3 = [[:分类:档案故事|档案]]
+| list3 =
+-->
+}}
+}}
+}}
+
+
+
+<!--
+[[故事模式剧情详表 (移动版)/111|111]]
+{{·}}
+[[故事模式剧情详表 (移动版)/111|111]]
+{{·}}
+[[故事模式剧情详表 (移动版)/111|111]]
+{{·}}
+-->

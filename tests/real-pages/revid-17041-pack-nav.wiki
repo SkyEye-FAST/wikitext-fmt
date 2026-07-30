@@ -1,0 +1,48 @@
+{{SwitchTabberContent
+|mobile=
+{{Navbox
+| state      = autocollapse
+| name       = 曲包目录
+| title      = [[曲包列表|曲包目录]]
+| listclass  = hlist
+| group1     = Arcaea
+| list1      =
+    {{navbox subgroup
+    | group1     = 免费
+    | list1      = [[Arcaea (移动版曲包)|Arcaea]]
+    | group2     = 单曲
+    | list2      = [[Memory Archive (移动版)|Memory Archive]]
+    | group3     = 扩展
+    | list3      = [[Extend Archive 1]]{{·}} [[Extend Archive 2]]{{·}} [[Extend Archive 3]]{{·}} [[World Extend 4]]
+    }}
+| group2     = 主线
+| list2      =
+    {{navbox subgroup
+    | group1 = Act Ⅰ<!--{{·}} <small>Creation</small>-->
+    | list1  = <small>#1 </small>[[Eternal Core]]{{·}} <small>#2 </small>[[Vicious Labyrinth]]{{·}} <small>#3 </small>[[Luminous Sky]]{{·}} <small>#3.5 </small>[[Adverse Prelude]]{{·}} <small>#4 </small>[[Black Fate]]{{·}} <small>#5 </small>[[Final Verdict]]<small> ([[Silent Answer]])</small>
+    | group2 = Act Ⅱ<!--{{·}} <small>Catastrophe</small>-->
+    | list2  = <small>#1 </small>[[Lasting Eden|Lasting Eden/Severed Eden]]<small> ([[Lasting Eden Chapter 2|Chapter 2]]{{·}}[[Shifting Veil]])</small>{{·}} <small>#2 </small>[[Absolute Nihil]]{{·}} <small>#3 </small>[[Lucent Historia]]{{·}} <small>#3.5 </small>[[Liminal Eclipse]]
+    }}
+| group3     = 支线
+| list3      = [[Crimson Solace]]{{·}} [[Ambivalent Vision]]{{·}} [[Binary Enfold]]<small> ([[Shared Time]])</small>{{·}} [[Absolute Reason]]{{·}} [[Sunset Radiance]]{{·}} [[Ephemeral Page]]<small> ([[The Journey Onwards]])</small>{{·}} [[Esoteric Order]]<small> ([[Pale Tapestry]]{{·}} [[Light of Salvation]])</small>{{·}} [[Divided Heart]]{{·}} [[Extant Anima]]<small> ([[Chapter Experientia]])</small>
+| group4     = 联动
+| list4      = [[Dynamix]]{{·}} <s>[[Stellights]]</s>{{·}} [[Lanota]]<small> ([[Lanota Collaboration Chapter 2|Chapter 2]])</small>{{·}} [[Tone Sphere]]{{·}} [[Groove Coaster]]<small> ([[Groove Coaster Chapter 2|Chapter 2]])</small>{{·}} [[CHUNITHM]]<small> ([[CHUNITHM Collaboration Chapter 2|Chapter 2]]{{·}} [[CHUNITHM Collaboration Chapter 3|Chapter 3]]{{·}} [[CHUNITHM Collaboration Chapter 4|Chapter 4]])</small>{{·}} [[O.N.G.E.K.I.]]<small> ([[O.N.G.E.K.I. Collaboration Chapter 2|Chapter 2]]{{·}}[[O.N.G.E.K.I. Collaboration Chapter 3|Chapter 3]])</small>{{·}} [[maimai]]<small> ([[maimai Collaboration Chapter 2|Chapter 2]]{{·}}[[maimai Collaboration Chapter 3|Chapter 3]])</small>{{·}} [[WACCA]]<small> ([[WACCA Collaboration Chapter 2|Chapter 2]])</small>{{·}} [[Muse Dash]]{{·}} [[Cytus II]]<small> ([[Cytus II Collaboration Chapter 2|Chapter 2]])</small>{{·}} [[Rotaeno]]{{·}} [[DJMAX]]<small> ([[DJMAX Collaboration Chapter 2|Chapter 2]])</small>{{·}} [[MEGAREX]]
+| group5     = 综合
+| list5      = [[UNDERTALE]]<small> ([[UNDERTALE Pack Append|Pack Append]])</small>{{·}} [[Arcaea Next Stage]]{{·}} [[Virtual Singers]]
+}}
+|switch=
+{{Navbox
+| state      = autocollapse
+| title      = [[曲包列表|曲包目录]]
+| listclass  = hlist
+| group1     = 单曲
+| list1      = [[Arcaea (Nintendo Switch版曲包)|Arcaea]]{{·}} [[Memory Archive (Nintendo Switch版)|Memory Archive]]<small> ([[Memory Archive Append 1|Append 1]]{{·}} [[Memory Archive Append 2|Append 2]]{{·}} [[Memory Archive Append 3|Append 3]])</small>
+| group2     = 主线故事
+| list2      = <small>#1 </small>[[Eternal Core]]{{·}} <small>#2 </small>[[Vicious Labyrinth]]{{·}} <small>#3 </small>[[Luminous Sky]]{{·}} <small>#3.5 </small>[[Adverse Prelude]]{{·}} <small>#4 </small>[[Black Fate]]{{·}} <small>#5 </small>[[Final Verdict]]<small> ([[Silent Answer]])</small>
+| group3     = 支线故事
+| list3      = [[Crimson Solace]]{{·}} [[Ambivalent Vision]]{{·}} [[Binary Enfold]]<small> ([[Shared Time]])</small>{{·}} [[Absolute Reason]]{{·}} [[Sunset Radiance]]{{·}} [[Ephemeral Page]]{{·}} [[Esoteric Order]]<small> ([[Light of Salvation]])</small>{{·}} [[Divided Heart]]
+| group4     = 联动
+| list4      = [[Lanota]]{{·}} [[Groove Coaster]]{{·}} [[WACCA]]{{·}} [[Muse Dash]]
+}}
+}}
+<noinclude>[[分类:曲包索引模板]]</noinclude>

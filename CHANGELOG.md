@@ -13,6 +13,12 @@ here. The project follows the pre-1.0 policy in
   `safesubst:` calls. Parser functions, magic words, triple-brace parameters,
   dynamic names, and parameter content remain unchanged.
 
+### Fixed
+
+- Made nested multiline template formatting converge within one rule invocation
+  by normalizing indentation left after collapsed parameter line breaks and
+  revalidating changed semantic nodes before treating them as canonical.
+
 ## 0.3.0 - 2026-07-30
 
 ### Added
