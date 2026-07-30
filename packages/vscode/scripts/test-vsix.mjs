@@ -5,13 +5,14 @@ import {
   runTests,
 } from "@vscode/test-electron";
 import { spawn } from "node:child_process";
-import { access, mkdtemp, readdir } from "node:fs/promises";
+import { access, mkdtemp, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const packageRoot = resolve(scriptDir, "..");
+const vscodeVersion = process.env.VSCODE_TEST_VERSION ?? "stable";
 
 delete process.env.ELECTRON_RUN_AS_NODE;
 delete process.env.VSCODE_IPC_HOOK_CLI;
@@ -19,15 +20,21 @@ delete process.env.VSCODE_IPC_HOOK;
 process.env.DONT_PROMPT_WSL_INSTALL = "1";
 
 async function findVsix() {
-  const entries = await readdir(packageRoot);
-  const candidates = entries
-    .filter((entry) => /^wikitext-formatter-.*\.vsix$/.test(entry))
-    .sort();
-  const latest = candidates.at(-1);
-  if (!latest) {
-    throw new Error("Packaged VSIX was not found");
+  if (process.env.VSCODE_TEST_VSIX) {
+    const requestedVsix = resolve(packageRoot, process.env.VSCODE_TEST_VSIX);
+    await access(requestedVsix);
+    return requestedVsix;
   }
-  return resolve(packageRoot, latest);
+
+  const packageMetadata = JSON.parse(
+    await readFile(resolve(packageRoot, "package.json"), "utf8"),
+  );
+  const expectedVsix = resolve(
+    packageRoot,
+    `${packageMetadata.name}-${packageMetadata.version}.vsix`,
+  );
+  await access(expectedVsix);
+  return expectedVsix;
 }
 
 async function assertCopiedRuntimeAssetsExist() {
@@ -119,7 +126,10 @@ async function installVsix(vscodeExecutablePath, vsix, extensionsDir) {
 await assertCopiedRuntimeAssetsExist();
 
 const vsix = await findVsix();
-const vscodeExecutablePath = await downloadAndUnzipVSCode();
+const vscodeExecutablePath = await downloadAndUnzipVSCode({
+  cachePath: resolve(packageRoot, ".vscode-test"),
+  version: vscodeVersion,
+});
 const extensionsDir = await mkdtemp(
   resolve(tmpdir(), "wikitext-formatter-ext-"),
 );

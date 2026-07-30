@@ -3,7 +3,11 @@ import { appendFile, mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { assertRelease, prepareCoreRelease } from "./release-metadata.mjs";
+import {
+  assertRelease,
+  prepareCoreRelease,
+  prepareVscodeRelease,
+} from "./release-metadata.mjs";
 
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -15,13 +19,13 @@ function parseArguments(args) {
     const value = args[index + 1];
     assertRelease(
       name?.startsWith("--") && value !== undefined,
-      "Usage: prepare-release.mjs --component core --tag core-vX.Y.Z [--commit SHA] [--output-dir DIR] [--github-output FILE]",
+      "Usage: prepare-release.mjs --component <core|vscode> --tag <component-vX.Y.Z> [--commit SHA] [--output-dir DIR] [--github-output FILE]",
     );
     options[name.slice(2)] = value;
   }
   assertRelease(
-    options.component === "core",
-    "prepare-release.mjs currently supports only --component core",
+    ["core", "vscode"].includes(options.component),
+    "--component must be core or vscode",
   );
   assertRelease(options.tag, "--tag is required");
   return options;
@@ -32,12 +36,28 @@ async function readJson(path) {
 }
 
 const options = parseArguments(process.argv.slice(2));
-const metadata = prepareCoreRelease({
-  tag: options.tag,
-  packageMetadata: await readJson("package.json"),
-  changelog: await readFile(resolve(repositoryRoot, "CHANGELOG.md"), "utf8"),
-  commit: options.commit,
-});
+const rootPackage = await readJson("package.json");
+const metadata =
+  options.component === "core"
+    ? prepareCoreRelease({
+        tag: options.tag,
+        packageMetadata: rootPackage,
+        changelog: await readFile(
+          resolve(repositoryRoot, "CHANGELOG.md"),
+          "utf8",
+        ),
+        commit: options.commit,
+      })
+    : prepareVscodeRelease({
+        tag: options.tag,
+        packageMetadata: await readJson("packages/vscode/package.json"),
+        changelog: await readFile(
+          resolve(repositoryRoot, "packages/vscode/CHANGELOG.md"),
+          "utf8",
+        ),
+        commit: options.commit,
+        packageManager: rootPackage.packageManager,
+      });
 
 if (options["output-dir"]) {
   const outputDirectory = resolve(repositoryRoot, options["output-dir"]);
@@ -58,13 +78,22 @@ if (options["github-output"]) {
     `version=${metadata.version}`,
     `tag=${metadata.expectedTag}`,
     `prerelease=${metadata.prerelease}`,
-    `npm_dist_tag=${metadata.npmDistTag}`,
     `release_title=${metadata.githubReleaseTitle}`,
-    `tarball_filename=${metadata.tarballFilename}`,
     `repository=${metadata.repository}`,
     `package_manager=${metadata.packageManager}`,
-  ].join("\n");
-  await appendFile(options["github-output"], `${output}\n`);
+  ];
+  if (metadata.component === "core") {
+    output.push(
+      `npm_dist_tag=${metadata.npmDistTag}`,
+      `tarball_filename=${metadata.tarballFilename}`,
+    );
+  } else {
+    output.push(
+      `extension_id=${metadata.extensionId}`,
+      `vsix_filename=${metadata.vsixFilename}`,
+    );
+  }
+  await appendFile(options["github-output"], `${output.join("\n")}\n`);
 }
 
 console.log(JSON.stringify(metadata, null, 2));

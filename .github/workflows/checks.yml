@@ -48,6 +48,12 @@ jobs:
 
   vscode-package:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        vscode-version: ["1.100.0", stable]
+    env:
+      VSCODE_TEST_VERSION: ${{ matrix.vscode-version }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -59,4 +65,5 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: xvfb-run -a pnpm check:extension
       - run: xvfb-run -a pnpm check:vsix
-      - run: pnpm check:vscode-release
+      - if: matrix.vscode-version == 'stable'
+        run: pnpm check:vscode-release

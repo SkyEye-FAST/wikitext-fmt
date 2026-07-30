@@ -4,12 +4,70 @@ import { beforeAll, describe, expect, it } from "vitest";
 
 let checksWorkflow;
 let releaseWorkflow;
+let vscodeReleaseWorkflow;
 
 beforeAll(async () => {
-  [checksWorkflow, releaseWorkflow] = await Promise.all([
+  [checksWorkflow, releaseWorkflow, vscodeReleaseWorkflow] = await Promise.all([
     readFile(".github/workflows/checks.yml", "utf8"),
     readFile(".github/workflows/release-core.yml", "utf8"),
+    readFile(".github/workflows/release-vscode.yml", "utf8"),
   ]);
+});
+
+describe("VS Code release workflow", () => {
+  it("uses component tags and keeps manual dispatch verification-only", () => {
+    expect(vscodeReleaseWorkflow).toContain('- "vscode-v*"');
+    expect(vscodeReleaseWorkflow).toContain("workflow_dispatch:");
+    expect(vscodeReleaseWorkflow).not.toContain("pull_request:");
+    expect(vscodeReleaseWorkflow).toContain("--component vscode");
+    expect(vscodeReleaseWorkflow).toMatch(
+      /github-release:\n    if: github\.event_name == 'push' && github\.ref_type == 'tag' && startsWith\(github\.ref, 'refs\/tags\/vscode-v'\)/u,
+    );
+  });
+
+  it("never publishes to the Marketplace", () => {
+    expect(vscodeReleaseWorkflow).not.toMatch(/\bvsce publish\b/u);
+    expect(vscodeReleaseWorkflow).not.toContain("VSCE_PAT");
+    expect(vscodeReleaseWorkflow).not.toMatch(/\bazure\b/iu);
+  });
+
+  it("tests the minimum and stable VS Code versions", () => {
+    expect(vscodeReleaseWorkflow).toContain(
+      'vscode-version: ["1.100.0", stable]',
+    );
+    expect(vscodeReleaseWorkflow).toContain(
+      "VSCODE_TEST_VERSION: ${{ matrix.vscode-version }}",
+    );
+    expect(vscodeReleaseWorkflow).toContain(
+      "VSCODE_TEST_VSIX: ${{ runner.temp }}/release-artifacts/${{ needs.verify.outputs.vsix_filename }}",
+    );
+  });
+
+  it("passes one verified VSIX to tests and the GitHub Release job", () => {
+    expect(vscodeReleaseWorkflow.match(/vsce package/gu)).toHaveLength(1);
+    expect(vscodeReleaseWorkflow).toContain(
+      "name: ${{ needs.verify.outputs.artifact_name }}",
+    );
+    const githubReleaseJob = vscodeReleaseWorkflow.slice(
+      vscodeReleaseWorkflow.indexOf("\n  github-release:"),
+    );
+    expect(githubReleaseJob).toContain("actions/download-artifact@v8");
+    expect(githubReleaseJob).not.toContain("vsce package");
+    expect(githubReleaseJob).not.toContain("--clobber");
+  });
+
+  it("separates read-only verification from GitHub Release writes", () => {
+    expect(vscodeReleaseWorkflow).toMatch(
+      /verify:[\s\S]*?permissions:\n      contents: read[\s\S]*?\n  vscode-tests:/u,
+    );
+    expect(vscodeReleaseWorkflow).toMatch(
+      /vscode-tests:[\s\S]*?permissions:\n      contents: read[\s\S]*?\n  github-release:/u,
+    );
+    expect(vscodeReleaseWorkflow).toMatch(
+      /github-release:[\s\S]*?permissions:\n      contents: write/u,
+    );
+    expect(vscodeReleaseWorkflow).not.toContain("id-token: write");
+  });
 });
 
 describe("ordinary checks workflow", () => {
@@ -25,6 +83,9 @@ describe("ordinary checks workflow", () => {
     expect(checksWorkflow).toContain("\n  core:");
     expect(checksWorkflow).toContain("\n  corpus:");
     expect(checksWorkflow).toContain("\n  vscode-package:");
+    expect(checksWorkflow).toContain(
+      'vscode-version: ["1.100.0", stable]',
+    );
     expect(checksWorkflow.match(/pnpm corpus/gu)).toHaveLength(1);
   });
 });

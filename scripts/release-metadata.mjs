@@ -17,6 +17,20 @@ export const CORE_PACKAGE_FILES = [
   "CHANGELOG.md",
   "LICENSE",
 ];
+export const VSCODE_EXTENSION_NAME = "wikitext-formatter";
+export const VSCODE_EXTENSION_DISPLAY_NAME = "Wikitext Formatter";
+export const VSCODE_EXTENSION_PUBLISHER = "skyeyefast";
+export const VSCODE_EXTENSION_ID =
+  `${VSCODE_EXTENSION_PUBLISHER}.${VSCODE_EXTENSION_NAME}`;
+export const VSCODE_REPOSITORY_URL =
+  "https://github.com/SkyEye-FAST/wikitext-fmt.git";
+export const VSCODE_REPOSITORY_DIRECTORY = "packages/vscode";
+export const VSCODE_HOMEPAGE =
+  "https://github.com/SkyEye-FAST/wikitext-fmt#readme";
+export const VSCODE_BUGS_URL =
+  "https://github.com/SkyEye-FAST/wikitext-fmt/issues";
+export const VSCODE_MINIMUM_ENGINE = "^1.100.0";
+export const VSCODE_ICON = "images/icon.png";
 
 export function assertRelease(condition, message) {
   if (!condition) throw new Error(message);
@@ -110,6 +124,80 @@ export function validateCorePackageMetadata(packageMetadata) {
   );
 }
 
+export function validateVscodePackageMetadata(packageMetadata) {
+  assertRelease(
+    packageMetadata.name === VSCODE_EXTENSION_NAME,
+    `packages/vscode/package.json name must be ${VSCODE_EXTENSION_NAME}`,
+  );
+  assertRelease(
+    packageMetadata.displayName === VSCODE_EXTENSION_DISPLAY_NAME,
+    `packages/vscode/package.json displayName must be ${VSCODE_EXTENSION_DISPLAY_NAME}`,
+  );
+  assertRelease(
+    packageMetadata.publisher === VSCODE_EXTENSION_PUBLISHER,
+    `packages/vscode/package.json publisher must be ${VSCODE_EXTENSION_PUBLISHER}`,
+  );
+  assertRelease(
+    isSemVer(packageMetadata.version),
+    `packages/vscode/package.json version is not valid SemVer: ${packageMetadata.version}`,
+  );
+  assertRelease(
+    typeof packageMetadata.description === "string" &&
+      packageMetadata.description.trim() !== "",
+    "packages/vscode/package.json description must be non-empty",
+  );
+  assertRelease(
+    packageMetadata.repository?.type === "git" &&
+      packageMetadata.repository?.url === VSCODE_REPOSITORY_URL &&
+      packageMetadata.repository?.directory === VSCODE_REPOSITORY_DIRECTORY,
+    `packages/vscode/package.json repository must identify ${VSCODE_REPOSITORY_DIRECTORY} in ${VSCODE_REPOSITORY_URL}`,
+  );
+  assertRelease(
+    packageMetadata.bugs?.url === VSCODE_BUGS_URL,
+    `packages/vscode/package.json bugs.url must be ${VSCODE_BUGS_URL}`,
+  );
+  assertRelease(
+    packageMetadata.homepage === VSCODE_HOMEPAGE,
+    `packages/vscode/package.json homepage must be ${VSCODE_HOMEPAGE}`,
+  );
+  assertRelease(
+    packageMetadata.license === "GPL-3.0-or-later",
+    "packages/vscode/package.json license must be GPL-3.0-or-later",
+  );
+  assertRelease(
+    packageMetadata.pricing === "Free",
+    "packages/vscode/package.json pricing must be Free",
+  );
+  assertRelease(
+    packageMetadata.categories?.includes("Formatters"),
+    "packages/vscode/package.json categories must include Formatters",
+  );
+  assertRelease(
+    ["wikitext", "mediawiki", "formatter"].every((keyword) =>
+      packageMetadata.keywords?.includes(keyword),
+    ),
+    "packages/vscode/package.json keywords must include wikitext, mediawiki, and formatter",
+  );
+  assertRelease(
+    typeof packageMetadata.galleryBanner?.color === "string" &&
+      ["dark", "light"].includes(packageMetadata.galleryBanner?.theme),
+    "packages/vscode/package.json galleryBanner must define a color and supported theme",
+  );
+  assertRelease(
+    packageMetadata.icon === VSCODE_ICON,
+    `packages/vscode/package.json icon must be ${VSCODE_ICON}`,
+  );
+  assertRelease(
+    packageMetadata.engines?.vscode === VSCODE_MINIMUM_ENGINE,
+    `packages/vscode/package.json engines.vscode must be ${VSCODE_MINIMUM_ENGINE}`,
+  );
+  assertRelease(
+    packageMetadata.type === "module" &&
+      packageMetadata.main === "./dist/extension.js",
+    "packages/vscode/package.json must keep the ESM dist/extension.js entry point",
+  );
+}
+
 export function prepareCoreRelease({
   tag,
   packageMetadata,
@@ -157,6 +245,62 @@ export function prepareCoreRelease({
     repositoryUrl: CORE_REPOSITORY_URL,
     registry: CORE_REGISTRY,
     packageManager: packageMetadata.packageManager,
+    commit,
+  };
+}
+
+export function prepareVscodeRelease({
+  tag,
+  packageMetadata,
+  changelog,
+  commit,
+  packageManager,
+}) {
+  validateVscodePackageMetadata(packageMetadata);
+  assertRelease(
+    typeof tag === "string" && tag.startsWith("vscode-v"),
+    "VS Code release tag must use the exact vscode-v<valid-semver> format",
+  );
+  const tagVersion = tag.slice("vscode-v".length);
+  assertRelease(
+    isSemVer(tagVersion),
+    `VS Code release tag version is not valid SemVer: ${tagVersion || "(empty)"}`,
+  );
+  const expectedTag = `vscode-v${packageMetadata.version}`;
+  assertRelease(
+    tag === expectedTag,
+    `VS Code release tag ${tag} does not match extension version; expected ${expectedTag}`,
+  );
+
+  const changelogPath = "packages/vscode/CHANGELOG.md";
+  const changelogState = changelogMetadata(changelog, changelogPath);
+  assertRelease(
+    changelogState.currentRelease === packageMetadata.version,
+    `${changelogPath} current release ${changelogState.currentRelease ?? "(none)"} does not match extension version ${packageMetadata.version}`,
+  );
+  assertRelease(
+    changelogState.unreleased === "",
+    `${changelogPath} Unreleased section must be empty when finalizing a VS Code release`,
+  );
+
+  const prerelease = packageMetadata.version.includes("-");
+  return {
+    component: "vscode",
+    extensionId: VSCODE_EXTENSION_ID,
+    packageName: packageMetadata.name,
+    version: packageMetadata.version,
+    expectedTag,
+    prerelease,
+    githubReleaseTitle: `${packageMetadata.displayName} ${packageMetadata.version}`,
+    releaseNotes: extractReleaseNotes(
+      changelog,
+      packageMetadata.version,
+      changelogPath,
+    ),
+    vsixFilename: `${packageMetadata.name}-${packageMetadata.version}.vsix`,
+    repository: CORE_REPOSITORY,
+    repositoryUrl: VSCODE_REPOSITORY_URL,
+    packageManager,
     commit,
   };
 }

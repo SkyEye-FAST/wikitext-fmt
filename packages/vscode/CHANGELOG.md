@@ -5,7 +5,7 @@ Core-only changes remain in the root changelog.
 
 ## Unreleased
 
-## 0.2.0 - 2026-07-29
+## 0.2.0 - 2026-07-30
 
 ### Added
 
@@ -22,6 +22,8 @@ Core-only changes remain in the root changelog.
   safety warning produces a visible warning and no document edit.
 - Updated extension documentation for VS Code compatibility, workspace config
   precedence, bundled-core behavior, limitations, and troubleshooting.
+- Raised the minimum supported VS Code version to 1.100 to match the extension's
+  ES module runtime.
 - Corrected the unsafe-setting documentation: disabling the additional safe
   pass still uses the core fail-closed base pipeline, but the compact API does
   not expose structured failures.

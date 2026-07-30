@@ -1,0 +1,252 @@
+name: VS Code release
+
+on:
+  push:
+    tags:
+      - "vscode-v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Proposed vscode-v<semver> tag to verify without releasing
+        required: false
+        type: string
+
+concurrency:
+  group: vscode-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    outputs:
+      artifact_name: vscode-release-${{ steps.metadata.outputs.version }}
+      prerelease: ${{ steps.metadata.outputs.prerelease }}
+      release_title: ${{ steps.metadata.outputs.release_title }}
+      tag: ${{ steps.metadata.outputs.tag }}
+      version: ${{ steps.metadata.outputs.version }}
+      vsix_filename: ${{ steps.metadata.outputs.vsix_filename }}
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          ref: ${{ github.sha }}
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          package-manager-cache: false
+      - name: Validate VS Code release metadata
+        id: metadata
+        env:
+          REQUESTED_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+        run: |
+          release_tag="$REQUESTED_TAG"
+          if [[ -z "$release_tag" ]]; then
+            release_tag="vscode-v$(node -p "require('./packages/vscode/package.json').version")"
+          fi
+          echo "RELEASE_TAG=$release_tag" >> "$GITHUB_ENV"
+          node scripts/prepare-release.mjs \
+            --component vscode \
+            --tag "$release_tag" \
+            --commit "$GITHUB_SHA" \
+            --output-dir release-artifacts \
+            --github-output "$GITHUB_OUTPUT"
+      - name: Verify pushed tag and default-branch ancestry
+        if: github.event_name == 'push'
+        env:
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          test "$GITHUB_REF_TYPE" = "tag"
+          test "$GITHUB_REF_NAME" = "$RELEASE_TAG"
+          test "$(git rev-list -n 1 "$RELEASE_TAG")" = "$GITHUB_SHA"
+          git fetch --no-tags origin \
+            "+refs/heads/$DEFAULT_BRANCH:refs/remotes/origin/$DEFAULT_BRANCH"
+          git merge-base --is-ancestor \
+            "$GITHUB_SHA" "refs/remotes/origin/$DEFAULT_BRANCH"
+      - run: corepack enable
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm check:vscode-release-metadata
+      - run: pnpm --filter wikitext-formatter typecheck
+      - run: pnpm --filter wikitext-formatter test
+      - run: pnpm --filter wikitext-formatter build
+      - run: pnpm --filter wikitext-formatter check:package-content
+      - name: Build the single reviewed VSIX and checksum
+        env:
+          VSIX_FILENAME: ${{ steps.metadata.outputs.vsix_filename }}
+        run: |
+          pnpm --filter wikitext-formatter exec vsce package \
+            --no-dependencies \
+            --out "../../release-artifacts/$VSIX_FILENAME"
+          test "$(find release-artifacts -maxdepth 1 -type f -name '*.vsix' | wc -l)" -eq 1
+          (
+            cd release-artifacts
+            sha256sum "$VSIX_FILENAME" > SHA256SUMS
+          )
+      - uses: actions/upload-artifact@v7
+        with:
+          name: vscode-release-${{ steps.metadata.outputs.version }}
+          path: release-artifacts/
+          if-no-files-found: error
+          retention-days: 14
+
+  vscode-tests:
+    needs: verify
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        vscode-version: ["1.100.0", stable]
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+          ref: ${{ github.sha }}
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          package-manager-cache: false
+      - run: corepack enable
+      - run: pnpm install --frozen-lockfile
+      - uses: actions/download-artifact@v8
+        with:
+          name: ${{ needs.verify.outputs.artifact_name }}
+          path: ${{ runner.temp }}/release-artifacts
+      - name: Verify the downloaded VSIX checksum
+        run: |
+          (
+            cd "$RUNNER_TEMP/release-artifacts"
+            sha256sum --check SHA256SUMS
+          )
+      - name: Test the development extension
+        env:
+          VSCODE_TEST_VERSION: ${{ matrix.vscode-version }}
+        run: xvfb-run -a pnpm check:extension
+      - name: Install and activate the verified VSIX
+        env:
+          VSCODE_TEST_VERSION: ${{ matrix.vscode-version }}
+          VSCODE_TEST_VSIX: ${{ runner.temp }}/release-artifacts/${{ needs.verify.outputs.vsix_filename }}
+        run: xvfb-run -a pnpm --filter wikitext-formatter test:vsix:existing
+
+  github-release:
+    if: github.event_name == 'push' && github.ref_type == 'tag' && startsWith(github.ref, 'refs/tags/vscode-v')
+    needs:
+      - verify
+      - vscode-tests
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          ref: ${{ github.sha }}
+      - uses: actions/download-artifact@v8
+        with:
+          name: ${{ needs.verify.outputs.artifact_name }}
+          path: ${{ runner.temp }}/release-artifacts
+      - name: Verify tag and downloaded release artifacts
+        env:
+          ARTIFACT_DIRECTORY: ${{ runner.temp }}/release-artifacts
+          RELEASE_TAG: ${{ needs.verify.outputs.tag }}
+        run: |
+          (
+            cd "$ARTIFACT_DIRECTORY"
+            sha256sum --check SHA256SUMS
+          )
+          remote_commit="$(git ls-remote origin "refs/tags/$RELEASE_TAG^{}" | cut -f1)"
+          if [[ -z "$remote_commit" ]]; then
+            remote_commit="$(git ls-remote origin "refs/tags/$RELEASE_TAG" | cut -f1)"
+          fi
+          test "$remote_commit" = "$GITHUB_SHA"
+          node scripts/prepare-release.mjs \
+            --component vscode \
+            --tag "$RELEASE_TAG" \
+            --commit "$GITHUB_SHA" \
+            > "$RUNNER_TEMP/current-release-metadata.json"
+          cmp \
+            "$RUNNER_TEMP/current-release-metadata.json" \
+            "$ARTIFACT_DIRECTORY/release-metadata.json"
+      - name: Inspect an existing GitHub Release
+        id: existing-release
+        env:
+          ARTIFACT_DIRECTORY: ${{ runner.temp }}/release-artifacts
+          RELEASE_TAG: ${{ needs.verify.outputs.tag }}
+        run: |
+          if gh release view "$RELEASE_TAG" \
+            --json name,tagName,isDraft,isPrerelease,body,assets \
+            > "$RUNNER_TEMP/existing-release.json" \
+            2> "$RUNNER_TEMP/release-view-error.txt"; then
+            node scripts/check-github-release.mjs \
+              --metadata "$ARTIFACT_DIRECTORY/release-metadata.json" \
+              --release "$RUNNER_TEMP/existing-release.json" \
+              --github-output "$GITHUB_OUTPUT"
+          elif grep -Fq "release not found" \
+            "$RUNNER_TEMP/release-view-error.txt"; then
+            echo "release_state=absent" >> "$GITHUB_OUTPUT"
+          else
+            cat "$RUNNER_TEMP/release-view-error.txt" >&2
+            exit 1
+          fi
+      - name: Create or complete the matching release draft
+        if: steps.existing-release.outputs.release_state != 'published'
+        env:
+          ARTIFACT_DIRECTORY: ${{ runner.temp }}/release-artifacts
+          PRERELEASE: ${{ needs.verify.outputs.prerelease }}
+          RELEASE_STATE: ${{ steps.existing-release.outputs.release_state }}
+          RELEASE_TAG: ${{ needs.verify.outputs.tag }}
+          RELEASE_TITLE: ${{ needs.verify.outputs.release_title }}
+        run: |
+          release_flags=(
+            --title "$RELEASE_TITLE"
+            --notes-file "$ARTIFACT_DIRECTORY/release-notes.md"
+            --prerelease="$PRERELEASE"
+          )
+          if [[ "$RELEASE_STATE" = "absent" ]]; then
+            gh release create "$RELEASE_TAG" \
+              --verify-tag \
+              "${release_flags[@]}" \
+              --draft
+          else
+            gh release edit "$RELEASE_TAG" "${release_flags[@]}" --draft
+          fi
+      - name: Verify or attach the exact release assets
+        env:
+          ARTIFACT_DIRECTORY: ${{ runner.temp }}/release-artifacts
+          RELEASE_TAG: ${{ needs.verify.outputs.tag }}
+          VSIX_FILENAME: ${{ needs.verify.outputs.vsix_filename }}
+        run: |
+          gh release view "$RELEASE_TAG" \
+            --json assets > "$RUNNER_TEMP/current-release-assets.json"
+          EXPECTED_ASSETS="$VSIX_FILENAME,SHA256SUMS" \
+            node --input-type=module --eval \
+            'import { readFileSync } from "node:fs"; const release = JSON.parse(readFileSync(process.env.RUNNER_TEMP + "/current-release-assets.json", "utf8")); const expected = new Set(process.env.EXPECTED_ASSETS.split(",")); const unexpected = release.assets.filter((asset) => !expected.has(asset.name)); if (unexpected.length) throw new Error(`unexpected GitHub Release assets: ${unexpected.map((asset) => asset.name).join(", ")}`);'
+          mkdir "$RUNNER_TEMP/existing-vscode-assets"
+          for asset in "$VSIX_FILENAME" SHA256SUMS; do
+            if ASSET_NAME="$asset" node --input-type=module --eval \
+              'import { readFileSync } from "node:fs"; const release = JSON.parse(readFileSync(process.env.RUNNER_TEMP + "/current-release-assets.json", "utf8")); process.exit(release.assets.some((candidate) => candidate.name === process.env.ASSET_NAME) ? 0 : 1);'; then
+              gh release download "$RELEASE_TAG" \
+                --pattern "$asset" \
+                --dir "$RUNNER_TEMP/existing-vscode-assets"
+              cmp \
+                "$ARTIFACT_DIRECTORY/$asset" \
+                "$RUNNER_TEMP/existing-vscode-assets/$asset"
+            else
+              gh release upload "$RELEASE_TAG" "$ARTIFACT_DIRECTORY/$asset"
+            fi
+          done
+      - name: Publish the completed GitHub Release
+        if: steps.existing-release.outputs.release_state != 'published'
+        env:
+          RELEASE_TAG: ${{ needs.verify.outputs.tag }}
+        run: gh release edit "$RELEASE_TAG" --draft=false

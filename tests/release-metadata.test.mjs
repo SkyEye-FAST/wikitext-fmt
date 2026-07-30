@@ -6,8 +6,15 @@ import {
   CORE_PACKAGE_FILES,
   CORE_REGISTRY,
   CORE_REPOSITORY_URL,
+  VSCODE_BUGS_URL,
+  VSCODE_HOMEPAGE,
+  VSCODE_ICON,
+  VSCODE_MINIMUM_ENGINE,
+  VSCODE_REPOSITORY_DIRECTORY,
+  VSCODE_REPOSITORY_URL,
   isSemVer,
   prepareCoreRelease,
+  prepareVscodeRelease,
 } from "../scripts/release-metadata.mjs";
 import { assessRegistryVersion } from "../scripts/check-npm-release.mjs";
 import { validateExistingGithubRelease } from "../scripts/check-github-release.mjs";
@@ -40,6 +47,32 @@ function changelog(version = "0.2.0") {
 
 - Initial release.
 `;
+}
+
+function vscodePackageMetadata(version = "0.2.0") {
+  return {
+    name: "wikitext-formatter",
+    displayName: "Wikitext Formatter",
+    publisher: "skyeyefast",
+    version,
+    description: "Parser-assisted structural MediaWiki wikitext formatter",
+    repository: {
+      type: "git",
+      url: VSCODE_REPOSITORY_URL,
+      directory: VSCODE_REPOSITORY_DIRECTORY,
+    },
+    bugs: { url: VSCODE_BUGS_URL },
+    homepage: VSCODE_HOMEPAGE,
+    license: "GPL-3.0-or-later",
+    pricing: "Free",
+    categories: ["Formatters"],
+    keywords: ["wikitext", "mediawiki", "formatter"],
+    galleryBanner: { color: "#2f3340", theme: "dark" },
+    icon: VSCODE_ICON,
+    engines: { vscode: VSCODE_MINIMUM_ENGINE },
+    type: "module",
+    main: "./dist/extension.js",
+  };
 }
 
 describe("core release metadata", () => {
@@ -129,6 +162,74 @@ describe("core release metadata", () => {
     expect(isSemVer("0.3.0-beta.1")).toBe(true);
     expect(isSemVer("0.3.0-beta.01")).toBe(false);
     expect(isSemVer("01.3.0")).toBe(false);
+  });
+});
+
+describe("VS Code release metadata", () => {
+  it("derives stable extension release metadata", () => {
+    const metadata = prepareVscodeRelease({
+      tag: "vscode-v0.2.0",
+      packageMetadata: vscodePackageMetadata(),
+      changelog: changelog(),
+      commit: "abc123",
+      packageManager: "pnpm@11.17.0",
+    });
+    expect(metadata).toMatchObject({
+      component: "vscode",
+      extensionId: "skyeyefast.wikitext-formatter",
+      expectedTag: "vscode-v0.2.0",
+      prerelease: false,
+      githubReleaseTitle: "Wikitext Formatter 0.2.0",
+      vsixFilename: "wikitext-formatter-0.2.0.vsix",
+      repository: "SkyEye-FAST/wikitext-fmt",
+    });
+    expect(metadata.releaseNotes).toContain("Secure release automation.");
+  });
+
+  it.each([
+    "v0.2.0",
+    "0.2.0",
+    "vscode-0.2.0",
+    "core-v0.2.0",
+    "vscode-vlatest",
+  ])("rejects malformed or wrong-component tag %s", (tag) => {
+    expect(() =>
+      prepareVscodeRelease({
+        tag,
+        packageMetadata: vscodePackageMetadata(),
+        changelog: changelog(),
+      }),
+    ).toThrow();
+  });
+
+  it("rejects a tag mismatch, non-empty Unreleased, and incompatible ESM baseline", () => {
+    expect(() =>
+      prepareVscodeRelease({
+        tag: "vscode-v0.2.1",
+        packageMetadata: vscodePackageMetadata(),
+        changelog: changelog(),
+      }),
+    ).toThrow(/does not match extension version/u);
+    expect(() =>
+      prepareVscodeRelease({
+        tag: "vscode-v0.2.0",
+        packageMetadata: vscodePackageMetadata(),
+        changelog: changelog().replace(
+          "## Unreleased\n",
+          "## Unreleased\n\n- Future work.\n",
+        ),
+      }),
+    ).toThrow(/Unreleased section must be empty/u);
+    expect(() =>
+      prepareVscodeRelease({
+        tag: "vscode-v0.2.0",
+        packageMetadata: {
+          ...vscodePackageMetadata(),
+          engines: { vscode: "^1.90.0" },
+        },
+        changelog: changelog(),
+      }),
+    ).toThrow(/engines\.vscode must be \^1\.100\.0/u);
   });
 });
 

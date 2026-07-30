@@ -8,6 +8,7 @@ import {
   changelogMetadata,
   isSemVer,
   validateCorePackageMetadata,
+  validateVscodePackageMetadata,
 } from "./release-metadata.mjs";
 
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -40,6 +41,7 @@ const corePackage = await readJson("package.json");
 const extensionPackage = await readJson("packages/vscode/package.json");
 
 validateCorePackageMetadata(corePackage);
+validateVscodePackageMetadata(extensionPackage);
 assert(
   isSemVer(corePackage.version),
   `package.json version is not valid SemVer: ${corePackage.version}`,

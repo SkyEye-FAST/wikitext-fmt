@@ -1,18 +1,39 @@
 # Wikitext Formatter for VS Code
 
 This extension wraps the `wikitext-fmt` core formatter. It requires VS Code
-1.90 or newer.
+1.100 or newer.
+
+It turns compact or inconsistent wikitext such as:
+
+```wikitext
+==Overview==
+See [[Main_Page|main page]].
+```
+
+into:
+
+```wikitext
+== Overview ==
+See [[Main Page|main page]].
+```
 
 ## Installation
 
-Marketplace publication is not implied by this repository. To install a local
-build:
+Install **Wikitext Formatter** from the Visual Studio Code Marketplace. In
+VS Code, open **Extensions**, search for `Wikitext Formatter`, and choose
+**Install**. The extension identifier is
+`skyeyefast.wikitext-formatter`.
+
+### Install a development VSIX manually
+
+To test a development build from this repository:
 
 ```sh
 pnpm --filter wikitext-formatter vscode:package
 ```
 
 Choose **Extensions: Install from VSIX...** and select the generated `.vsix`.
+This local packaging command does not publish the extension.
 
 ## Language and formatting support
 
