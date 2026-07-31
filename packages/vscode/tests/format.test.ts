@@ -1,16 +1,34 @@
 import { describe, expect, it, vi } from "vitest";
-import { mkdtemp, mkdir, writeFile } from "node:fs/promises";
-import { join } from "node:path";
+import { mkdtemp, mkdir, readFile, writeFile } from "node:fs/promises";
+import { isAbsolute, join, resolve } from "node:path";
 import { tmpdir } from "node:os";
+import {
+  defaultOptions,
+  type FormatDetailedResult,
+  type FormatFailure,
+  type FormatOptions,
+} from "wikitext-fmt";
+import { optionSchema } from "../../../src/options/schema.js";
 import {
   buildEditorSettings,
   buildFormatOptions,
   formatTextForEditor,
+  getEditorDocumentFormattingResult,
   getEditorFormattingResult,
   resolveEditorSettings,
   type ConfigLike,
+  type EditorFormatSettings,
   type FormatterApi,
 } from "../src/format.js";
+import { isSupportedLanguageId } from "../src/language.js";
+import {
+  configFileOnlyOptionNames,
+  vscodeFormatOptionMetadata,
+} from "../src/optionMetadata.js";
+import {
+  createDocumentReport,
+  createResolvedConfigurationReport,
+} from "../src/report.js";
 
 function config(
   values: Record<string, unknown> = {},
@@ -31,148 +49,378 @@ function config(
   return result;
 }
 
-describe("VS Code formatter wrapper options", () => {
-  it("maps default settings", () => {
-    const settings = buildEditorSettings(config());
+function settings(safe: boolean): EditorFormatSettings {
+  return {
+    safe,
+    options: {},
+    explicitOptions: {},
+    configOptions: {},
+  };
+}
 
-    expect(settings.safe).toBe(true);
-    expect(settings.options).toMatchObject({
-      level: "normal",
-      htmlVoidTagStyle: "html5",
-      inlineTemplateSpacing: "auto",
-      formatTables: true,
-      formatWikilinks: true,
-      formatReferences: false,
-      formatExternalLinks: false,
-      formatSectionSpacing: false,
-      formatTemplateParameters: false,
-    });
+function detailedResult(
+  formatted: string,
+  overrides: Partial<FormatDetailedResult> = {},
+): FormatDetailedResult {
+  return {
+    formatted,
+    tableDiagnostics: [],
+    tableFormatDiagnostics: {
+      tablesInspected: 0,
+      tablesEligible: 0,
+      tablesChanged: 0,
+      tablesAlreadyCanonical: 0,
+      tablesSkippedAmbiguous: 0,
+      formattingPassesUsed: 0,
+      convergenceLimitReached: false,
+      tableSemanticIds: [],
+      changedTableSemanticIds: [],
+    },
+    footerDiagnostics: {
+      behaviorSwitchesMoved: 0,
+      behaviorSwitchesFormatted: 0,
+      defaultsortMoved: 0,
+      categoriesMoved: 0,
+      localizedCategoryAliasesCanonicalized: 0,
+      localizedDefaultsortAliasesCanonicalized: 0,
+      localizedBehaviorSwitchesCanonicalized: 0,
+      interlanguageLinksMoved: 0,
+      interlanguageLinksFormatted: 0,
+    },
+    redirectDiagnostics: {
+      redirectsFormatted: 0,
+      localizedRedirectAliasesCanonicalized: 0,
+    },
+    fileLinkDiagnostics: {
+      fileLinksFormatted: 0,
+      localizedFileNamespaceAliasesCanonicalized: 0,
+      localizedImageOptionsCanonicalized: 0,
+    },
+    wikilinkDiagnostics: {
+      wikilinksInspected: 0,
+      wikilinksEligible: 0,
+      wikilinksFormatted: 0,
+      underscoresReplaced: 0,
+      wikilinksWithFragmentsFormatted: 0,
+      wikilinksSkippedUnsafe: 0,
+      skipReasons: {},
+    },
+    externalLinkDiagnostics: {
+      externalLinksFormatted: 0,
+      externalLinksSkippedUnsafe: 0,
+    },
+    referenceDiagnostics: {
+      referencesFormatted: 0,
+      referenceGroupsFormatted: 0,
+      referenceLinesSkippedUnsafe: 0,
+    },
+    sectionSpacingDiagnostics: {
+      sectionSpacingBeforeHeadingsInserted: 0,
+      sectionSpacingAfterHeadingsInserted: 0,
+    },
+    templateParameterDiagnostics: {
+      templatesInspected: 0,
+      templatesEligible: 0,
+      templatesChanged: 0,
+      templatesAlreadyCanonical: 0,
+      templatesSkippedAmbiguous: 0,
+      uniqueTemplatesFormatted: 0,
+      templatesFormatted: 0,
+      templatesExpandedToMultiline: 0,
+      existingMultilineTemplatesNormalized: 0,
+      templatesSkipped: 0,
+      skipReasons: {},
+      formattingPassesUsed: 0,
+      convergenceLimitReached: false,
+      templateParametersFormatted: 0,
+      templateParameterLinesFormatted: 0,
+      templateParameterLinesSkippedUnsafe: 0,
+      templateSemanticIds: [],
+      changedTemplateSemanticIds: [],
+    },
+    equivalenceDiagnostics: [],
+    ...overrides,
+  };
+}
+
+function formatterApi(
+  normal: FormatDetailedResult,
+  safe: FormatDetailedResult,
+): FormatterApi {
+  return {
+    formatWikitextDetailedResult: vi.fn(() => normal),
+    formatWikitextSafeDetailed: vi.fn(() => safe),
+  };
+}
+
+const schemaByName = new Map(optionSchema.map((entry) => [entry.name, entry]));
+
+function alternateValue(
+  name: keyof FormatOptions,
+  defaultValue: unknown,
+): unknown {
+  const schema = schemaByName.get(name);
+  if (schema?.type === "boolean") return !defaultValue;
+  if (schema?.type === "number") return Number(defaultValue) + 1;
+  if (schema?.type === "stringArray") return ["test-prefix"];
+  if (schema?.type === "enum") {
+    return schema.enumValues?.find((value) => value !== defaultValue);
+  }
+  throw new Error(`No alternate VS Code setting value for ${name}`);
+}
+
+describe("VS Code formatter option parity", () => {
+  it("classifies every core option as exposed or config-file-only", () => {
+    const coreNames = optionSchema.map(({ name }) => name).sort();
+    const classifiedNames = [
+      ...vscodeFormatOptionMetadata.map(({ name }) => name),
+      ...configFileOnlyOptionNames,
+    ].sort();
+
+    expect(classifiedNames).toEqual(coreNames);
+    expect(new Set(classifiedNames).size).toBe(coreNames.length);
   });
 
-  it("maps experimental booleans", () => {
-    const options = buildFormatOptions(
-      config({
-        level: "experimental",
-        htmlVoidTagStyle: "preserve",
-        inlineTemplateSpacing: "spaced",
-        formatTables: true,
-        formatWikilinks: false,
-        formatReferences: true,
-        formatExternalLinks: true,
-        formatSectionSpacing: true,
-        formatTemplateParameters: true,
-      }),
+  it("maps all extension defaults from the core defaults", () => {
+    const options = buildFormatOptions(config());
+    const expected = Object.fromEntries(
+      vscodeFormatOptionMetadata.map(({ name }) => [
+        name,
+        defaultOptions[name],
+      ]),
     );
 
-    expect(options).toMatchObject({
-      level: "experimental",
-      htmlVoidTagStyle: "preserve",
-      inlineTemplateSpacing: "spaced",
-      formatTables: true,
-      formatWikilinks: false,
-      formatReferences: true,
-      formatExternalLinks: true,
-      formatSectionSpacing: true,
-      formatTemplateParameters: true,
+    expect(options).toEqual(expected);
+  });
+
+  it("maps explicit values for every exposed core option", () => {
+    const explicit = Object.fromEntries(
+      vscodeFormatOptionMetadata.map(({ name, defaultValue }) => [
+        name,
+        alternateValue(name, defaultValue),
+      ]),
+    );
+
+    expect(buildFormatOptions(config(explicit, true))).toEqual(explicit);
+  });
+
+  it("does not let unconfigured editor defaults override config or profile", () => {
+    expect(
+      buildFormatOptions(config({}, true), {
+        profile: "aggressive",
+        lineWidth: 88,
+      }),
+    ).toEqual({
+      profile: "aggressive",
+      lineWidth: 88,
     });
   });
 
-  it("does not let unconfigured editor defaults override a selected profile", () => {
-    expect(buildFormatOptions(config({ profile: "aggressive" }, true))).toEqual({
-      profile: "aggressive",
-    });
+  it("keeps package setting metadata synchronized with core metadata", async () => {
+    const packageJson = JSON.parse(
+      await readFile(new URL("../package.json", import.meta.url), "utf8"),
+    ) as {
+      contributes: {
+        configuration: {
+          properties: Record<
+            string,
+            {
+              default?: unknown;
+              enum?: unknown[];
+              items?: { type?: string };
+              type?: string | string[];
+              deprecationMessage?: string;
+              markdownDeprecationMessage?: string;
+            }
+          >;
+        };
+        commands: Array<{
+          command: string;
+          enablement?: string;
+        }>;
+      };
+    };
+    const properties = packageJson.contributes.configuration.properties;
+
+    for (const { name, defaultValue } of vscodeFormatOptionMetadata) {
+      const property = properties[`wikitextFmt.${name}`];
+      const schema = schemaByName.get(name);
+      expect(property, name).toBeDefined();
+      expect(property?.default, name).toEqual(defaultValue);
+      if (schema?.type === "boolean") expect(property?.type, name).toBe("boolean");
+      if (schema?.type === "number") expect(property?.type, name).toBe("number");
+      if (schema?.type === "enum") {
+        expect(property?.type, name).toBe("string");
+        expect(property?.enum, name).toEqual(schema.enumValues);
+      }
+      if (schema?.type === "stringArray") {
+        expect(property?.type, name).toBe("array");
+        expect(property?.items?.type, name).toBe("string");
+      }
+    }
+
+    for (const name of configFileOnlyOptionNames) {
+      expect(properties[`wikitextFmt.${name}`]).toBeUndefined();
+    }
+    const deprecated = properties["wikitextFmt.formatTemplateParameters"];
+    expect(
+      deprecated.deprecationMessage ?? deprecated.markdownDeprecationMessage,
+    ).toMatch(/formatTemplates.*templateParameterLayout.*inlineTemplateSpacing/u);
+
+    const commandIds = packageJson.contributes.commands.map(
+      ({ command }) => command,
+    );
+    expect(commandIds).toEqual(
+      expect.arrayContaining([
+        "wikitext-fmt.formatDocument",
+        "wikitext-fmt.checkDocument",
+        "wikitext-fmt.previewDocument",
+        "wikitext-fmt.showLastReport",
+        "wikitext-fmt.showResolvedConfiguration",
+        "wikitext-fmt.openConfiguration",
+      ]),
+    );
+    for (const command of packageJson.contributes.commands) {
+      if (command.command === "wikitext-fmt.showLastReport") continue;
+      expect(command.enablement, command.command).toBe(
+        "editorLangId == wikitext || editorLangId == mediawiki",
+      );
+    }
   });
 });
 
-describe("VS Code formatter wrapper behavior", () => {
-  it("uses safe formatting when safe is true", () => {
-    const formatter: FormatterApi = {
-      formatWikitext: vi.fn(() => "normal"),
-      formatWikitextSafe: vi.fn(() => ({ formatted: "safe" })),
-    };
-
-    const result = formatTextForEditor(
-      "==Title==",
-      { safe: true, options: { level: "normal" } },
-      formatter,
+describe("VS Code formatter detailed behavior", () => {
+  it("uses safe detailed formatting when safe is true", () => {
+    const formatter = formatterApi(
+      detailedResult("normal"),
+      detailedResult("safe"),
     );
+    const editorSettings = {
+      ...settings(true),
+      options: { lineWidth: 80 },
+    };
+    const result = formatTextForEditor("original", editorSettings, formatter);
 
     expect(result.formatted).toBe("safe");
-    expect(formatter.formatWikitextSafe).toHaveBeenCalledOnce();
-    expect(formatter.formatWikitext).not.toHaveBeenCalled();
+    expect(formatter.formatWikitextSafeDetailed).toHaveBeenCalledOnce();
+    expect(formatter.formatWikitextSafeDetailed).toHaveBeenCalledWith(
+      "original",
+      { lineWidth: 80 },
+    );
+    expect(formatter.formatWikitextDetailedResult).not.toHaveBeenCalled();
   });
 
-  it("uses non-safe formatting when safe is false", () => {
-    const formatter: FormatterApi = {
-      formatWikitext: vi.fn(() => "normal"),
-      formatWikitextSafe: vi.fn(() => ({ formatted: "safe" })),
-    };
-
-    const result = formatTextForEditor(
-      "==Title==",
-      { safe: false, options: { level: "normal" } },
-      formatter,
+  it("uses non-safe detailed formatting when safe is false", () => {
+    const formatter = formatterApi(
+      detailedResult("normal"),
+      detailedResult("safe"),
     );
+    const editorSettings = {
+      ...settings(false),
+      options: { formatTables: false },
+    };
+    const result = formatTextForEditor("original", editorSettings, formatter);
 
     expect(result.formatted).toBe("normal");
-    expect(formatter.formatWikitext).toHaveBeenCalledOnce();
-    expect(formatter.formatWikitextSafe).not.toHaveBeenCalled();
+    expect(formatter.formatWikitextDetailedResult).toHaveBeenCalledOnce();
+    expect(formatter.formatWikitextDetailedResult).toHaveBeenCalledWith(
+      "original",
+      { formatTables: false },
+    );
+    expect(formatter.formatWikitextSafeDetailed).not.toHaveBeenCalled();
   });
 
-  it("returns warning result instead of an edit decision", () => {
-    const formatter: FormatterApi = {
-      formatWikitext: vi.fn(() => "unused"),
-      formatWikitextSafe: vi.fn(() => ({
-        formatted: "original",
-        warning: "safe check failed",
-      })),
-    };
+  it.each([true, false])(
+    "preserves structured failure and suppresses edits when safe=%s",
+    (safe) => {
+      const failure: FormatFailure = {
+        code: "document-equivalence",
+        stage: "document",
+        message: "equivalence rejected",
+      };
+      const failed = detailedResult("candidate", {
+        failure,
+        warning: failure.message,
+      });
+      const formatter = formatterApi(failed, failed);
 
-    expect(
-      getEditorFormattingResult(
-        "original",
-        { safe: true, options: {} },
-        formatter,
-      ),
-    ).toEqual({
+      expect(
+        getEditorFormattingResult("original", settings(safe), formatter),
+      ).toMatchObject({
+        kind: "failed",
+        formatted: "candidate",
+        changed: true,
+        failure,
+      });
+    },
+  );
+
+  it("preserves warning results without treating them as unchanged", () => {
+    const warned = detailedResult("original", {
+      warning: "compatibility warning",
+    });
+    const result = getEditorFormattingResult(
+      "original",
+      settings(true),
+      formatterApi(warned, warned),
+    );
+
+    expect(result).toMatchObject({
       kind: "warning",
       formatted: "original",
-      warning: "safe check failed",
+      changed: false,
+      warning: "compatibility warning",
     });
   });
 
   it("reports unchanged output as no edit", () => {
-    const formatter: FormatterApi = {
-      formatWikitext: vi.fn(() => "original"),
-      formatWikitextSafe: vi.fn(() => ({ formatted: "original" })),
-    };
-
+    const unchanged = detailedResult("original");
     expect(
       getEditorFormattingResult(
         "original",
-        { safe: true, options: {} },
-        formatter,
+        settings(true),
+        formatterApi(unchanged, unchanged),
       ),
-    ).toEqual({
+    ).toMatchObject({
       kind: "unchanged",
       formatted: "original",
+      changed: false,
     });
   });
 
   it("reports changed output for full-document replacement", () => {
-    const result = getEditorFormattingResult("==Title==", {
-      safe: true,
-      options: {},
-    });
-
-    expect(result).toEqual({
+    expect(
+      getEditorFormattingResult("==Title==", {
+        ...settings(true),
+        options: {},
+      }),
+    ).toMatchObject({
       kind: "changed",
       formatted: "== Title ==",
+      changed: true,
+    });
+  });
+
+  it("preserves the active config path in the document result", () => {
+    const unchanged = detailedResult("original");
+    expect(
+      getEditorDocumentFormattingResult(
+        "original",
+        {
+          kind: "settings",
+          settings: settings(true),
+          configPath: "/workspace/.wikitextfmtrc",
+        },
+        formatterApi(unchanged, unchanged),
+      ),
+    ).toMatchObject({
+      kind: "unchanged",
+      configPath: "/workspace/.wikitextfmtrc",
     });
   });
 });
 
-describe("VS Code formatter wrapper config loading", () => {
+describe("VS Code formatter config loading", () => {
   it("uses VS Code settings only when no config is found", async () => {
     const root = await mkdtemp(join(tmpdir(), "wikitext-formatter-"));
     const result = await resolveEditorSettings(config({}, true), {
@@ -185,6 +433,8 @@ describe("VS Code formatter wrapper config loading", () => {
       settings: {
         safe: true,
         options: {},
+        explicitOptions: {},
+        configOptions: {},
       },
     });
   });
@@ -209,10 +459,45 @@ describe("VS Code formatter wrapper config loading", () => {
 
     expect(result).toMatchObject({
       kind: "settings",
+      configPath: join(root, configFilename),
       settings: {
         options: {
           level: "experimental",
           formatReferences: true,
+        },
+      },
+    });
+  });
+
+  it("passes config-file-only options through the loaded config", async () => {
+    const root = await mkdtemp(join(tmpdir(), "wikitext-formatter-"));
+    const aliases = { categoryNamespaces: ["分类"] };
+    await writeFile(
+      join(root, ".wikitextfmtrc"),
+      JSON.stringify({
+        parserConfig: "mediawiki",
+        localizationSource: "custom",
+        localizationAliases: aliases,
+      }),
+    );
+
+    const result = await resolveEditorSettings(config({}, true), {
+      enabled: true,
+      documentPath: join(root, "page.wiki"),
+    });
+
+    expect(result).toMatchObject({
+      kind: "settings",
+      settings: {
+        options: {
+          parserConfig: "mediawiki",
+          localizationSource: "custom",
+          localizationAliases: aliases,
+        },
+        configOptions: {
+          parserConfig: "mediawiki",
+          localizationSource: "custom",
+          localizationAliases: aliases,
         },
       },
     });
@@ -236,6 +521,10 @@ describe("VS Code formatter wrapper config loading", () => {
     expect(result).toMatchObject({
       kind: "settings",
       settings: {
+        explicitOptions: {
+          level: "normal",
+          formatTables: false,
+        },
         options: {
           level: "normal",
           formatTables: false,
@@ -268,6 +557,132 @@ describe("VS Code formatter wrapper config loading", () => {
     });
   });
 
+  it("resolves a discovered relative parserConfig from the config directory", async () => {
+    const root = await mkdtemp(join(tmpdir(), "wikitext-formatter-"));
+    const nested = join(root, "pages");
+    await mkdir(nested);
+    await writeFile(
+      join(root, ".wikitextfmtrc"),
+      JSON.stringify({ parserConfig: "parser/custom.json" }),
+    );
+
+    const result = await resolveEditorSettings(config({}, true), {
+      enabled: true,
+      documentPath: join(nested, "page.wiki"),
+    });
+
+    expect(result).toMatchObject({
+      kind: "settings",
+      settings: {
+        configOptions: {
+          parserConfig: "parser/custom.json",
+        },
+        options: {
+          parserConfig: resolve(root, "parser/custom.json"),
+        },
+      },
+    });
+  });
+
+  it("resolves an explicit relative parserConfig from the config directory", async () => {
+    const root = await mkdtemp(join(tmpdir(), "wikitext-formatter-"));
+    const configDirectory = join(root, "config");
+    await mkdir(configDirectory);
+    await writeFile(
+      join(configDirectory, "formatter.json"),
+      JSON.stringify({ parserConfig: "./parser.json" }),
+    );
+
+    const result = await resolveEditorSettings(config({}, true), {
+      enabled: true,
+      configPath: "config/formatter.json",
+      documentPath: join(root, "pages", "page.wiki"),
+      workspaceFolderPath: root,
+    });
+
+    expect(result).toMatchObject({
+      kind: "settings",
+      settings: {
+        options: {
+          parserConfig: join(configDirectory, "parser.json"),
+        },
+      },
+    });
+  });
+
+  it("uses the selected workspace root before resolving parserConfig", async () => {
+    const firstRoot = await mkdtemp(join(tmpdir(), "wikitext-root-a-"));
+    const secondRoot = await mkdtemp(join(tmpdir(), "wikitext-root-b-"));
+    const configDirectory = join(firstRoot, "config");
+    await mkdir(configDirectory);
+    await writeFile(
+      join(configDirectory, "formatter.json"),
+      JSON.stringify({ parserConfig: "../parser.json" }),
+    );
+
+    const result = await resolveEditorSettings(config({}, true), {
+      enabled: true,
+      configPath: "config/formatter.json",
+      documentPath: join(secondRoot, "page.wiki"),
+      workspaceFolderPath: firstRoot,
+    });
+
+    expect(result).toMatchObject({
+      kind: "settings",
+      configPath: join(configDirectory, "formatter.json"),
+      settings: {
+        options: {
+          parserConfig: join(firstRoot, "parser.json"),
+        },
+      },
+    });
+  });
+
+  it.each(["mediawiki", "custom-parser"])(
+    "does not rewrite named parser config %s",
+    async (parserConfig) => {
+      const root = await mkdtemp(join(tmpdir(), "wikitext-formatter-"));
+      await writeFile(
+        join(root, ".wikitextfmtrc"),
+        JSON.stringify({ parserConfig }),
+      );
+
+      const result = await resolveEditorSettings(config({}, true), {
+        enabled: true,
+        documentPath: join(root, "page.wiki"),
+      });
+
+      expect(result).toMatchObject({
+        kind: "settings",
+        settings: {
+          options: { parserConfig },
+        },
+      });
+      expect(isAbsolute(parserConfig)).toBe(false);
+    },
+  );
+
+  it("does not rewrite an absolute parser config path", async () => {
+    const root = await mkdtemp(join(tmpdir(), "wikitext-formatter-"));
+    const parserConfig = join(root, "parser.json");
+    await writeFile(
+      join(root, ".wikitextfmtrc"),
+      JSON.stringify({ parserConfig }),
+    );
+
+    const result = await resolveEditorSettings(config({}, true), {
+      enabled: true,
+      documentPath: join(root, "page.wiki"),
+    });
+
+    expect(result).toMatchObject({
+      kind: "settings",
+      settings: {
+        options: { parserConfig },
+      },
+    });
+  });
+
   it("ignores config files when config loading is disabled", async () => {
     const root = await mkdtemp(join(tmpdir(), "wikitext-formatter-"));
     await writeFile(
@@ -288,25 +703,24 @@ describe("VS Code formatter wrapper config loading", () => {
     });
   });
 
-  it("returns a warning for invalid config", async () => {
+  it("returns a warning with the config path for invalid config", async () => {
     const root = await mkdtemp(join(tmpdir(), "wikitext-formatter-"));
-    await writeFile(
-      join(root, ".wikitextfmtrc"),
-      JSON.stringify({ unknownOption: true }),
-    );
+    const configPath = join(root, ".wikitextfmtrc");
+    await writeFile(configPath, JSON.stringify({ unknownOption: true }));
 
     const result = await resolveEditorSettings(config({}, true), {
       enabled: true,
       documentPath: join(root, "page.wiki"),
     });
 
-    expect(result.kind).toBe("warning");
     expect(result).toMatchObject({
+      kind: "warning",
+      configPath,
       warning: expect.stringContaining("Unknown configuration option"),
     });
   });
 
-  it("does not discover config for untitled documents", async () => {
+  it("does not discover config for untitled or virtual documents", async () => {
     const root = await mkdtemp(join(tmpdir(), "wikitext-formatter-"));
     await writeFile(
       join(root, ".wikitextfmtrc"),
@@ -324,5 +738,93 @@ describe("VS Code formatter wrapper config loading", () => {
         options: {},
       },
     });
+  });
+});
+
+describe("VS Code reports and language guards", () => {
+  it("summarizes structured diagnostics and skip reasons", () => {
+    const details = detailedResult("formatted", {
+      tableFormatDiagnostics: {
+        ...detailedResult("").tableFormatDiagnostics,
+        tablesChanged: 2,
+        tablesSkippedAmbiguous: 1,
+      },
+      wikilinkDiagnostics: {
+        ...detailedResult("").wikilinkDiagnostics,
+        wikilinksSkippedUnsafe: 3,
+        skipReasons: { "unsafe-parent": 3 },
+      },
+    });
+    const formatter = formatterApi(details, details);
+    const result = getEditorDocumentFormattingResult(
+      "original",
+      {
+        kind: "settings",
+        settings: {
+          ...settings(true),
+          options: { profile: "aggressive" },
+          explicitOptions: { profile: "aggressive" },
+        },
+        configPath: "/workspace/.wikitextfmtrc",
+      },
+      formatter,
+    );
+
+    expect(
+      createDocumentReport({
+        uri: "file:///workspace/page.wiki",
+        languageId: "wikitext",
+        result,
+      }),
+    ).toMatchObject({
+      activeConfigPath: "/workspace/.wikitextfmtrc",
+      resolvedProfile: "aggressive",
+      resolvedLevel: "experimental",
+      explicitVscodeOptions: { profile: "aggressive" },
+      status: "changed",
+      diagnostics: {
+        ruleChanges: { tablesChanged: 2 },
+        skippedOrAmbiguous: {
+          tablesSkippedAmbiguous: 1,
+          wikilinksSkippedUnsafe: 3,
+        },
+        skipReasons: {
+          "wikilinks: unsafe-parent": 3,
+        },
+      },
+    });
+  });
+
+  it("shows config, explicit overrides, final core options, and editor safe value", () => {
+    const resolution = {
+      kind: "settings" as const,
+      configPath: "/workspace/.wikitextfmtrc",
+      settings: buildEditorSettings(
+        config({ lineWidth: 88, safe: false }, true),
+        { profile: "production", lineWidth: 100 },
+        { profile: "production", lineWidth: 100 },
+      ),
+    };
+
+    expect(
+      createResolvedConfigurationReport(
+        "file:///workspace/page.wiki",
+        resolution,
+      ),
+    ).toMatchObject({
+      activeConfigPath: "/workspace/.wikitextfmtrc",
+      resolvedProfile: "production",
+      resolvedLevel: "normal",
+      vscodeOverrides: { lineWidth: 88 },
+      configFileOptions: { profile: "production", lineWidth: 100 },
+      coreOptions: { profile: "production", lineWidth: 88 },
+      editorOnly: { safe: false },
+    });
+  });
+
+  it("accepts only wikitext and mediawiki language ids", () => {
+    expect(isSupportedLanguageId("wikitext")).toBe(true);
+    expect(isSupportedLanguageId("mediawiki")).toBe(true);
+    expect(isSupportedLanguageId("plaintext")).toBe(false);
   });
 });

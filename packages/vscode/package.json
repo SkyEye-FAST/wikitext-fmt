@@ -23,41 +23,36 @@
     "commands": [
       {
         "command": "wikitext-fmt.formatDocument",
+        "enablement": "editorLangId == wikitext || editorLangId == mediawiki",
         "title": "Wikitext Formatter: Format Document"
+      },
+      {
+        "command": "wikitext-fmt.checkDocument",
+        "enablement": "editorLangId == wikitext || editorLangId == mediawiki",
+        "title": "Wikitext Formatter: Check Document"
+      },
+      {
+        "command": "wikitext-fmt.previewDocument",
+        "enablement": "editorLangId == wikitext || editorLangId == mediawiki",
+        "title": "Wikitext Formatter: Preview Document"
+      },
+      {
+        "command": "wikitext-fmt.showLastReport",
+        "title": "Wikitext Formatter: Show Last Report"
+      },
+      {
+        "command": "wikitext-fmt.showResolvedConfiguration",
+        "enablement": "editorLangId == wikitext || editorLangId == mediawiki",
+        "title": "Wikitext Formatter: Show Resolved Configuration"
+      },
+      {
+        "command": "wikitext-fmt.openConfiguration",
+        "enablement": "editorLangId == wikitext || editorLangId == mediawiki",
+        "title": "Wikitext Formatter: Open Configuration"
       }
     ],
     "configuration": {
       "properties": {
-        "wikitextFmt.formatReferences": {
-          "default": false,
-          "description": "Enable experimental reference formatting.",
-          "type": "boolean"
-        },
-        "wikitextFmt.formatExternalLinks": {
-          "default": false,
-          "description": "Enable experimental external link formatting.",
-          "type": "boolean"
-        },
-        "wikitextFmt.formatWikilinks": {
-          "default": true,
-          "description": "Normalize parser-confirmed internal page-link targets to use spaces instead of underscores.",
-          "type": "boolean"
-        },
-        "wikitextFmt.formatSectionSpacing": {
-          "default": false,
-          "description": "Enable experimental section spacing formatting.",
-          "type": "boolean"
-        },
-        "wikitextFmt.formatTables": {
-          "default": true,
-          "description": "Enable normal-level parser-assisted table formatting.",
-          "type": "boolean"
-        },
-        "wikitextFmt.formatTemplateParameters": {
-          "default": false,
-          "description": "Deprecated compatibility alias for the unified template engine.",
-          "type": "boolean"
-        },
         "wikitextFmt.profile": {
           "default": "default",
           "description": "Formatter profile. Production enables graduated structural rules; aggressive also enables still-validating extensions.",
@@ -65,6 +60,178 @@
             "default",
             "production",
             "aggressive"
+          ],
+          "type": "string"
+        },
+        "wikitextFmt.lineWidth": {
+          "default": 120,
+          "description": "Preferred line width used by parser-assisted layout decisions.",
+          "type": "number"
+        },
+        "wikitextFmt.formatHeadings": {
+          "default": true,
+          "description": "Enable heading formatting.",
+          "type": "boolean"
+        },
+        "wikitextFmt.formatTemplates": {
+          "default": true,
+          "description": "Enable the unified parser-assisted template formatter.",
+          "type": "boolean"
+        },
+        "wikitextFmt.inlineTemplateSpacing": {
+          "default": "auto",
+          "description": "Canonical spacing for single-line named templates.",
+          "enum": [
+            "auto",
+            "compact",
+            "spaced"
+          ],
+          "type": "string"
+        },
+        "wikitextFmt.templateParameterLayout": {
+          "default": "flush",
+          "description": "Parameter layout for multiline templates.",
+          "enum": [
+            "compact",
+            "flush",
+            "indented"
+          ],
+          "type": "string"
+        },
+        "wikitextFmt.formatTemplateParameters": {
+          "default": false,
+          "deprecationMessage": "Compatibility entry point for the unified template engine. Use wikitextFmt.formatTemplates, wikitextFmt.templateParameterLayout, and wikitextFmt.inlineTemplateSpacing instead.",
+          "description": "Deprecated compatibility alias for the unified template engine.",
+          "type": "boolean"
+        },
+        "wikitextFmt.formatCategories": {
+          "default": true,
+          "description": "Enable parser-assisted category and DEFAULTSORT footer formatting.",
+          "type": "boolean"
+        },
+        "wikitextFmt.formatLists": {
+          "default": true,
+          "description": "Enable list-marker formatting.",
+          "type": "boolean"
+        },
+        "wikitextFmt.formatFileLinks": {
+          "default": true,
+          "description": "Enable parser-assisted whole-line file link formatting.",
+          "type": "boolean"
+        },
+        "wikitextFmt.formatWikilinks": {
+          "default": true,
+          "description": "Normalize parser-confirmed internal page-link targets to use spaces instead of underscores.",
+          "type": "boolean"
+        },
+        "wikitextFmt.formatExternalLinks": {
+          "default": false,
+          "description": "Enable experimental external link formatting.",
+          "type": "boolean"
+        },
+        "wikitextFmt.formatReferences": {
+          "default": false,
+          "description": "Enable experimental reference formatting.",
+          "type": "boolean"
+        },
+        "wikitextFmt.formatInterlanguageLinks": {
+          "default": false,
+          "description": "Enable experimental whole-line interlanguage link formatting.",
+          "type": "boolean"
+        },
+        "wikitextFmt.interlanguagePlacement": {
+          "default": "preserve",
+          "description": "Placement policy for recognized interlanguage links.",
+          "enum": [
+            "preserve",
+            "footer"
+          ],
+          "type": "string"
+        },
+        "wikitextFmt.interlanguagePrefixes": {
+          "default": [
+            "ar",
+            "de",
+            "en",
+            "es",
+            "fr",
+            "it",
+            "ja",
+            "ko",
+            "pl",
+            "pt",
+            "ru",
+            "uk",
+            "zh",
+            "zh-hans",
+            "zh-hant"
+          ],
+          "description": "Prefixes recognized as interlanguage links.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "wikitextFmt.formatSectionSpacing": {
+          "default": false,
+          "description": "Enable experimental section spacing formatting.",
+          "type": "boolean"
+        },
+        "wikitextFmt.formatBehaviorSwitches": {
+          "default": true,
+          "description": "Enable recognized behavior-switch formatting.",
+          "type": "boolean"
+        },
+        "wikitextFmt.formatRedirects": {
+          "default": true,
+          "description": "Enable parser-assisted redirect formatting.",
+          "type": "boolean"
+        },
+        "wikitextFmt.behaviorSwitchPlacement": {
+          "default": "preserve",
+          "description": "Placement policy for recognized behavior switches.",
+          "enum": [
+            "preserve",
+            "footer"
+          ],
+          "type": "string"
+        },
+        "wikitextFmt.localizedSyntaxStyle": {
+          "default": "preserve",
+          "description": "Whether recognized localized syntax spelling is preserved or canonicalized to English.",
+          "enum": [
+            "preserve",
+            "canonical-english"
+          ],
+          "type": "string"
+        },
+        "wikitextFmt.formatTables": {
+          "default": true,
+          "description": "Enable normal-level parser-assisted table formatting.",
+          "type": "boolean"
+        },
+        "wikitextFmt.tableCellSeparatorStyle": {
+          "default": "auto",
+          "description": "Table cell separator layout policy.",
+          "enum": [
+            "auto",
+            "split",
+            "preserve"
+          ],
+          "type": "string"
+        },
+        "wikitextFmt.normalizeBlankLines": {
+          "default": true,
+          "description": "Normalize conservative blank-line runs outside protected syntax.",
+          "type": "boolean"
+        },
+        "wikitextFmt.level": {
+          "default": "normal",
+          "description": "Formatter rule level.",
+          "enum": [
+            "safe",
+            "normal",
+            "experimental"
           ],
           "type": "string"
         },
@@ -78,29 +245,9 @@
           ],
           "type": "string"
         },
-        "wikitextFmt.inlineTemplateSpacing": {
-          "default": "auto",
-          "description": "Canonical spacing for single-line named templates.",
-          "enum": [
-            "auto",
-            "compact",
-            "spaced"
-          ],
-          "type": "string"
-        },
-        "wikitextFmt.level": {
-          "default": "normal",
-          "description": "Formatter rule level.",
-          "enum": [
-            "safe",
-            "normal",
-            "experimental"
-          ],
-          "type": "string"
-        },
         "wikitextFmt.safe": {
           "default": true,
-          "description": "Run with parse and idempotency safety checks.",
+          "description": "Run an additional detailed idempotency pass after the formatter's normal parse, round-trip, and structural-equivalence checks.",
           "type": "boolean"
         },
         "wikitextFmt.config.enabled": {

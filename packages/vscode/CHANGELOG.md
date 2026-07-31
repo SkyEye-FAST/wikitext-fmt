@@ -5,6 +5,31 @@ Core-only changes remain in the root changelog.
 
 ## Unreleased
 
+### Added
+
+- Exposed the remaining editor-appropriate core options, with automated parity
+  checks that classify every core option as either a VS Code setting or an
+  explicit config-file-only option.
+- Added document check and read-only diff preview commands, structured
+  output-channel reports, resolved-configuration inspection, and opening the
+  config file actually used by the active document.
+
+### Changed
+
+- Both safe and non-safe editor modes now use the core detailed result APIs and
+  preserve structured failures and rule diagnostics. Any failure or warning
+  remains fail-closed and produces no document edit.
+- Limited all document commands to `wikitext` and compatible `mediawiki`
+  documents in both contribution metadata and runtime checks.
+- Marked `formatTemplateParameters` as deprecated in VS Code metadata and
+  directs users to the unified template controls.
+
+### Fixed
+
+- Relative JSON and path-like `parserConfig` values loaded from configuration
+  files now resolve from the configuration file directory instead of the
+  extension host process working directory.
+
 ## 0.2.0 - 2026-07-30
 
 ### Added
