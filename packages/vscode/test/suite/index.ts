@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import * as vscode from "vscode";
@@ -13,23 +13,65 @@ const expectedCommands = [
   "wikitext-fmt.openConfiguration",
 ] as const;
 
-async function waitForExtensionActivation(): Promise<void> {
+interface ExtensionTestApi {
+  getLastReport(): string | undefined;
+}
+
+interface DocumentReport {
+  status: string;
+  changed: boolean;
+  failure: {
+    code: string;
+    stage: string | null;
+  } | null;
+  warning: string | null;
+}
+
+async function waitForExtensionActivation(): Promise<ExtensionTestApi> {
   const extension = vscode.extensions.getExtension(
     "skyeyefast.wikitext-formatter",
   );
   assert.ok(extension, "extension should be discoverable by id");
-  await extension.activate();
+  const api = (await extension.activate()) as ExtensionTestApi | undefined;
+  assert.ok(
+    api && typeof api.getLastReport === "function",
+    "extension should expose its report in the extension test environment",
+  );
 
   const deadline = Date.now() + 5_000;
   while (Date.now() < deadline) {
     const commands = await vscode.commands.getCommands(true);
     if (expectedCommands.every((command) => commands.includes(command))) {
-      return;
+      return api;
     }
     await new Promise((resolve) => setTimeout(resolve, 50));
   }
 
   throw new Error("wikitext-fmt commands were not registered");
+}
+
+function getLastDocumentReport(api: ExtensionTestApi): DocumentReport {
+  const report = api.getLastReport();
+  assert.ok(report, "a document report should be available");
+  return JSON.parse(report) as DocumentReport;
+}
+
+function assertOnlyCrlf(source: string, label: string): void {
+  assert.doesNotMatch(source, /(^|[^\r])\n/u, `${label} contains isolated LF`);
+  assert.doesNotMatch(source, /\r(?!\n)/u, `${label} contains bare CR`);
+  assert.doesNotMatch(source, /\r\r\n/u, `${label} contains CRCRLF`);
+}
+
+async function openFileDocument(
+  root: string,
+  filename: string,
+  source: string,
+): Promise<{ document: vscode.TextDocument; editor: vscode.TextEditor; path: string }> {
+  const path = join(root, filename);
+  await writeFile(path, source, "utf8");
+  const document = await vscode.workspace.openTextDocument(vscode.Uri.file(path));
+  const editor = await vscode.window.showTextDocument(document);
+  return { document, editor, path };
 }
 
 export async function run(): Promise<void> {
@@ -39,7 +81,7 @@ export async function run(): Promise<void> {
   });
 
   const editor = await vscode.window.showTextDocument(document);
-  await waitForExtensionActivation();
+  const extensionApi = await waitForExtensionActivation();
 
   const commands = await vscode.commands.getCommands(true);
   for (const command of expectedCommands) {
@@ -52,6 +94,9 @@ export async function run(): Promise<void> {
     "==Title==",
     "checkDocument must not edit the document",
   );
+  const checkReport = getLastDocumentReport(extensionApi);
+  assert.equal(checkReport.status, "changed");
+  assert.equal(checkReport.changed, true);
 
   await vscode.commands.executeCommand("wikitext-fmt.previewDocument");
   assert.equal(
@@ -118,6 +163,99 @@ export async function run(): Promise<void> {
   await vscode.commands.executeCommand("wikitext-fmt.formatDocument");
 
   assert.equal(configuredEditor.document.getText(), "<br />");
+
+  const crlfInput = "==Title==\r\n:item\r\n";
+  const crlfExpected = "== Title ==\r\n: item\r\n";
+  const crlf = await openFileDocument(
+    root,
+    "crlf-page.wiki",
+    crlfInput,
+  );
+  assert.equal(crlf.document.eol, vscode.EndOfLine.CRLF);
+
+  await vscode.commands.executeCommand("wikitext-fmt.checkDocument");
+  assert.equal(
+    crlf.document.getText(),
+    crlfInput,
+    "checkDocument must not edit a CRLF document",
+  );
+  assert.equal(await readFile(crlf.path, "utf8"), crlfInput);
+  const crlfCheckReport = getLastDocumentReport(extensionApi);
+  assert.equal(crlfCheckReport.status, "changed");
+  assert.equal(crlfCheckReport.changed, true);
+  assert.equal(crlfCheckReport.failure, null);
+  assert.equal(crlfCheckReport.warning, null);
+
+  const previewsBefore = new Set(
+    vscode.workspace.textDocuments
+      .filter(({ uri }) => uri.scheme === "wikitext-fmt-preview")
+      .map(({ uri }) => uri.toString()),
+  );
+  await vscode.commands.executeCommand("wikitext-fmt.previewDocument");
+  const preview = vscode.workspace.textDocuments.find(
+    ({ uri }) =>
+      uri.scheme === "wikitext-fmt-preview" &&
+      !previewsBefore.has(uri.toString()),
+  );
+  assert.ok(preview, "previewDocument should open a new preview document");
+  assert.equal(preview.getText(), crlfExpected);
+  assert.equal(preview.eol, vscode.EndOfLine.CRLF);
+  assert.equal(
+    crlf.document.getText(),
+    crlfInput,
+    "previewDocument must not edit a CRLF source document",
+  );
+  assert.equal(await readFile(crlf.path, "utf8"), crlfInput);
+  const crlfPreviewReport = getLastDocumentReport(extensionApi);
+  assert.equal(crlfPreviewReport.status, "changed");
+  assert.equal(crlfPreviewReport.changed, true);
+  assert.equal(crlfPreviewReport.failure, null);
+
+  await vscode.window.showTextDocument(crlf.document);
+  await vscode.commands.executeCommand("wikitext-fmt.formatDocument");
+  assert.equal(crlf.editor.document.getText(), crlfExpected);
+  assert.equal(crlf.document.eol, vscode.EndOfLine.CRLF);
+  assert.equal(await crlf.document.save(), true);
+  const savedCrlf = await readFile(crlf.path, "utf8");
+  assert.equal(savedCrlf, crlfExpected);
+  assertOnlyCrlf(savedCrlf, "saved CRLF document");
+
+  for (const [filename, unsupportedSource] of [
+    ["mixed-eol-page.wiki", "==Title==\r\n:item\n"],
+    ["bare-cr-page.wiki", "==Title==\r:item\r"],
+  ] as const) {
+    const unsupported = await openFileDocument(
+      root,
+      filename,
+      unsupportedSource,
+    );
+    const modelBefore = unsupported.document.getText();
+    const bytesBefore = await readFile(unsupported.path, "utf8");
+
+    await vscode.commands.executeCommand("wikitext-fmt.formatDocument");
+
+    const report = getLastDocumentReport(extensionApi);
+    assert.equal(report.status, "failed");
+    assert.equal(report.changed, false);
+    assert.equal(report.failure?.code, "unsupported-line-endings");
+    assert.equal(report.failure?.stage, "input-normalization");
+    assert.match(report.warning ?? "", /unsupported/u);
+    assert.equal(
+      unsupported.document.getText(),
+      modelBefore,
+      `${filename} must not receive a TextEdit`,
+    );
+    assert.equal(
+      unsupported.document.isDirty,
+      false,
+      `${filename} must remain unmodified`,
+    );
+    assert.equal(
+      await readFile(unsupported.path, "utf8"),
+      bytesBefore,
+      `${filename} must remain byte-for-byte unchanged`,
+    );
+  }
 
   await vscode.commands.executeCommand("wikitext-fmt.openConfiguration");
   assert.equal(

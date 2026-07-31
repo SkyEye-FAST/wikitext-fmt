@@ -18,6 +18,7 @@ delete process.env.ELECTRON_RUN_AS_NODE;
 delete process.env.VSCODE_IPC_HOOK_CLI;
 delete process.env.VSCODE_IPC_HOOK;
 process.env.DONT_PROMPT_WSL_INSTALL = "1";
+process.env.WIKITEXT_FMT_EXTENSION_TEST = "1";
 
 async function findVsix() {
   if (process.env.VSCODE_TEST_VSIX) {

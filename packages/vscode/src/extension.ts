@@ -1,4 +1,5 @@
 import * as vscode from "vscode";
+import { TextDecoder } from "node:util";
 import {
   buildEditorConfigLoadOptions,
   getEditorDocumentFormattingResult,
@@ -17,6 +18,10 @@ const PREVIEW_SCHEME = "wikitext-fmt-preview";
 
 let outputChannel: vscode.OutputChannel;
 let lastReport: string | undefined;
+
+export interface ExtensionTestApi {
+  getLastReport(): string | undefined;
+}
 
 class PreviewContentProvider implements vscode.TextDocumentContentProvider {
   private readonly contents = new Map<string, string>();
@@ -64,7 +69,33 @@ async function analyzeDocument(
   document: vscode.TextDocument,
 ): Promise<EditorDocumentFormattingResult> {
   const resolution = await getSettings(document);
-  return getEditorDocumentFormattingResult(document.getText(), resolution);
+  const source = await sourceForAnalysis(document);
+  return getEditorDocumentFormattingResult(source, resolution);
+}
+
+function normalizeForDocumentModel(
+  source: string,
+  lineEnding: vscode.EndOfLine,
+): string {
+  const eol = lineEnding === vscode.EndOfLine.CRLF ? "\r\n" : "\n";
+  return source.replace(/\r\n|\r|\n/gu, eol);
+}
+
+async function sourceForAnalysis(
+  document: vscode.TextDocument,
+): Promise<string> {
+  const modelSource = document.getText();
+  if (document.uri.scheme !== "file" || document.isDirty) return modelSource;
+
+  try {
+    const bytes = await vscode.workspace.fs.readFile(document.uri);
+    const diskSource = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+    return normalizeForDocumentModel(diskSource, document.eol) === modelSource
+      ? diskSource
+      : modelSource;
+  } catch {
+    return modelSource;
+  }
 }
 
 function writeOutput(content: string, reveal: boolean): void {
@@ -224,7 +255,9 @@ async function openConfiguration(document: vscode.TextDocument): Promise<void> {
   await vscode.window.showTextDocument(configDocument);
 }
 
-export function activate(context: vscode.ExtensionContext): void {
+export function activate(
+  context: vscode.ExtensionContext,
+): ExtensionTestApi | undefined {
   outputChannel = vscode.window.createOutputChannel("Wikitext Formatter");
   const previewProvider = new PreviewContentProvider();
   const provider: vscode.DocumentFormattingEditProvider = {
@@ -294,6 +327,10 @@ export function activate(context: vscode.ExtensionContext): void {
       },
     ),
   );
+
+  return process.env.WIKITEXT_FMT_EXTENSION_TEST === "1"
+    ? { getLastReport: () => lastReport }
+    : undefined;
 }
 
 export function deactivate(): void {}
