@@ -8,14 +8,17 @@ a switch between all safeguards and no safeguards.
 
 `formatWikitextDetailedResult` performs these stages:
 
-1. Create the configured parser and parse the input.
-2. Require the parser root to serialize exactly to the input.
-3. Run enabled rules. Templates and tables use bounded convergence and
+1. Classify input as no line endings, pure LF, pure CRLF, mixed, or bare CR.
+2. Normalize pure CRLF to an internal LF snapshot; reject mixed or bare CR.
+3. Create the configured parser and parse the internal snapshot.
+4. Require the parser root to serialize exactly to that snapshot.
+5. Run enabled rules. Templates and tables use bounded convergence and
    rule-specific structural fingerprints.
-4. Protect opaque ranges before rules that do not understand those structures.
-5. Parse and exactly round-trip the candidate output.
-6. Compare final document semantic fingerprints.
-7. Return accepted output, or the original input with a structured failure.
+6. Protect opaque ranges before rules that do not understand those structures.
+7. Parse and exactly round-trip the candidate output.
+8. Compare final document semantic fingerprints.
+9. Restore CRLF when required and return accepted output, or the exact original
+   input with a structured failure.
 
 Unexpected exceptions also fail closed. The compact `formatWikitext` calls this
 pipeline and returns only its `formatted` string, so it can hide why the
@@ -25,7 +28,8 @@ original source was returned.
 
 `formatWikitextSafeDetailed` first runs the base detailed pipeline. If that
 result has a warning or failure, it returns the original source. Otherwise it
-runs the base pipeline again on accepted output and requires:
+runs the complete line-ending envelope and base pipeline again on the restored
+accepted output and requires:
 
 - no second-pass warning or failure; and
 - second-pass output exactly equal to first-pass output.
@@ -45,6 +49,7 @@ document equivalence, and original-source fallback still apply.
 | --- | --- |
 | `input-parse` | The configured parser could not parse input |
 | `input-roundtrip` | Parsed input did not serialize byte-for-byte to the source |
+| `unsupported-line-endings` | `input-normalization`: input mixes LF/CRLF or contains bare CR |
 | `output-parse` | Candidate output could not be parsed and exactly round-tripped |
 | `template-equivalence` | Template fingerprints changed |
 | `table-equivalence` | Table fingerprints changed |
@@ -56,6 +61,11 @@ document equivalence, and original-source fallback still apply.
 
 `FormatFailure` contains `code`, an optional `stage`, and `message`. Every
 failure returns the original input.
+
+Pure CRLF output contains CRLF for both retained and formatter-created line
+breaks. Public table diagnostic `start` and `end` offsets are mapped from the
+internal LF snapshot back to original CRLF offsets, including exclusive range
+ends and EOF. Line numbers are unchanged by normalization.
 
 ## Compatibility warnings
 
@@ -100,7 +110,7 @@ dedicated diagnostic objects.
     "listLinesEligible": 0,
     "listLinesChanged": 0,
     "listLinesAlreadyCanonical": 0,
-    "listLinesSkippedAmbiguous": 0,
+    "listLinesSkipped": 0,
     "mixedMarkerLinesChanged": 0,
     "commentBearingLinesChanged": 0,
     "structuredContentLinesChanged": 0,
@@ -182,12 +192,17 @@ content.
 
 ## Exact round-trip limitations
 
-The parser is an untrusted boundary. Inputs whose parse tree cannot serialize
-exactly—including some malformed syntax or line-ending/parser-tokenization
-cases—are preserved. Genuinely ambiguous or unbalanced boundaries are not
-guessed. Site-specific template semantics, Lua module behavior, and custom
-grammar cannot be inferred from source spelling alone; choose an appropriate
-parser config and localization data.
+The parser is an untrusted boundary. Pure LF, pure CRLF, and single-line input
+without an EOL are supported. Pure CRLF uses an internal LF parser snapshot and
+is restored after formatting, equivalence checks, and the additional safe pass.
+Mixed LF/CRLF and bare CR fail closed with `unsupported-line-endings`; the
+formatter does not silently choose a style or rewrite the file.
+
+Other inputs whose parse tree cannot serialize exactly—including some malformed
+syntax or parser-tokenization cases—are preserved. Genuinely ambiguous or
+unbalanced boundaries are not guessed. Site-specific template semantics, Lua
+module behavior, and custom grammar cannot be inferred from source spelling
+alone; choose an appropriate parser config and localization data.
 
 ## Streams and automation
 

@@ -274,9 +274,17 @@ output is reparsed and its marker hierarchy, content bytes, structured children,
 and exact round trip are checked before edits are accepted; final document
 equivalence still runs afterward.
 
-CRLF input is preserved when the configured parser cannot serialize it exactly.
-That case fails closed at the input round-trip gate rather than changing line
-endings.
+Before requesting parser data, the rule scans physical lines for a potential
+line-start `*`, `#`, `:`, or `;`. A document without candidates returns
+immediately with zero list diagnostics; this fast path proves only absence and
+does not make eligibility decisions. With candidates, the rule reuses the
+formatter's parser context, confirms list nodes, and maps structural ranges to
+candidate lines without rescanning every structure for every line. These are
+performance changes only and do not broaden list syntax eligibility.
+
+Pure CRLF documents are normalized by the formatter-wide line-ending envelope,
+so this and every other rule still sees LF internally. Accepted output is
+restored entirely to CRLF.
 
 ## File and image links
 

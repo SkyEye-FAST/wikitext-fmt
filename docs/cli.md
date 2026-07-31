@@ -56,6 +56,12 @@ select the additional idempotency pass automatically. The `default` profile
 uses the base pipeline. `--safe` or `--unsafe` explicitly overrides that
 profile-based choice.
 
+Pure LF and pure CRLF files retain their line-ending style in normal output,
+`--check`, `--diff`, and `--write`; formatter-created line breaks use the same
+style. Mixed LF/CRLF and bare CR produce an `unsupported-line-endings` warning
+and remain byte-for-byte unchanged. Warnings keep the normal exit status unless
+`--fail-on-warning` is selected, and `--write` never rewrites a rejected file.
+
 ## Formatter value options
 
 | Option | Values | Corresponding config key |

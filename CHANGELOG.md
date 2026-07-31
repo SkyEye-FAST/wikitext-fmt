@@ -11,6 +11,10 @@ here. The project follows the pre-1.0 policy in
 - Added public `ListDiagnostics` and `ListSkipReason` types, detailed
   parser-eligibility and skip-reason counters, and matching CLI JSON and batch
   summary fields.
+- Added formatter-wide pure CRLF support. Parsing and all rules use an internal
+  LF snapshot, then restore CRLF for accepted output; safe idempotency,
+  standalone structural equivalence, CLI modes, and public table diagnostic
+  offsets follow the original line-ending style.
 
 ### Changed
 
@@ -18,6 +22,10 @@ here. The project follows the pre-1.0 policy in
   sequences and list items containing ordinary comments, templates, wikilinks,
   references, or inline HTML now normalize marker-adjacent ASCII layout while
   preserving every content and structure byte.
+- Added a no-candidate list fast path, delayed parser context creation, and
+  candidate-line structural range indexing without changing list eligibility.
+- Renamed the unreleased `listLinesSkippedAmbiguous` diagnostics field to
+  `listLinesSkipped` across detailed results, CLI JSON, and batch summaries.
 
 ### Fixed
 
@@ -25,6 +33,8 @@ here. The project follows the pre-1.0 policy in
   ignore ranges, opaque blocks, Unicode separators, multiline or unclosed
   structures, and ambiguous marker boundaries remain fail-closed with specific
   diagnostics.
+- Mixed LF/CRLF input and bare CR now fail closed with the stable
+  `unsupported-line-endings` code instead of being silently normalized.
 
 ## 0.4.0 - 2026-07-30
 

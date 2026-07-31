@@ -23,10 +23,12 @@ All public surfaces remain subject to the
 | `formatWikitextSafeDetailed` | `FormatDetailedResult` | Yes | Yes | Yes |
 
 “No additional idempotency pass” does not mean no verification. All five enter
-the same base formatter pipeline, which parses and round-trips input, performs
-rule-specific convergence and equivalence checks, reparses output, verifies
-final document structure, and fails closed. The safe variants run that pipeline
-a second time and require the second output to equal the first exactly.
+the same base formatter pipeline, which classifies line endings, parses and
+round-trips input, performs rule-specific convergence and equivalence checks,
+reparses output, verifies final document structure, and fails closed. Pure CRLF
+input is formatted through an internal LF snapshot and restored to CRLF before
+returning. The safe variants run the complete external-input pipeline a second
+time and require the restored second output to equal the first exactly.
 
 ### Compact string API
 
@@ -112,13 +114,23 @@ skips, and their reason histogram. Only the page-title component is normalized;
 labels and fragments are not counted as replacements.
 
 `ListDiagnostics` distinguishes inspected, eligible, changed, already-canonical,
-and conservatively skipped list lines. It separately counts changed mixed-marker
-lines, comment-bearing lines, and lines with parser-confirmed structured
-content. Its `skipReasons` histogram uses `ListSkipReason` values such as
-`not-parser-confirmed`, `unicode-separator`, `multiline-content`,
-`unclosed-comment`, `ignore-range`, `protected-block`, `structure-changed`, and
-`candidate-not-roundtrip-safe`. These skips are ordinary rule decisions, not
-formatter failures.
+and conservatively skipped list lines. The public skipped counter is
+`listLinesSkipped`; the earlier unreleased `listLinesSkippedAmbiguous` name was
+removed because the counter includes every skip reason, not only ambiguity.
+`listLinesEligible` includes changed and already-canonical lines, so the
+following invariants hold:
+
+```text
+listLinesEligible = listLinesChanged + listLinesAlreadyCanonical
+listLinesInspected = listLinesEligible + listLinesSkipped
+```
+
+The diagnostics separately count changed mixed-marker lines, comment-bearing
+lines, and lines with parser-confirmed structured content. Their `skipReasons`
+histogram uses `ListSkipReason` values such as `not-parser-confirmed`,
+`unicode-separator`, `multiline-content`, `unclosed-comment`, `ignore-range`,
+`protected-block`, `structure-changed`, and `candidate-not-roundtrip-safe`.
+These skips are ordinary rule decisions, not formatter failures.
 
 ## Options and profiles
 
@@ -181,7 +193,9 @@ Public types are `StructuralEquivalenceKind` (`templates`, `tables`, or
 requires resolved format options as its optional fifth argument so
 localization-aware canonicalization can be applied. The parser `Config` is a
 `wikiparser-node` boundary type; this package does not export its internal
-parser-config loader.
+parser-config loader. Standalone equivalence normalizes each pure CRLF input to
+an LF snapshot before fingerprinting. Mixed LF/CRLF or bare CR returns
+`equivalent: false`.
 
 Document fingerprints compare templates, tables, ordinary and file links,
 external links, references, categories, defaultsort, redirects, headings,
