@@ -8,7 +8,7 @@ import { formatExternalLinks } from "./rules/externalLinks.js";
 import { formatFileLinks } from "./rules/fileLinks.js";
 import { formatHeadings } from "./rules/headings.js";
 import { formatHtmlVoidTags } from "./rules/htmlVoidTags.js";
-import { formatLists } from "./rules/lists.js";
+import { canonicalizeListLayout } from "./rules/lists.js";
 import { formatRedirects } from "./rules/redirects.js";
 import { formatReferences } from "./rules/references.js";
 import { formatSectionSpacing } from "./rules/sectionSpacing.js";
@@ -184,18 +184,18 @@ function semanticTransclusionValue(
         replacement.start >= contentStart && replacement.end <= contentEnd,
     )
     .sort((a, b) => a.start - b.start);
-  if (replacements.length === 0) return formatLists(content);
+  if (replacements.length === 0) return canonicalizeListLayout(content);
   const parts: TemplateValuePart[] = [];
   let cursor = contentStart;
   for (const replacement of replacements) {
     if (replacement.start > cursor) {
-      parts.push(formatLists(raw.slice(cursor, replacement.start)));
+      parts.push(canonicalizeListLayout(raw.slice(cursor, replacement.start)));
     }
     parts.push(replacement.part);
     cursor = replacement.end;
   }
   if (cursor < contentEnd) {
-    parts.push(formatLists(raw.slice(cursor, contentEnd)));
+    parts.push(canonicalizeListLayout(raw.slice(cursor, contentEnd)));
   }
   return parts;
 }
@@ -841,7 +841,6 @@ function canonicalizeDocumentSyntax(
       createParserContext(output, config),
     ).formatted;
   }
-  if (options.formatLists) output = formatLists(output);
   if (options.formatSectionSpacing) {
     output = formatSectionSpacing(
       output,
@@ -1036,7 +1035,7 @@ export function documentStructuralFingerprint(
     /^(⟪(?:file|external-link|extension|redirect|heading):\d+⟫)[ \t]+$/gmu,
     "$1",
   );
-  prose = formatLists(prose);
+  prose = canonicalizeListLayout(prose);
   prose = normalizeBlankLines(prose);
   if (options.formatSectionSpacing) {
     prose = normalizeSectionSpacingSkeleton(prose);

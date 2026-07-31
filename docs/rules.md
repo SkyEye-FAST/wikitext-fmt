@@ -12,7 +12,7 @@ level allow them. The default level is `normal`.
 | `templates` | normal | on | `formatTemplates`; `--no-format-templates` | Parser-confirmed templates | Argument order/state/values and structural fingerprint |
 | `templateParameters` | experimental | off | `formatTemplateParameters`; positive/negative flags | Compatibility route to template engine | Not an independent scanner |
 | `categories` | normal | on | `formatCategories`; `--no-format-categories` | Standalone categories and defaultsort | Titles, sort keys, order, and nested metadata |
-| `lists` | normal | on | `formatLists`; `--no-format-lists` | Ordinary single-line list items | Structured/nested content is skipped |
+| `lists` | normal | on | `formatLists`; `--no-format-lists` | Parser-confirmed single-line list prefixes | Marker sequence, hierarchy, content nodes, and non-ASCII whitespace |
 | `fileLinks` | normal | on | `formatFileLinks`; `--no-format-file-links` | One whole-line file/image link | Target, caption, values, and option order |
 | `wikilinks` | normal | on | `formatWikilinks`; `--no-format-wikilinks` | Parser-confirmed ordinary internal links and redirect targets | Labels, fragments, file options, category sort keys, and remote targets |
 | `externalLinks` | experimental | off | `formatExternalLinks`; positive/negative flags | Whole-line labelled external links | URL and label text |
@@ -236,10 +236,11 @@ Footer diagnostics report moved/formatted/canonicalized counts.
 
 ## Lists
 
-The list rule handles an ordinary single line beginning with any combination of
-`*`, `#`, `:`, and `;`. For a non-empty item, it normalizes any run of ASCII
-spaces or tabs after the complete marker sequence to exactly one ASCII space and
-removes trailing ASCII horizontal whitespace:
+The list rule handles a physical line only when the parser confirms its complete
+leading sequence of `*`, `#`, `:`, and `;` as a list prefix. For a non-empty
+item, it replaces ASCII spaces or tabs between that exact marker sequence and
+the first content node with one ASCII space. It may also remove trailing ASCII
+horizontal whitespace that lies outside structured content:
 
 ```wikitext
 **Item
@@ -255,9 +256,27 @@ Marker-only empty items receive no trailing space, and existing horizontal
 whitespace after their markers is removed. Non-ASCII whitespace is not treated
 as a layout separator and is preserved.
 
-Lines containing templates, wikilinks, HTML-like syntax, extension content, or
-protected placeholders are skipped. It does not restructure nesting, merge
-items, alter definition-list markers, or expose dedicated diagnostics.
+Valid mixed and nested sequences such as `:*`, `:#`, `*#`, `#*`, `::*`, `:*#`,
+`;:`, and `:;` retain their exact marker bytes and hierarchy. Definition-list
+colons inside term/definition content are not marker-prefix targets.
+
+Parser-confirmed templates, wikilinks, references, inline HTML, and ordinary
+comments may be the item content. Their source, order, and internal whitespace
+remain byte-for-byte unchanged; the rule edits only ranges before the first
+content node or after the last content byte. It never enters those structures.
+
+Ignore-controlled lines, opaque blocks, multiline structured content, unclosed
+comments, protected placeholders, table delimiters, Unicode separators, and
+ambiguous parser boundaries remain unchanged. Each skip category is reported by
+`ListDiagnostics`, together with inspected, eligible, changed, canonical,
+mixed-marker, comment-bearing, and structured-content line counts. Candidate
+output is reparsed and its marker hierarchy, content bytes, structured children,
+and exact round trip are checked before edits are accepted; final document
+equivalence still runs afterward.
+
+CRLF input is preserved when the configured parser cannot serialize it exactly.
+That case fails closed at the input round-trip gate rather than changing line
+endings.
 
 ## File and image links
 

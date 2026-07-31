@@ -30,7 +30,7 @@ export interface Range {
   end: number;
 }
 
-function ignoreRanges(source: string): Range[] {
+export function collectIgnoreRanges(source: string): Range[] {
   const ranges: Range[] = [];
   const rangePattern =
     /<!--\s*wikitext-fmt-ignore-start\s*-->[\s\S]*?(?:<!--\s*wikitext-fmt-ignore-end\s*-->|$)/giu;
@@ -139,16 +139,7 @@ export function protectBlocks(
   source: string,
   options: ProtectBlocksOptions = {},
 ): ProtectedText {
-  const ranges = mergeRanges([
-    ...ignoreRanges(source),
-    ...structuralRanges(
-      source,
-      options.protectTables ?? true,
-      options.protectComments ?? true,
-      options.protectReferenceTags ?? true,
-    ),
-    ...(options.additionalRanges ?? []),
-  ]);
+  const ranges = collectProtectedRanges(source, options);
   const values: string[] = [];
   const mappings: Array<{
     protectedStart: number;
@@ -200,4 +191,20 @@ export function protectBlocks(
       return index + delta;
     },
   };
+}
+
+export function collectProtectedRanges(
+  source: string,
+  options: ProtectBlocksOptions = {},
+): Range[] {
+  return mergeRanges([
+    ...collectIgnoreRanges(source),
+    ...structuralRanges(
+      source,
+      options.protectTables ?? true,
+      options.protectComments ?? true,
+      options.protectReferenceTags ?? true,
+    ),
+    ...(options.additionalRanges ?? []),
+  ]);
 }

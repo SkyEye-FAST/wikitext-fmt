@@ -7,6 +7,7 @@ import type {
 import type { FooterDiagnostics } from "./rules/categories.js";
 import type { ExternalLinkDiagnostics } from "./rules/externalLinks.js";
 import type { FileLinkDiagnostics } from "./rules/fileLinks.js";
+import type { ListDiagnostics } from "./rules/lists.js";
 import type { RedirectDiagnostics } from "./rules/redirects.js";
 import type { ReferenceDiagnostics } from "./rules/references.js";
 import type { SectionSpacingDiagnostics } from "./rules/sectionSpacing.js";
@@ -26,6 +27,7 @@ export interface DetailedDiagnostics {
   wikilinkDiagnostics: WikilinkDiagnostics;
   externalLinkDiagnostics: ExternalLinkDiagnostics;
   referenceDiagnostics: ReferenceDiagnostics;
+  listDiagnostics: ListDiagnostics;
   sectionSpacingDiagnostics: SectionSpacingDiagnostics;
   templateParameterDiagnostics: TemplateParameterDiagnostics;
   equivalenceDiagnostics: StructuralEquivalenceResult[];
@@ -83,6 +85,17 @@ export function emptyDetailedDiagnostics(): DetailedDiagnostics {
       referenceGroupsFormatted: 0,
       referenceLinesSkippedUnsafe: 0,
     },
+    listDiagnostics: {
+      listLinesInspected: 0,
+      listLinesEligible: 0,
+      listLinesChanged: 0,
+      listLinesAlreadyCanonical: 0,
+      listLinesSkippedAmbiguous: 0,
+      mixedMarkerLinesChanged: 0,
+      commentBearingLinesChanged: 0,
+      structuredContentLinesChanged: 0,
+      skipReasons: {},
+    },
     sectionSpacingDiagnostics: {
       sectionSpacingBeforeHeadingsInserted: 0,
       sectionSpacingAfterHeadingsInserted: 0,
@@ -121,6 +134,7 @@ export function stripDiagnostics(result: FormatDetailedResult): FormatResult {
     wikilinkDiagnostics: _wikilinkDiagnostics,
     externalLinkDiagnostics: _externalLinkDiagnostics,
     referenceDiagnostics: _referenceDiagnostics,
+    listDiagnostics: _listDiagnostics,
     sectionSpacingDiagnostics: _sectionSpacingDiagnostics,
     templateParameterDiagnostics: _templateParameterDiagnostics,
     equivalenceDiagnostics: _equivalenceDiagnostics,

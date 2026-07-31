@@ -57,7 +57,11 @@ if (result.failure) {
 import { formatWikitextDetailedResult } from "wikitext-fmt";
 
 const result = formatWikitextDetailedResult(source);
-console.log(result.tableDiagnostics, result.templateParameterDiagnostics);
+console.log(
+  result.tableDiagnostics,
+  result.listDiagnostics,
+  result.templateParameterDiagnostics,
+);
 ```
 
 ### Idempotency-checking API
@@ -94,6 +98,7 @@ should branch on `failure` and its stable code rather than parse warning text.
 - `footerDiagnostics`;
 - redirect, file-link, wikilink, external-link, reference, and section-spacing
   diagnostics;
+- parser-confirmed list-prefix diagnostics;
 - template and template-parameter diagnostics;
 - structural-equivalence diagnostics.
 
@@ -105,6 +110,15 @@ types.
 formatted links, replaced underscores, fragment-containing changes, unsafe
 skips, and their reason histogram. Only the page-title component is normalized;
 labels and fragments are not counted as replacements.
+
+`ListDiagnostics` distinguishes inspected, eligible, changed, already-canonical,
+and conservatively skipped list lines. It separately counts changed mixed-marker
+lines, comment-bearing lines, and lines with parser-confirmed structured
+content. Its `skipReasons` histogram uses `ListSkipReason` values such as
+`not-parser-confirmed`, `unicode-separator`, `multiline-content`,
+`unclosed-comment`, `ignore-range`, `protected-block`, `structure-changed`, and
+`candidate-not-roundtrip-safe`. These skips are ordinary rule decisions, not
+formatter failures.
 
 ## Options and profiles
 

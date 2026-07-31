@@ -23,7 +23,7 @@ import { formatFileLinks } from "./rules/fileLinks.js";
 import { formatHeadings } from "./rules/headings.js";
 import { formatHtmlVoidTags } from "./rules/htmlVoidTags.js";
 import { isRuleEnabled } from "./rules/index.js";
-import { formatLists } from "./rules/lists.js";
+import { formatListsWithDiagnostics } from "./rules/lists.js";
 import { formatRedirects } from "./rules/redirects.js";
 import { formatReferences } from "./rules/references.js";
 import { formatSectionSpacing } from "./rules/sectionSpacing.js";
@@ -80,6 +80,7 @@ export interface FormatDetailedResult extends FormatResult {
   wikilinkDiagnostics: DetailedDiagnostics["wikilinkDiagnostics"];
   externalLinkDiagnostics: DetailedDiagnostics["externalLinkDiagnostics"];
   referenceDiagnostics: DetailedDiagnostics["referenceDiagnostics"];
+  listDiagnostics: DetailedDiagnostics["listDiagnostics"];
   sectionSpacingDiagnostics: DetailedDiagnostics["sectionSpacingDiagnostics"];
   templateParameterDiagnostics: DetailedDiagnostics["templateParameterDiagnostics"];
   equivalenceDiagnostics: DetailedDiagnostics["equivalenceDiagnostics"];
@@ -291,6 +292,21 @@ export function formatWikitextDetailedResult(
       if (tableOutput !== previous) invalidateContext();
     }
 
+    if (resolved.formatLists && isRuleEnabled("lists", resolved.level)) {
+      const listContext = contextFor(tableOutput);
+      const lists = formatListsWithDiagnostics(
+        tableOutput,
+        config,
+        listContext,
+        { verifyCandidate: false },
+      );
+      diagnostics.listDiagnostics = lists.diagnostics;
+      if (lists.formatted !== tableOutput) {
+        tableOutput = lists.formatted;
+        invalidateContext();
+      }
+    }
+
     // Re-protect tables before running rules that do not own table-internal
     // structure. Templates have already run against parser-confirmed nodes so
     // templates inside cells and tables inside templates remain supported.
@@ -366,11 +382,6 @@ export function formatWikitextDetailedResult(
       );
       output = wikilinks.formatted;
       diagnostics.wikilinkDiagnostics = wikilinks.diagnostics;
-      if (output !== previous) invalidateContext();
-    }
-    if (resolved.formatLists && isRuleEnabled("lists", resolved.level)) {
-      const previous = output;
-      output = formatLists(output);
       if (output !== previous) invalidateContext();
     }
     if (
@@ -542,6 +553,7 @@ export function formatWikitextSafeDetailed(
       wikilinkDiagnostics: first.wikilinkDiagnostics,
       externalLinkDiagnostics: first.externalLinkDiagnostics,
       referenceDiagnostics: first.referenceDiagnostics,
+      listDiagnostics: first.listDiagnostics,
       sectionSpacingDiagnostics: first.sectionSpacingDiagnostics,
       templateParameterDiagnostics: first.templateParameterDiagnostics,
       equivalenceDiagnostics: first.equivalenceDiagnostics,

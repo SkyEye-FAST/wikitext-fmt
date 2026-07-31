@@ -75,10 +75,13 @@ Detailed results expose structured information for rules that need it:
   switches, and interlanguage links;
 - redirect, file-link, wikilink, external-link, reference, and section-spacing
   counters;
+- lists: parser-confirmed inspected/eligible/changed/canonical counts,
+  mixed-marker, comment-bearing, and structured-content changes, plus a
+  skip-reason histogram;
 - structural equivalence decisions.
 
-Rules such as simple heading, blank-line, list, and HTML void-tag normalization
-do not expose dedicated diagnostic objects.
+Simple heading, blank-line, and HTML void-tag normalization do not expose
+dedicated diagnostic objects.
 
 ## JSON diagnostic records
 
@@ -91,14 +94,29 @@ do not expose dedicated diagnostic objects.
   "failure": null,
   "warning": null,
   "summary": {},
-  "tableDiagnostics": []
+  "tableDiagnostics": [],
+  "listDiagnostics": {
+    "listLinesInspected": 0,
+    "listLinesEligible": 0,
+    "listLinesChanged": 0,
+    "listLinesAlreadyCanonical": 0,
+    "listLinesSkippedAmbiguous": 0,
+    "mixedMarkerLinesChanged": 0,
+    "commentBearingLinesChanged": 0,
+    "structuredContentLinesChanged": 0,
+    "skipReasons": {}
+  }
 }
 ```
 
 `summary` contains rule counters grouped around files, table lines and nodes,
 templates, footer metadata, redirects, file/internal/external links, references,
-section spacing, and localization canonicalization. `tableDiagnostics`
-contains the complete per-table records.
+lists, section spacing, and localization canonicalization. `tableDiagnostics`
+contains the complete per-table records. `listDiagnostics` contains the
+per-input list counters and skip reasons. Current list skip reasons distinguish
+parser confirmation, marker-boundary ambiguity, Unicode separators, multiline
+content, unclosed comments, ignore ranges, protected blocks, changed structure,
+and candidates that cannot round-trip exactly.
 
 Formatted text or diffs remain on stdout. JSON diagnostics cannot be combined
 with `--debug`.
@@ -133,6 +151,11 @@ protection ranges are merged and restored byte-for-byte.
 
 Protection is rule-specific: templates, tables, refs, links, HTML, and comments
 may be understood by one rule and opaque to another.
+
+The list rule runs against parser-confirmed source before the shared placeholder
+pass, so it can distinguish real inline comments and structures from opaque
+blocks. It rejects edits whose ranges intersect ignore or protected blocks;
+accepted source is then protected before later rules run.
 
 ## Ignore markers
 

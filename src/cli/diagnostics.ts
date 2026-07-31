@@ -37,6 +37,14 @@ export interface DiagnosticsSummary {
   referencesFormatted: number;
   referenceGroupsFormatted: number;
   referenceLinesSkippedUnsafe: number;
+  listLinesInspected: number;
+  listLinesEligible: number;
+  listLinesChanged: number;
+  listLinesAlreadyCanonical: number;
+  listLinesSkippedAmbiguous: number;
+  mixedMarkerLinesChanged: number;
+  commentBearingLinesChanged: number;
+  structuredContentLinesChanged: number;
   sectionSpacingBeforeHeadingsInserted: number;
   sectionSpacingAfterHeadingsInserted: number;
   templateParametersFormatted: number;
@@ -62,6 +70,7 @@ export interface FileDiagnostics {
   warning: string | null;
   summary: DiagnosticsSummary;
   tableDiagnostics: FormatDetailedResult["tableDiagnostics"];
+  listDiagnostics: FormatDetailedResult["listDiagnostics"];
 }
 
 export function emptyDiagnosticsSummary(): DiagnosticsSummary {
@@ -102,6 +111,14 @@ export function emptyDiagnosticsSummary(): DiagnosticsSummary {
     referencesFormatted: 0,
     referenceGroupsFormatted: 0,
     referenceLinesSkippedUnsafe: 0,
+    listLinesInspected: 0,
+    listLinesEligible: 0,
+    listLinesChanged: 0,
+    listLinesAlreadyCanonical: 0,
+    listLinesSkippedAmbiguous: 0,
+    mixedMarkerLinesChanged: 0,
+    commentBearingLinesChanged: 0,
+    structuredContentLinesChanged: 0,
     sectionSpacingBeforeHeadingsInserted: 0,
     sectionSpacingAfterHeadingsInserted: 0,
     templateParametersFormatted: 0,
@@ -175,6 +192,18 @@ export function createDiagnosticsSummary(
       result.wikilinkDiagnostics.wikilinksSkippedUnsafe,
     ...result.externalLinkDiagnostics,
     ...result.referenceDiagnostics,
+    listLinesInspected: result.listDiagnostics.listLinesInspected,
+    listLinesEligible: result.listDiagnostics.listLinesEligible,
+    listLinesChanged: result.listDiagnostics.listLinesChanged,
+    listLinesAlreadyCanonical:
+      result.listDiagnostics.listLinesAlreadyCanonical,
+    listLinesSkippedAmbiguous:
+      result.listDiagnostics.listLinesSkippedAmbiguous,
+    mixedMarkerLinesChanged: result.listDiagnostics.mixedMarkerLinesChanged,
+    commentBearingLinesChanged:
+      result.listDiagnostics.commentBearingLinesChanged,
+    structuredContentLinesChanged:
+      result.listDiagnostics.structuredContentLinesChanged,
     ...result.sectionSpacingDiagnostics,
     templateParametersFormatted:
       result.templateParameterDiagnostics.templateParametersFormatted,
@@ -215,6 +244,7 @@ export function createDiagnosticsRecord(
     warning: result.warning ?? null,
     summary,
     tableDiagnostics: result.tableDiagnostics,
+    listDiagnostics: result.listDiagnostics,
   };
 }
 

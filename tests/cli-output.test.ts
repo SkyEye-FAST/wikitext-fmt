@@ -103,21 +103,54 @@ describe("CLI output helpers", () => {
     ).toBeGreaterThan(0);
   });
 
+  it("serializes list diagnostics and skip reasons", () => {
+    const source = ":*item\n:c<!-- c -->\n:\u00A0unchanged\n";
+    const result = formatWikitextDetailedResult(source);
+    const diagnostics = JSON.parse(
+      serializeDiagnostics("lists.wiki", source, result),
+    ) as ReturnType<typeof createDiagnosticsRecord>;
+
+    expect(diagnostics.summary).toMatchObject({
+      listLinesInspected: 3,
+      listLinesEligible: 2,
+      listLinesChanged: 2,
+      listLinesAlreadyCanonical: 0,
+      listLinesSkippedAmbiguous: 1,
+      mixedMarkerLinesChanged: 1,
+      commentBearingLinesChanged: 1,
+      structuredContentLinesChanged: 0,
+    });
+    expect(diagnostics.listDiagnostics).toEqual({
+      listLinesInspected: 3,
+      listLinesEligible: 2,
+      listLinesChanged: 2,
+      listLinesAlreadyCanonical: 0,
+      listLinesSkippedAmbiguous: 1,
+      mixedMarkerLinesChanged: 1,
+      commentBearingLinesChanged: 1,
+      structuredContentLinesChanged: 0,
+      skipReasons: { "unicode-separator": 1 },
+    });
+  });
+
   it("aggregates per-file diagnostics into a batch report", () => {
     const source = "{|\n! A !! B !! C !! D\n|}\n";
     const changed = formatWikitextDetailedResult(source, {
       level: "experimental",
       formatTables: true,
     });
+    const listSource = ":*item\n:c<!-- c -->\n";
+    const listChanged = formatWikitextDetailedResult(listSource);
     const unchanged = formatWikitextDetailedResult("plain text\n");
     const report = createBatchReport([
       createDiagnosticsRecord("changed.wiki", source, changed),
+      createDiagnosticsRecord("lists.wiki", listSource, listChanged),
       createDiagnosticsRecord("unchanged.wiki", "plain text\n", unchanged),
     ]);
 
     expect(report.summary).toMatchObject({
-      files: 2,
-      changedFiles: 1,
+      files: 3,
+      changedFiles: 2,
       warningFiles: 0,
       tables: 1,
       formattedTables: 1,
@@ -143,6 +176,14 @@ describe("CLI output helpers", () => {
       referencesFormatted: 0,
       referenceGroupsFormatted: 0,
       referenceLinesSkippedUnsafe: 0,
+      listLinesInspected: 2,
+      listLinesEligible: 2,
+      listLinesChanged: 2,
+      listLinesAlreadyCanonical: 0,
+      listLinesSkippedAmbiguous: 0,
+      mixedMarkerLinesChanged: 1,
+      commentBearingLinesChanged: 1,
+      structuredContentLinesChanged: 0,
       sectionSpacingBeforeHeadingsInserted: 0,
       sectionSpacingAfterHeadingsInserted: 0,
       templateParametersFormatted: 0,
@@ -151,6 +192,7 @@ describe("CLI output helpers", () => {
     });
     expect(report.files.map((file) => file.file)).toEqual([
       "changed.wiki",
+      "lists.wiki",
       "unchanged.wiki",
     ]);
   });

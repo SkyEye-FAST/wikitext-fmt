@@ -187,6 +187,7 @@ describe("structural equivalence rejection", () => {
     ["redirects", "#REDIRECT [[Target]]", "#REDIRECT [[Changed]]"],
     ["headings", "== Heading ==", "=== Heading ==="],
     ["behaviorSwitches", "__NOTOC__", "__TOC__"],
+    ["comments", ": item<!-- a -->", ": item<!-- b -->"],
   ])("detects changed document %s", (category, before, after) => {
     expect(
       verifyStructuralEquivalence(
@@ -201,6 +202,26 @@ describe("structural equivalence rejection", () => {
       structure: "document",
       reason: `${category} semantic fingerprint changed`,
     });
+  });
+
+  it.each([
+    [": item\n", ":* item\n"],
+    [":* item\n", "*: item\n"],
+    [": before{{T}}after\n", ": after{{T}}before\n"],
+    [": before<!-- c -->after\n", ": after<!-- c -->before\n"],
+  ])("rejects list hierarchy, marker, or structured-child movement", (
+    before,
+    after,
+  ) => {
+    expect(
+      verifyStructuralEquivalence(
+        before,
+        after,
+        config,
+        "document",
+        documentOptions,
+      ),
+    ).toMatchObject({ equivalent: false, structure: "document" });
   });
 
   it.each([
@@ -223,6 +244,28 @@ describe("structural equivalence rejection", () => {
       equivalent: true,
       structure: "document",
     });
+  });
+
+  it.each([
+    [":c<!-- exact comment -->\n", ": c<!-- exact comment -->\n"],
+    [":<!-- exact comment -->content\n", ": <!-- exact comment -->content\n"],
+    [":*{{T}}<!-- c -->\n", ":* {{T}}<!-- c -->\n"],
+    [":[[Page|label]]\n", ": [[Page|label]]\n"],
+    [":<ref>source</ref>\n", ": <ref>source</ref>\n"],
+    [":<span>text</span>\n", ": <span>text</span>\n"],
+  ])("accepts parser-confirmed list-prefix layout with structured content", (
+    before,
+    after,
+  ) => {
+    expect(
+      verifyStructuralEquivalence(
+        before,
+        after,
+        config,
+        "document",
+        documentOptions,
+      ),
+    ).toEqual({ equivalent: true, structure: "document" });
   });
 
   it("accepts template layout changes inside an external-link label", () => {

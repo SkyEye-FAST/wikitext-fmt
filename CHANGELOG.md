@@ -6,6 +6,26 @@ here. The project follows the pre-1.0 policy in
 
 ## Unreleased
 
+### Added
+
+- Added public `ListDiagnostics` and `ListSkipReason` types, detailed
+  parser-eligibility and skip-reason counters, and matching CLI JSON and batch
+  summary fields.
+
+### Changed
+
+- Made list formatting parser-assisted and range-based. Valid mixed marker
+  sequences and list items containing ordinary comments, templates, wikilinks,
+  references, or inline HTML now normalize marker-adjacent ASCII layout while
+  preserving every content and structure byte.
+
+### Fixed
+
+- Stopped treating all protected placeholders as equivalent list content:
+  ignore ranges, opaque blocks, Unicode separators, multiline or unclosed
+  structures, and ambiguous marker boundaries remain fail-closed with specific
+  diagnostics.
+
 ## 0.4.0 - 2026-07-30
 
 ### Changed

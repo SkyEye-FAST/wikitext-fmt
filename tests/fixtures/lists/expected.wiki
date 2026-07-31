@@ -6,8 +6,8 @@
 *# mixed
 * already spaced
 * trailing
-* {{Template}}   
-* <ref>source</ref>   
+* {{Template}}
+* <ref>source</ref>
 <nowiki>
 *inside nowiki   
 </nowiki>
