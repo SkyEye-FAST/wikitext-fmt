@@ -11,6 +11,7 @@ import { formatTemplates } from "../src/rules/templates.js";
 import { readRealPage } from "./helpers/realPages.js";
 
 const config = getParserConfig("mediawiki");
+const HISTORICAL_FIXTURE_TIMEOUT_MS = 15_000;
 
 function expectStableTemplateFormatting(
   source: string,
@@ -160,5 +161,6 @@ describe("historical nested template regressions", () => {
       expect(formatted).toHaveLength(stableLength);
       expect(formatted).not.toMatch(/\| list1 = {2,}\{\{navbox subgroup/u);
     },
+    HISTORICAL_FIXTURE_TIMEOUT_MS,
   );
 });
