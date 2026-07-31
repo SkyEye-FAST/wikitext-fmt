@@ -157,6 +157,49 @@ describe("line-ending normalization envelope", () => {
     expect(result.tableDiagnostics[0]?.lineDiagnostics?.[0]?.sourceLine).toBe(3);
   });
 
+  it("maps a first-line table exclusive end before a final CRLF", () => {
+    const source = "{|\r\n| A || B\r\n|}\r\n";
+    const result = formatWikitextDetailedResult(source);
+    expect(result.failure).toBeUndefined();
+    expect(result.tableDiagnostics).toHaveLength(1);
+    expect(result.tableDiagnostics[0]).toMatchObject({
+      start: 0,
+      end: source.length - 2,
+      line: 1,
+    });
+    expect(
+      source.slice(
+        result.tableDiagnostics[0]!.start,
+        result.tableDiagnostics[0]!.end,
+      ),
+    ).toBe("{|\r\n| A || B\r\n|}");
+  });
+
+  it("maps multiple table diagnostics in source order after several CRLF lines", () => {
+    const source =
+      "Lead\r\n{|\r\n| A || B\r\n|}\r\nBetween\r\n{|\r\n| B || C\r\n|}\r\n";
+    const firstStart = source.indexOf("{|");
+    const firstEnd = source.indexOf("|}") + 2;
+    const secondStart = source.lastIndexOf("{|");
+    const secondEnd = source.lastIndexOf("|}") + 2;
+    const result = formatWikitextDetailedResult(source);
+
+    expect(result.failure).toBeUndefined();
+    expect(result.tableDiagnostics).toHaveLength(2);
+    expect(
+      result.tableDiagnostics.map(({ start, end, line }) => ({
+        start,
+        end,
+        line,
+      })),
+    ).toEqual([
+      { start: firstStart, end: firstEnd, line: 2 },
+      { start: secondStart, end: secondEnd, line: 6 },
+    ]);
+    expect(firstEnd).toBeLessThan(secondStart);
+    expect(secondEnd).toBe(source.length - 2);
+  });
+
   it.each([
     ["mixed LF and CRLF", "==Title==\r\nText\n", "mixed LF and CRLF"],
     ["bare CR", "==Title==\rText", "bare carriage returns"],
