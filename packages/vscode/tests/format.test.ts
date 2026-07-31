@@ -114,6 +114,17 @@ function detailedResult(
       referenceGroupsFormatted: 0,
       referenceLinesSkippedUnsafe: 0,
     },
+    listDiagnostics: {
+      listLinesInspected: 0,
+      listLinesEligible: 0,
+      listLinesChanged: 0,
+      listLinesAlreadyCanonical: 0,
+      listLinesSkipped: 0,
+      mixedMarkerLinesChanged: 0,
+      commentBearingLinesChanged: 0,
+      structuredContentLinesChanged: 0,
+      skipReasons: {},
+    },
     sectionSpacingDiagnostics: {
       sectionSpacingBeforeHeadingsInserted: 0,
       sectionSpacingAfterHeadingsInserted: 0,
@@ -754,6 +765,21 @@ describe("VS Code reports and language guards", () => {
         wikilinksSkippedUnsafe: 3,
         skipReasons: { "unsafe-parent": 3 },
       },
+      listDiagnostics: {
+        ...detailedResult("").listDiagnostics,
+        listLinesInspected: 6,
+        listLinesEligible: 4,
+        listLinesChanged: 3,
+        listLinesAlreadyCanonical: 1,
+        listLinesSkipped: 2,
+        mixedMarkerLinesChanged: 1,
+        commentBearingLinesChanged: 1,
+        structuredContentLinesChanged: 1,
+        skipReasons: {
+          "unicode-separator": 1,
+          "protected-block": 1,
+        },
+      },
     });
     const formatter = formatterApi(details, details);
     const result = getEditorDocumentFormattingResult(
@@ -783,16 +809,183 @@ describe("VS Code reports and language guards", () => {
       explicitVscodeOptions: { profile: "aggressive" },
       status: "changed",
       diagnostics: {
-        ruleChanges: { tablesChanged: 2 },
+        ruleChanges: {
+          tablesChanged: 2,
+          listLinesChanged: 3,
+          mixedMarkerLinesChanged: 1,
+          commentBearingLinesChanged: 1,
+          structuredContentLinesChanged: 1,
+        },
         skippedOrAmbiguous: {
           tablesSkippedAmbiguous: 1,
           wikilinksSkippedUnsafe: 3,
+          listLinesSkipped: 2,
         },
         skipReasons: {
           "wikilinks: unsafe-parent": 3,
+          "lists: unicode-separator": 1,
+          "lists: protected-block": 1,
+        },
+        listDiagnostics: {
+          listLinesInspected: 6,
+          listLinesEligible: 4,
+          listLinesChanged: 3,
+          listLinesAlreadyCanonical: 1,
+          listLinesSkipped: 2,
+          mixedMarkerLinesChanged: 1,
+          commentBearingLinesChanged: 1,
+          structuredContentLinesChanged: 1,
+          skipReasons: {
+            "unicode-separator": 1,
+            "protected-block": 1,
+          },
         },
       },
     });
+  });
+
+  it("keeps list report field names synchronized with actual core diagnostics", () => {
+    const source = [
+      ":*item",
+      ":c<!-- comment -->",
+      ":{{T}}",
+      "* already canonical",
+      ":\u00A0unchanged",
+      "<nowiki>",
+      ":c",
+      "</nowiki>",
+      "",
+    ].join("\n");
+    const result = getEditorDocumentFormattingResult(source, {
+      kind: "settings",
+      settings: settings(true),
+    });
+    const report = createDocumentReport({
+      uri: "file:///workspace/lists.wiki",
+      languageId: "wikitext",
+      result,
+    }) as {
+      diagnostics: Record<string, unknown>;
+    };
+
+    expect(report.diagnostics).toMatchObject({
+      ruleChanges: {
+        listLinesChanged: 3,
+        mixedMarkerLinesChanged: 1,
+        commentBearingLinesChanged: 1,
+        structuredContentLinesChanged: 1,
+      },
+      skippedOrAmbiguous: {
+        listLinesSkipped: 2,
+      },
+      skipReasons: {
+        "lists: unicode-separator": 1,
+        "lists: protected-block": 1,
+      },
+      listDiagnostics: {
+        listLinesInspected: 6,
+        listLinesEligible: 4,
+        listLinesChanged: 3,
+        listLinesAlreadyCanonical: 1,
+        listLinesSkipped: 2,
+        mixedMarkerLinesChanged: 1,
+        commentBearingLinesChanged: 1,
+        structuredContentLinesChanged: 1,
+        skipReasons: {
+          "unicode-separator": 1,
+          "protected-block": 1,
+        },
+      },
+    });
+    expect(JSON.stringify(report)).not.toContain("listLinesSkippedAmbiguous");
+  });
+
+  it("reports zero list statistics when a document has no list candidates", () => {
+    const result = getEditorDocumentFormattingResult("==Title==", {
+      kind: "settings",
+      settings: settings(true),
+    });
+    const report = createDocumentReport({
+      uri: "file:///workspace/no-lists.wiki",
+      languageId: "wikitext",
+      result,
+    });
+
+    expect(report).toMatchObject({
+      diagnostics: {
+        ruleChanges: {
+          listLinesChanged: 0,
+          mixedMarkerLinesChanged: 0,
+          commentBearingLinesChanged: 0,
+          structuredContentLinesChanged: 0,
+        },
+        skippedOrAmbiguous: {
+          listLinesSkipped: 0,
+        },
+        listDiagnostics: {
+          listLinesInspected: 0,
+          listLinesEligible: 0,
+          listLinesChanged: 0,
+          listLinesAlreadyCanonical: 0,
+          listLinesSkipped: 0,
+          mixedMarkerLinesChanged: 0,
+          commentBearingLinesChanged: 0,
+          structuredContentLinesChanged: 0,
+          skipReasons: {},
+        },
+      },
+    });
+  });
+
+  it("reports a changed CRLF document without a line-ending failure", () => {
+    const result = getEditorDocumentFormattingResult(
+      "==Title==\r\n:item\r\n",
+      {
+        kind: "settings",
+        settings: settings(true),
+      },
+    );
+
+    expect(
+      createDocumentReport({
+        uri: "file:///workspace/crlf.wiki",
+        languageId: "wikitext",
+        result,
+      }),
+    ).toMatchObject({
+      status: "changed",
+      changed: true,
+      failure: null,
+      warning: null,
+    });
+    expect(result.formatted).toBe("== Title ==\r\n: item\r\n");
+  });
+
+  it.each([
+    ["mixed LF and CRLF", "==Title==\r\n:item\n"],
+    ["bare CR", "==Title==\r:item\r"],
+  ])("reports unsupported line endings for %s", (_name, source) => {
+    const result = getEditorDocumentFormattingResult(source, {
+      kind: "settings",
+      settings: settings(true),
+    });
+
+    expect(
+      createDocumentReport({
+        uri: "file:///workspace/unsupported.wiki",
+        languageId: "wikitext",
+        result,
+      }),
+    ).toMatchObject({
+      status: "failed",
+      changed: false,
+      failure: {
+        code: "unsupported-line-endings",
+        stage: "input-normalization",
+      },
+      warning: expect.stringContaining("unsupported"),
+    });
+    expect(result.formatted).toBe(source);
   });
 
   it("shows config, explicit overrides, final core options, and editor safe value", () => {

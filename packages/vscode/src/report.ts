@@ -14,6 +14,7 @@ export interface DiagnosticsReport {
   ruleChanges: Record<string, number>;
   skippedOrAmbiguous: Record<string, number>;
   skipReasons: Record<string, number>;
+  listDiagnostics: FormatDetailedResult["listDiagnostics"];
 }
 
 function addReason(
@@ -33,6 +34,7 @@ export function createDiagnosticsReport(
   const template = details.templateParameterDiagnostics;
   const table = details.tableFormatDiagnostics;
   const footer = details.footerDiagnostics;
+  const lists = details.listDiagnostics;
   const skipReasons: Record<string, number> = {};
 
   for (const [reason, count] of Object.entries(template.skipReasons)) {
@@ -42,6 +44,9 @@ export function createDiagnosticsReport(
     details.wikilinkDiagnostics.skipReasons,
   )) {
     addReason(skipReasons, "wikilinks", reason, count ?? 0);
+  }
+  for (const [reason, count] of Object.entries(lists.skipReasons)) {
+    addReason(skipReasons, "lists", reason, count ?? 0);
   }
   for (const diagnostic of details.tableDiagnostics) {
     if (diagnostic.reason) {
@@ -68,6 +73,10 @@ export function createDiagnosticsReport(
       externalLinksFormatted:
         details.externalLinkDiagnostics.externalLinksFormatted,
       referencesFormatted: details.referenceDiagnostics.referencesFormatted,
+      listLinesChanged: lists.listLinesChanged,
+      mixedMarkerLinesChanged: lists.mixedMarkerLinesChanged,
+      commentBearingLinesChanged: lists.commentBearingLinesChanged,
+      structuredContentLinesChanged: lists.structuredContentLinesChanged,
       sectionSpacingBeforeHeadingsInserted:
         details.sectionSpacingDiagnostics
           .sectionSpacingBeforeHeadingsInserted,
@@ -85,8 +94,10 @@ export function createDiagnosticsReport(
         details.referenceDiagnostics.referenceLinesSkippedUnsafe,
       templateParameterLinesSkippedUnsafe:
         template.templateParameterLinesSkippedUnsafe,
+      listLinesSkipped: lists.listLinesSkipped,
     },
     skipReasons,
+    listDiagnostics: lists,
   };
 }
 
@@ -190,4 +201,3 @@ export function renderResolvedConfigurationReport(
     2,
   );
 }
-
