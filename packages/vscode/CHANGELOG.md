@@ -5,6 +5,8 @@ Core-only changes remain in the root changelog.
 
 ## Unreleased
 
+## 0.3.0 - 2026-07-31
+
 ### Added
 
 - Exposed the remaining editor-appropriate core options, with automated parity
@@ -30,6 +32,8 @@ Core-only changes remain in the root changelog.
   documents in both contribution metadata and runtime checks.
 - Marked `formatTemplateParameters` as deprecated in VS Code metadata and
   directs users to the unified template controls.
+- Clarified that VS Code Marketplace publication and core npm publication use
+  independent release processes and version lifecycles.
 
 ### Fixed
 

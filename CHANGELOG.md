@@ -6,6 +6,8 @@ here. The project follows the pre-1.0 policy in
 
 ## Unreleased
 
+## 0.5.0 - 2026-07-31
+
 ### Added
 
 - Added public `ListDiagnostics` and `ListSkipReason` types, detailed
