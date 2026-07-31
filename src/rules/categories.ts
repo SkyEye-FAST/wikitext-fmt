@@ -15,6 +15,7 @@ import {
   resolveLocalizationAliases,
   type BehaviorSwitchId,
 } from "../localization/aliases.js";
+import type { ParserRuntime } from "../parserRuntime.js";
 import { hasFinalNewline, withFinalNewline } from "../utils/text.js";
 
 export interface FooterDiagnostics {
@@ -94,12 +95,23 @@ function templateRanges(
   source: string,
   config: Config,
   context?: ParsedDocumentContext,
+  runtime?: ParserRuntime,
 ): SourceRange[] {
   // Parser contexts are valid only for the exact source snapshot used to build
   // them. Callers must recreate the context after any prior rule changes text.
   const current =
-    context?.source === source ? context : createParserContext(source, config);
+    context?.source === source
+      ? context
+      : createParserContext(
+          source,
+          config,
+          runtime ?? context?.runtime ?? missingParserRuntime(),
+        );
   return collectNodeRanges(current, "template");
+}
+
+function missingParserRuntime(): never {
+  throw new Error("Page footer formatting requires a parser runtime");
 }
 
 function parserCategoryLineIndexes(
@@ -232,6 +244,7 @@ export function formatPageFooter(
     | "localizationAliases"
   >,
   context?: ParsedDocumentContext,
+  runtime?: ParserRuntime,
 ): PageFooterResult {
   const diagnostics: FooterDiagnostics = {
     behaviorSwitchesMoved: 0,
@@ -263,7 +276,7 @@ export function formatPageFooter(
     ),
   );
   const canonicalEnglish = options.localizedSyntaxStyle === "canonical-english";
-  const ranges = templateRanges(source, config, context);
+  const ranges = templateRanges(source, config, context, runtime);
   const parserCategoryLines = parserCategoryLineIndexes(source, context);
   let lineStarts = context?.source === source ? context.lineStarts : undefined;
   if (!lineStarts) {

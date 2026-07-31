@@ -1,6 +1,6 @@
 import type { Config } from "wikiparser-node";
 
-import { parseWikitext } from "./parser.js";
+import type { ParserRoot, ParserRuntime } from "./parserRuntime.js";
 
 export interface SourceRange {
   start: number;
@@ -13,11 +13,10 @@ export interface ParsedDocumentContext {
    * that changes text must discard older contexts and parse the new source.
    */
   source: string;
-  root: ReturnType<typeof parseWikitext>;
+  root: ParserRoot;
+  runtime: ParserRuntime;
   lineStarts: number[];
 }
-
-type ParserRoot = ParsedDocumentContext["root"];
 
 export interface ParserNodeLike {
   getAbsoluteIndex(): number;
@@ -55,6 +54,7 @@ export function getLineStarts(source: string): number[] {
 export function createParserContext(
   source: string,
   config: Config,
+  runtime: ParserRuntime,
 ): ParsedDocumentContext {
   const metrics = activeMetrics.at(-1);
   if (metrics) {
@@ -63,7 +63,8 @@ export function createParserContext(
   }
   return {
     source,
-    root: parseWikitext(source, config),
+    root: runtime.parseWikitext(source, config),
+    runtime,
     lineStarts: getLineStarts(source),
   };
 }

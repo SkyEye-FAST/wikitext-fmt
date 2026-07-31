@@ -19,8 +19,9 @@ Choose the shortest path for what you are trying to do.
 
 - [Getting started](getting-started.md) — install the npm dependency and call a
   safe API.
-- [JavaScript API](api.md) — public exports, result shapes, formatter variants,
-  structural equivalence, localization, and config helpers.
+- [JavaScript API](api.md) — Node and browser public exports, result shapes,
+  formatter variants, Web Worker use, structural equivalence, localization, and
+  config helpers.
 - [Safety and diagnostics](safety-and-diagnostics.md) — compare the base
   pipeline with the additional safe idempotency pass.
 - [Versioning](versioning.md) — pre-1.0 compatibility expectations.

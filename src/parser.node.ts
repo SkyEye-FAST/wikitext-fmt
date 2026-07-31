@@ -1,0 +1,66 @@
+import { readFileSync } from "node:fs";
+import { createRequire } from "node:module";
+import { dirname, isAbsolute, resolve } from "node:path";
+
+import Parser, { type ConfigData } from "wikiparser-node";
+import bundledDefaultConfig from "wikiparser-node/config/default.json" with { type: "json" };
+
+import { createParserRuntime } from "./parserRuntime.js";
+
+const require = createRequire(import.meta.url);
+
+interface ConfigLoaderDependencies {
+  readFile(filename: string): string;
+  resolvePackageJson(): string;
+}
+
+const defaultConfigLoaderDependencies: ConfigLoaderDependencies = {
+  readFile: (filename) => readFileSync(filename, "utf8"),
+  resolvePackageJson: () => require.resolve("wikiparser-node/package.json"),
+};
+
+function loadConfig(
+  name: string,
+  dependencies: ConfigLoaderDependencies = defaultConfigLoaderDependencies,
+): ConfigData {
+  const mappedName = name === "mediawiki" ? "default" : name;
+  if (
+    isAbsolute(mappedName) ||
+    mappedName.endsWith(".json") ||
+    mappedName.includes("/")
+  ) {
+    return JSON.parse(dependencies.readFile(resolve(mappedName))) as ConfigData;
+  }
+
+  let packageRoot: string;
+  try {
+    packageRoot = dirname(dependencies.resolvePackageJson());
+  } catch (error) {
+    if (mappedName === "default") {
+      return bundledDefaultConfig as unknown as ConfigData;
+    }
+
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(
+      `Named parser config "${name}" requires wikiparser-node config assets or an explicit JSON config path: ${message}`,
+    );
+  }
+
+  const filename = resolve(packageRoot, "config", `${mappedName}.json`);
+  return JSON.parse(dependencies.readFile(filename)) as ConfigData;
+}
+
+export function loadParserConfigDataForTesting(
+  name: string,
+  dependencies: ConfigLoaderDependencies,
+): ConfigData {
+  return loadConfig(name, dependencies);
+}
+
+export const nodeParserRuntime = createParserRuntime(Parser, loadConfig);
+
+export const {
+  getParserConfig,
+  isRoundTripSafe,
+  parseWikitext,
+} = nodeParserRuntime;

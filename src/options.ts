@@ -158,5 +158,11 @@ export function resolveOptions(
             formatSectionSpacing: true,
           }
         : {};
-  return { ...defaultOptions, ...profileOptions, ...options, profile };
+  return {
+    ...defaultOptions,
+    ...profileOptions,
+    ...options,
+    parserConfig: options.parserConfig ?? defaultOptions.parserConfig,
+    profile,
+  };
 }

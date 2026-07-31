@@ -1,9 +1,10 @@
 # JavaScript API
 
-Only exports from the package root are public:
+The package root and browser subpath are public:
 
 ```ts
 import { formatWikitextSafe } from "wikitext-fmt";
+import { formatWikitextSafe as formatInBrowser } from "wikitext-fmt/browser";
 ```
 
 Files under `src/`, including parser contexts and `resolveOptions`, are
@@ -11,6 +12,47 @@ implementation details even if a source checkout makes them importable.
 
 All public surfaces remain subject to the
 [pre-1.0 compatibility policy](versioning.md).
+
+## Browser entry
+
+`wikitext-fmt/browser` is a browser-safe static dependency graph suitable for
+modern browser applications and Web Workers. It has no dependency on Node.js
+built-ins, `fast-glob`, the CLI, filesystem config discovery, or the VS Code
+extension. It uses the browser-compatible `wikiparser-node` runtime and the same
+formatter implementation and safety pipeline as the Node.js entry.
+
+Its runtime exports are:
+
+- `formatWikitext`, `formatWikitextResult`, `formatWikitextDetailedResult`,
+  `formatWikitextSafe`, and `formatWikitextSafeDetailed`;
+- `defaultOptions` and `ruleLevels`;
+- `loadSiteInfoAliases`, `normalizeSiteInfoPayload`, and
+  `classifyParserFunction`.
+
+It also exports `FormatResult`, `FormatDetailedResult`, `FormatFailure`,
+`FormatFailureCode`, all public rule diagnostic types, `DiagnosticsSummary`,
+`FormatOptions`, `FormatProfile`, `FormatLevel`, every public option union,
+`LocalizationAliases`, `ResolvedLocalizationAliases`, `RuleName`, structural
+equivalence result types, and parser-function policy types as TypeScript types.
+It does not export filesystem configuration helpers or standalone structural
+equivalence functions.
+
+```ts
+import { formatWikitextSafe } from "wikitext-fmt/browser";
+
+self.onmessage = (event) => {
+  self.postMessage(formatWikitextSafe(event.data));
+};
+```
+
+Omitted `parserConfig`, `mediawiki`, and `default` use the bundled MediaWiki
+configuration. Other names, relative JSON paths, and absolute filesystem paths
+are unavailable in browsers. Result APIs return the original source with
+`failure.code === "unsupported-parser-config"` and `stage === "parser-config"`;
+safe APIs do not throw for this ordinary unsupported input. The string API also
+returns the original source. Formatting and parser assets stay local, and the
+entry performs no CDN fetches. `loadSiteInfoAliases` fetches only when an
+application explicitly calls that helper.
 
 ## Formatter functions
 

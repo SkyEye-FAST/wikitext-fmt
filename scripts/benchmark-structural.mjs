@@ -7,8 +7,8 @@ import { getParserConfig } from "../dist/parser.js";
 import {
   createParserContext,
   measureParserContexts,
-} from "../dist/parserContext.js";
-import { collectParserTableCandidates } from "../dist/rules/tables.js";
+} from "../dist/parserContext.node.js";
+import { collectParserTableCandidates } from "../dist/rules/tables.node.js";
 
 const config = getParserConfig("mediawiki");
 

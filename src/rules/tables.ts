@@ -7,6 +7,7 @@ import {
   createParserContext,
   type ParsedDocumentContext,
 } from "../parserContext.js";
+import type { ParserRuntime } from "../parserRuntime.js";
 import { semanticRangeIdentities } from "../semanticIdentity.js";
 
 export interface TableLineDiagnostic {
@@ -705,9 +706,10 @@ export function profileParserTableAnalyses(
   source: string,
   config: Config,
   options: ResolvedFormatOptions,
+  runtime: ParserRuntime,
   onProfile?: (profile: ParserTableAnalysisProfile) => void,
 ): ParserTableAnalysisProfile[] {
-  const context = createParserContext(source, config);
+  const context = createParserContext(source, config, runtime);
   const candidates = collectParserTableCandidates(source, context, config);
   return candidates.map(({ node, offset, start }, index) => {
     const started = performance.now();
@@ -799,7 +801,11 @@ export function collectParserTableCandidates(
       stats.fallbackParses++;
       stats.fallbackSourceBytes += fallbackSource.length;
     }
-    const reparsed = createParserContext(fallbackSource, config);
+    const reparsed = createParserContext(
+      fallbackSource,
+      config,
+      context.runtime,
+    );
     for (const node of reparsed.root.querySelectorAll<ParserTableNode>("table")) {
       add(node, opener);
     }
@@ -860,10 +866,15 @@ function formatParserTables(
   config: Config,
   options: ResolvedFormatOptions,
   context?: ParsedDocumentContext,
+  runtime?: ParserRuntime,
 ): TableFormatWithDiagnosticsResult {
   const maxPasses = 64;
   let output = source;
   let firstContext = context?.source === source ? context : undefined;
+  const parserRuntime = firstContext?.runtime ?? runtime;
+  if (!parserRuntime) {
+    throw new Error("Table formatting requires a parser runtime");
+  }
   let diagnostics: TableDiagnostic[] = [];
   let diagnosticIds: string[] = [];
   const summary = emptySummary();
@@ -885,7 +896,8 @@ function formatParserTables(
   };
 
   for (let pass = 0; pass < maxPasses; pass++) {
-    const current = firstContext ?? createParserContext(output, config);
+    const current =
+      firstContext ?? createParserContext(output, config, parserRuntime);
     firstContext = undefined;
     const tables = collectParserTableCandidates(output, current, config);
     const semanticIds = semanticRangeIdentities(tables, "table");
@@ -936,14 +948,22 @@ export function formatTablesWithDiagnostics(
   config: Config,
   options: ResolvedFormatOptions,
   context?: ParsedDocumentContext,
+  runtime?: ParserRuntime,
 ): TableFormatWithDiagnosticsResult {
-  return formatParserTables(source, config, options, context);
+  return formatParserTables(source, config, options, context, runtime);
 }
 
 export function formatTables(
   source: string,
   config: Config,
   options: ResolvedFormatOptions,
+  runtime: ParserRuntime,
 ): string {
-  return formatTablesWithDiagnostics(source, config, options).formatted;
+  return formatTablesWithDiagnostics(
+    source,
+    config,
+    options,
+    undefined,
+    runtime,
+  ).formatted;
 }

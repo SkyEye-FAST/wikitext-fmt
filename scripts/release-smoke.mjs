@@ -53,7 +53,7 @@ async function smokeTarball(tarball) {
       [
         "--input-type=module",
         "--eval",
-        'import { formatWikitext } from "wikitext-fmt"; if (formatWikitext("==Title==\\n") !== "== Title ==\\n") process.exit(1);',
+        'import { formatWikitext } from "wikitext-fmt"; import { formatWikitextSafe } from "wikitext-fmt/browser"; if (formatWikitext("==Title==\\n") !== "== Title ==\\n") process.exit(1); const result = formatWikitextSafe("==Title==\\n"); if (result.formatted !== "== Title ==\\n" || result.failure) process.exit(1);',
       ],
       { cwd: temporaryDirectory },
     );
@@ -68,6 +68,24 @@ if (entry.formatWikitext("==Title==\n") !== "== Title ==\n") {
 }
 if (typeof entry.loadSiteInfoAliases !== "function") {
   throw new Error("loadSiteInfoAliases is not exported from dist/index.js");
+}
+
+const browserEntry = await import("../dist/browser.js");
+const browserResult = browserEntry.formatWikitextSafe("==Title==\n");
+if (
+  browserResult.formatted !== "== Title ==\n" ||
+  browserResult.failure !== undefined
+) {
+  throw new Error("dist/browser.js formatWikitextSafe smoke failed");
+}
+const unsupportedBrowserResult = browserEntry.formatWikitextSafe("source", {
+  parserConfig: "enwiki",
+});
+if (
+  unsupportedBrowserResult.formatted !== "source" ||
+  unsupportedBrowserResult.failure?.code !== "unsupported-parser-config"
+) {
+  throw new Error("dist/browser.js parser configuration fallback smoke failed");
 }
 
 const packageMetadata = JSON.parse(await readFile("package.json", "utf8"));

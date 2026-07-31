@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { formatWikitext, formatWikitextDetailedResult } from "../src/index.js";
 import generatedAliases from "../src/localization/generated/mediawiki-aliases.json" with { type: "json" };
 import { getParserConfig } from "../src/parser.js";
-import { createParserContext } from "../src/parserContext.js";
+import { createParserContext } from "../src/parserContext.node.js";
 import { formatFileLinks } from "../src/rules/fileLinks.js";
 
 const config = getParserConfig("mediawiki");

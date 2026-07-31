@@ -3,12 +3,14 @@ import type { Config } from "wikiparser-node";
 import {
   collectNodes,
   createParserContext,
+  lineIndexAt,
   lineRangeAt,
   nodeRange,
   type ParsedDocumentContext,
   type ParserNodeLike,
   type SourceRange,
 } from "../parserContext.js";
+import type { ParserRuntime } from "../parserRuntime.js";
 import {
   collectIgnoreRanges,
   collectProtectedRanges,
@@ -66,7 +68,6 @@ interface ListParserNode extends ParserNodeLike {
   dt?: boolean;
   ul?: boolean;
   ol?: boolean;
-  getRange(): ListParserNode;
 }
 
 interface StructureFingerprint {
@@ -267,9 +268,11 @@ function listNodesAtLineStart(
     } catch {
       continue;
     }
-    const nodes = byStart.get(start) ?? [];
+    const lineStart = context.lineStarts[lineIndexAt(context, start)];
+    if (lineStart === undefined) continue;
+    const nodes = byStart.get(lineStart) ?? [];
     nodes.push(node);
-    byStart.set(start, nodes);
+    byStart.set(lineStart, nodes);
   }
   return byStart;
 }
@@ -287,18 +290,21 @@ function describeParserListLine(
   if (lineStart === undefined) return { reason: "not-parser-confirmed" };
   const lineEnd = sourceLineEnd(context, lineIndex);
   const nodes = listNodes.get(lineStart) ?? [];
-  const node = nodes.find((item) => item.parentNode?.type === "root");
+  const rootNodes = nodes.filter((item) => item.parentNode?.type === "root");
+  const node = rootNodes[0];
   if (!node) {
     return {
       reason: nodes.length > 0 ? "protected-block" : "not-parser-confirmed",
     };
   }
 
-  let range: ListParserNode;
   let prefixEnd: number;
   try {
-    range = node.getRange();
-    prefixEnd = range.getAbsoluteIndex();
+    prefixEnd = Math.max(
+      ...rootNodes.map(
+        (item) => item.getAbsoluteIndex() + item.toString().length,
+      ),
+    );
   } catch {
     return { reason: "ambiguous-marker-boundary" };
   }
@@ -312,21 +318,22 @@ function describeParserListLine(
   if (!markers || markers !== candidateMarkers) {
     return { reason: "ambiguous-marker-boundary" };
   }
+  const body = context.source
+    .slice(prefixEnd, lineEnd)
+    .replace(/[ \t]+$/u, "");
 
   return {
     descriptor: {
       markers,
       prefixEnd,
-      body: context.source
-        .slice(prefixEnd, lineEnd)
-        .replace(/[ \t]+$/u, ""),
-      rangeBody: range.toString().replace(/[ \t]+$/u, ""),
+      body,
+      rangeBody: body,
       flags: JSON.stringify({
-        indent: node.indent,
-        dd: node.dd,
-        dt: node.dt,
-        ul: node.ul,
-        ol: node.ol,
+        indent: (markers.match(/:/gu) ?? []).length,
+        dd: markers.includes(":"),
+        dt: markers.includes(";"),
+        ul: markers.includes("*"),
+        ol: markers.includes("#"),
       }),
       structures: lineStructures(structures, prefixEnd, lineEnd),
     },
@@ -388,6 +395,7 @@ export function formatListsWithDiagnostics(
   config: Config,
   context?: ParsedDocumentContext,
   options: ListFormatOptions = {},
+  runtime?: ParserRuntime,
 ): ListFormatResult {
   const diagnostics = emptyListDiagnostics();
   const candidates = collectListLineCandidates(source);
@@ -395,7 +403,12 @@ export function formatListsWithDiagnostics(
     return { formatted: source, diagnostics };
   }
 
-  const resolvedContext = context ?? createParserContext(source, config);
+  const parserRuntime = context?.runtime ?? runtime;
+  if (!parserRuntime) {
+    throw new Error("List formatting requires a parser runtime");
+  }
+  const resolvedContext =
+    context ?? createParserContext(source, config, parserRuntime);
   if (
     resolvedContext.source !== source ||
     resolvedContext.root.toString() !== source
@@ -604,7 +617,7 @@ export function formatListsWithDiagnostics(
 
   let candidateContext: ParsedDocumentContext;
   try {
-    candidateContext = createParserContext(candidate, config);
+    candidateContext = createParserContext(candidate, config, parserRuntime);
   } catch {
     for (const _line of planned) {
       recordSkip(diagnostics, "candidate-not-roundtrip-safe");
@@ -662,8 +675,15 @@ export function formatLists(
   config: Config,
   context?: ParsedDocumentContext,
   options?: ListFormatOptions,
+  runtime?: ParserRuntime,
 ): string {
-  return formatListsWithDiagnostics(source, config, context, options).formatted;
+  return formatListsWithDiagnostics(
+    source,
+    config,
+    context,
+    options,
+    runtime,
+  ).formatted;
 }
 
 /**

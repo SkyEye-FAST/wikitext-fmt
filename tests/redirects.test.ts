@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { formatWikitext, formatWikitextDetailedResult } from "../src/index.js";
 import { getParserConfig } from "../src/parser.js";
-import { createParserContext } from "../src/parserContext.js";
+import { createParserContext } from "../src/parserContext.node.js";
 import { formatRedirects } from "../src/rules/redirects.js";
 
 const config = getParserConfig("mediawiki");

@@ -11,7 +11,7 @@ import {
 } from "../src/index.js";
 import { resolveOptions } from "../src/options.js";
 import { getParserConfig } from "../src/parser.js";
-import { createParserContext } from "../src/parserContext.js";
+import { createParserContext } from "../src/parserContext.node.js";
 import { formatWikilinks } from "../src/rules/wikilinks.js";
 
 const config = getParserConfig("mediawiki");

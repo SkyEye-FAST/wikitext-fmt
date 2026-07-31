@@ -122,6 +122,18 @@ export function validateCorePackageMetadata(packageMetadata) {
     sameStringSet(packageMetadata.files, CORE_PACKAGE_FILES),
     `package.json files must contain only: ${CORE_PACKAGE_FILES.join(", ")}`,
   );
+  assertRelease(
+    packageMetadata.main === "./dist/index.js" &&
+      packageMetadata.types === "./dist/index.d.ts" &&
+      packageMetadata.exports?.["."]?.types === "./dist/index.d.ts" &&
+      packageMetadata.exports?.["."]?.import === "./dist/index.js",
+    "package.json root export must resolve dist/index.js and dist/index.d.ts",
+  );
+  assertRelease(
+    packageMetadata.exports?.["./browser"]?.types === "./dist/browser.d.ts" &&
+      packageMetadata.exports?.["./browser"]?.import === "./dist/browser.js",
+    "package.json browser export must resolve dist/browser.js and dist/browser.d.ts",
+  );
 }
 
 export function validateVscodePackageMetadata(packageMetadata) {

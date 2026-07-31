@@ -49,6 +49,7 @@ document equivalence, and original-source fallback still apply.
 | --- | --- |
 | `input-parse` | The configured parser could not parse input |
 | `input-roundtrip` | Parsed input did not serialize byte-for-byte to the source |
+| `unsupported-parser-config` | `parser-config`: the browser entry received a named or filesystem parser configuration that is available only in Node.js |
 | `unsupported-line-endings` | `input-normalization`: input mixes LF/CRLF or contains bare CR |
 | `output-parse` | Candidate output could not be parsed and exactly round-tripped |
 | `template-equivalence` | Template fingerprints changed |
@@ -57,7 +58,7 @@ document equivalence, and original-source fallback still apply.
 | `idempotency` | The additional safe pass warned, failed, or changed output |
 | `template-convergence` | Template formatting exceeded its bounded passes |
 | `table-convergence` | Table formatting exceeded its bounded passes |
-| `formatter-exception` | Parser configuration or another unexpected formatter operation threw |
+| `formatter-exception` | Another unexpected formatter operation threw; Node parser config loading errors retain this compatibility code |
 
 `FormatFailure` contains `code`, an optional `stage`, and `message`. Every
 failure returns the original input.

@@ -11,8 +11,8 @@ import {
 } from "../src/index.js";
 import { resolveOptions } from "../src/options.js";
 import { getParserConfig, parseWikitext } from "../src/parser.js";
-import { createParserContext } from "../src/parserContext.js";
-import { formatTablesWithDiagnostics } from "../src/rules/tables.js";
+import { createParserContext } from "../src/parserContext.node.js";
+import { formatTablesWithDiagnostics } from "../src/rules/tables.node.js";
 
 const config = getParserConfig("mediawiki");
 const production: FormatOptions = { profile: "production" };

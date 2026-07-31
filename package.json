@@ -29,6 +29,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./browser": {
+      "types": "./dist/browser.d.ts",
+      "import": "./dist/browser.js"
     }
   },
   "bin": {
@@ -48,7 +52,8 @@
     "typecheck:tests": "tsc -p tsconfig.test.json",
     "test": "vitest",
     "test:run": "vitest run",
-    "check": "pnpm check:versions && pnpm build:all && node scripts/check-docs.mjs && pnpm check:core-package-content && pnpm typecheck:tests && pnpm --filter wikitext-formatter typecheck && pnpm --filter wikitext-formatter check:package-content && pnpm test:run && pnpm smoke",
+    "check": "pnpm check:versions && pnpm build:all && node scripts/check-docs.mjs && node scripts/check-browser-bundle.mjs && pnpm check:core-package-content && pnpm typecheck:tests && pnpm --filter wikitext-formatter typecheck && pnpm --filter wikitext-formatter check:package-content && pnpm test:run && pnpm smoke",
+    "check:browser": "pnpm build && node scripts/check-browser-bundle.mjs",
     "check:core-package-content": "node scripts/check-core-package-content.mjs",
     "check:docs": "pnpm build && node scripts/check-docs.mjs",
     "check:release-metadata": "node scripts/prepare-release.mjs",

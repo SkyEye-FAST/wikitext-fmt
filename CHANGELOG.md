@@ -6,6 +6,16 @@ here. The project follows the pre-1.0 policy in
 
 ## Unreleased
 
+### Added
+
+- Added the public `wikitext-fmt/browser` package subpath with all formatter
+  variants, browser-safe public types and helpers, the bundled default MediaWiki
+  parser configuration, Web Worker-compatible packaging, Node-free bundle and
+  package-content checks, and Node/browser result parity coverage.
+- Added the structured `unsupported-parser-config` failure for browser callers
+  that request arbitrary named or filesystem parser configurations; safe APIs
+  retain the original source instead of throwing.
+
 ## 0.5.0 - 2026-07-31
 
 ### Added

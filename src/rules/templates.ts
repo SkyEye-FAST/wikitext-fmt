@@ -14,8 +14,8 @@ import {
 import {
   templateStructuralFingerprint,
   templateTokenStructuralFingerprint,
-} from "../equivalence.js";
-import { isRoundTripSafe, parseWikitext } from "../parser.js";
+} from "../equivalenceCore.js";
+import type { ParserRuntime } from "../parserRuntime.js";
 import { semanticRangeIdentities } from "../semanticIdentity.js";
 import { classifyParserFunction } from "../parserFunctionPolicy.js";
 import {
@@ -76,6 +76,12 @@ type TemplateNode = TranscludeToken & {
   parentNode?: { closest(selector: string): unknown };
   querySelectorAll<T = unknown>(selector: string): T[];
 };
+
+function templateArguments(node: TemplateNode): ParameterToken[] {
+  return node.childNodes.filter(
+    (child): child is ParameterToken => child.type === "parameter",
+  );
+}
 
 function emptyDiagnostics(): TemplateDiagnostics {
   return {
@@ -417,6 +423,7 @@ function inlineSyntaxWhitespaceCost(
 function selectInlineNamedCandidate(
   node: TemplateNode,
   config: Config,
+  runtime: ParserRuntime,
   head: string,
   args: readonly ParameterToken[],
   requestedSpacing: InlineTemplateSpacing,
@@ -446,7 +453,7 @@ function selectInlineNamedCandidate(
       if (value === undefined) return undefined;
       try {
         if (value !== raw) {
-          const reparsed = findOwningTemplate(value, config);
+          const reparsed = findOwningTemplate(value, config, runtime);
           if (
             !reparsed ||
             templateTokenStructuralFingerprint(reparsed) !== originalFingerprint
@@ -504,7 +511,7 @@ function anonymousLayoutCandidates(
     return { candidates: [], reason: invocation.reason };
   }
   const raw = invocation.normalizedRaw;
-  const args = node.getAllArgs();
+  const args = templateArguments(node);
   const start = node.getAbsoluteIndex();
   const firstArgStart = args[0]!.getAbsoluteIndex() - start;
   const head = trimAsciiLayoutWhitespace(raw.slice(2, firstArgStart - 1));
@@ -540,8 +547,9 @@ function anonymousLayoutCandidates(
 function findOwningTemplate(
   source: string,
   config: Config,
+  runtime: ParserRuntime,
 ): TemplateNode | undefined {
-  const root = parseWikitext(source, config);
+  const root = runtime.parseWikitext(source, config);
   if (root.toString() !== source) return undefined;
   return root
     .querySelectorAll<TemplateNode>("template")
@@ -554,8 +562,9 @@ function findOwningTemplate(
 function protectEmbeddedParserTables(
   source: string,
   config: Config,
+  runtime: ParserRuntime,
 ): { text?: string; restore(value: string): string; reason?: string } {
-  const context = createParserContext(source, config);
+  const context = createParserContext(source, config, runtime);
   const confirmed = collectParserTableCandidates(source, context, config)
     .filter(
       (candidate) =>
@@ -618,23 +627,34 @@ function renderTemplateWithOpaqueTables(
   raw: string,
   config: Config,
   options: TemplateFormatOptions,
+  runtime: ParserRuntime,
 ): { value?: string; reason?: string; multiline?: boolean } {
-  const protectedTables = protectEmbeddedParserTables(raw, config);
+  const protectedTables = protectEmbeddedParserTables(raw, config, runtime);
   if (protectedTables.reason) return { reason: protectedTables.reason };
-  const protectedNode = findOwningTemplate(protectedTables.text!, config);
+  const protectedNode = findOwningTemplate(
+    protectedTables.text!,
+    config,
+    runtime,
+  );
   if (!protectedNode) {
     return {
       reason: "parser did not expose an owning template around embedded tables",
     };
   }
-  const rendered = renderTemplate(protectedNode, config, options, false);
+  const rendered = renderTemplate(
+    protectedNode,
+    config,
+    options,
+    runtime,
+    false,
+  );
   if (rendered.reason || rendered.value === undefined) return rendered;
   const value = protectedTables.restore(rendered.value);
   try {
     if (
-      !isRoundTripSafe(value, config) ||
-      templateStructuralFingerprint(value, config) !==
-        templateStructuralFingerprint(raw, config)
+      !runtime.isRoundTripSafe(value, config) ||
+      templateStructuralFingerprint(value, config, runtime) !==
+        templateStructuralFingerprint(raw, config, runtime)
     ) {
       return { value: raw, multiline: raw.includes("\n") };
     }
@@ -649,6 +669,7 @@ function selectAnonymousLayoutCandidate(
   config: Config,
   collapseAnonymous: boolean,
   requireIdempotency: boolean,
+  runtime: ParserRuntime,
 ): { value?: string; reason?: string; multiline?: boolean } {
   const raw = node.toString();
   const generated = anonymousLayoutCandidates(node, collapseAnonymous);
@@ -656,7 +677,7 @@ function selectAnonymousLayoutCandidate(
 
   let originalFingerprint: string;
   try {
-    originalFingerprint = templateStructuralFingerprint(raw, config);
+    originalFingerprint = templateStructuralFingerprint(raw, config, runtime);
   } catch {
     return { reason: "template candidate could not be structurally fingerprinted" };
   }
@@ -664,13 +685,14 @@ function selectAnonymousLayoutCandidate(
   for (const candidate of generated.candidates) {
     try {
       if (
-        !isRoundTripSafe(candidate, config) ||
-        templateStructuralFingerprint(candidate, config) !== originalFingerprint
+        !runtime.isRoundTripSafe(candidate, config) ||
+        templateStructuralFingerprint(candidate, config, runtime) !==
+          originalFingerprint
       ) {
         continue;
       }
       if (requireIdempotency) {
-        const reparsed = findOwningTemplate(candidate, config);
+        const reparsed = findOwningTemplate(candidate, config, runtime);
         if (!reparsed) continue;
         const regenerated = anonymousLayoutCandidates(
           reparsed,
@@ -695,6 +717,7 @@ function renderTemplate(
   node: TemplateNode,
   config: Config,
   options: TemplateFormatOptions,
+  runtime: ParserRuntime,
   collapseAnonymous = true,
 ): { value?: string; reason?: string; multiline?: boolean } {
   const raw = node.toString();
@@ -711,12 +734,17 @@ function renderTemplate(
     return { value: raw, multiline: raw.includes("\n") };
   }
   const normalizedRaw = invocation.normalizedRaw;
-  const args = node.getAllArgs();
+  const args = templateArguments(node);
   if (args.length === 0) {
     return { value: normalizedRaw, multiline: normalizedRaw.includes("\n") };
   }
   if (potentialParserTableOpenerPositions(normalizedRaw).length > 0) {
-    return renderTemplateWithOpaqueTables(normalizedRaw, config, options);
+    return renderTemplateWithOpaqueTables(
+      normalizedRaw,
+      config,
+      options,
+      runtime,
+    );
   }
 
   const start = node.getAbsoluteIndex();
@@ -742,6 +770,7 @@ function renderTemplate(
       config,
       collapseAnonymous,
       true,
+      runtime,
     );
   }
 
@@ -767,6 +796,7 @@ function renderTemplate(
     return selectInlineNamedCandidate(
       node,
       config,
+      runtime,
       head,
       args,
       options.inlineTemplateSpacing,
@@ -823,11 +853,16 @@ export function formatTemplatesWithDiagnostics(
   config: Config,
   options: TemplateFormatOptions,
   context?: ParsedDocumentContext,
+  runtime?: ParserRuntime,
 ): TemplateFormatResult {
   const diagnostics = emptyDiagnostics();
   const maxPasses = options.maxPasses ?? 64;
   let output = source;
   let firstContext = context?.source === source ? context : undefined;
+  const parserRuntime = firstContext?.runtime ?? runtime;
+  if (!parserRuntime) {
+    throw new Error("Template formatting requires a parser runtime");
+  }
   const originalMultiline = new Map<string, boolean>();
   const changedNodeIds = new Set<string>();
   const expandedNodeIds = new Set<string>();
@@ -861,7 +896,7 @@ export function formatTemplatesWithDiagnostics(
 
   if (maxPasses === 0) {
     const nodes = collectTemplateNodes(
-      firstContext ?? createParserContext(output, config),
+      firstContext ?? createParserContext(output, config, parserRuntime),
     );
     const semanticIds = semanticRangeIdentities(
       nodes.map((node) => ({
@@ -876,7 +911,7 @@ export function formatTemplatesWithDiagnostics(
 
   for (let pass = 0; pass < maxPasses; pass++) {
     const currentContext =
-      firstContext ?? createParserContext(output, config);
+      firstContext ?? createParserContext(output, config, parserRuntime);
     firstContext = undefined;
     const nodes = collectTemplateNodes(currentContext);
     const semanticIds = semanticRangeIdentities(
@@ -921,7 +956,7 @@ export function formatTemplatesWithDiagnostics(
         canonicalNodeValues.set(semanticId, raw);
         continue;
       }
-      const rendered = renderTemplate(node, config, options);
+      const rendered = renderTemplate(node, config, options, parserRuntime);
       if (rendered.reason) {
         const reasonIdentity = `${semanticId}\u0000${rendered.reason}`;
         if (!recordedSkipReasons.has(reasonIdentity)) {
@@ -988,6 +1023,7 @@ export function formatTemplates(
   config: Config,
   lineWidth: number,
   context?: ParsedDocumentContext,
+  runtime?: ParserRuntime,
 ): string {
   return formatTemplatesWithDiagnostics(
     source,
@@ -1000,5 +1036,6 @@ export function formatTemplates(
       parameterLayout: "flush",
     },
     context,
+    runtime,
   ).formatted;
 }

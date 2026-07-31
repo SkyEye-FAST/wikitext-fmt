@@ -48,7 +48,8 @@ For exact boundaries, see
 
 ## Installation
 
-Supported runtimes are Node.js 22.13+ on the 22.x line, or Node.js 24.11+.
+The CLI and Node.js entry support Node.js 22.13+ on the 22.x line, or Node.js
+24.11+. The browser entry supports modern browsers and Web Workers.
 
 Install the CLI globally:
 
@@ -117,6 +118,27 @@ The package also exposes compact string output, detailed rule diagnostics,
 structural-equivalence helpers, localization helpers, and config loading.
 See the [API reference](docs/api.md).
 
+### Browser API
+
+```ts
+import { formatWikitextSafe } from "wikitext-fmt/browser";
+
+const result = formatWikitextSafe("==Title==\n");
+
+if (result.failure) {
+  console.error(result.failure);
+} else {
+  console.log(result.formatted);
+}
+```
+
+Browser formatting runs entirely locally and uses the same fail-closed parsing,
+round-trip, structural-equivalence, convergence, and idempotency pipeline as the
+Node.js entry. The initial browser entry supports only the bundled `mediawiki`
+or `default` parser configuration. Filesystem paths and arbitrary named parser
+configurations are Node-only and fail closed in browser result APIs. No parser
+assets are fetched from a CDN at runtime.
+
 ## Profiles
 
 Profiles are presets; reliability levels are cumulative rule ceilings.
@@ -147,7 +169,7 @@ extensions do not depend on a workspace checkout.
 - [Getting started](docs/getting-started.md)
 - [CLI reference](docs/cli.md)
 - [Configuration reference](docs/configuration.md)
-- [JavaScript API](docs/api.md)
+- [JavaScript and browser API](docs/api.md)
 - [Safety and diagnostics](docs/safety-and-diagnostics.md)
 - [Formatting rules](docs/rules.md)
 - [Localization](docs/localization.md)

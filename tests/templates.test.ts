@@ -6,8 +6,8 @@ import {
   verifyStructuralEquivalence,
 } from "../src/index.js";
 import { getParserConfig } from "../src/parser.js";
-import { createParserContext } from "../src/parserContext.js";
-import { formatTemplates } from "../src/rules/templates.js";
+import { createParserContext } from "../src/parserContext.node.js";
+import { formatTemplates } from "../src/rules/templates.node.js";
 import { readRealPage } from "./helpers/realPages.js";
 
 const config = getParserConfig("mediawiki");

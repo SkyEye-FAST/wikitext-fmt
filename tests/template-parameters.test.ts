@@ -10,7 +10,7 @@ import {
   formatWikitextSafeDetailed,
 } from "../src/index.js";
 import { getParserConfig, parseWikitext } from "../src/parser.js";
-import { formatTemplatesWithDiagnostics } from "../src/rules/templates.js";
+import { formatTemplatesWithDiagnostics } from "../src/rules/templates.node.js";
 import type {
   FormatOptions,
   InlineTemplateSpacing,

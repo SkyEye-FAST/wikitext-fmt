@@ -4,18 +4,18 @@ import { getParserConfig } from "../src/parser.js";
 import {
   createParserContext,
   measureParserContexts,
-} from "../src/parserContext.js";
+} from "../src/parserContext.node.js";
 import {
   type SemanticIdentityStats,
   outermostSourceRanges,
   semanticRangeIdentities,
 } from "../src/semanticIdentity.js";
 import { formatWikitextSafeDetailed } from "../src/formatter.js";
-import { formatListsWithDiagnostics } from "../src/rules/lists.js";
+import { formatListsWithDiagnostics } from "../src/rules/lists.node.js";
 import {
   collectParserTableCandidates,
   type ParserTableCandidateStats,
-} from "../src/rules/tables.js";
+} from "../src/rules/tables.node.js";
 
 const config = getParserConfig("mediawiki");
 

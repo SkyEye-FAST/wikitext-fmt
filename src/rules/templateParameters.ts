@@ -1,4 +1,4 @@
-import { getParserConfig } from "../parser.js";
+import { nodeParserRuntime } from "../parser.node.js";
 import {
   formatTemplatesWithDiagnostics,
   type TemplateDiagnostics,
@@ -19,11 +19,17 @@ export interface TemplateParameterResult {
 export function formatTemplateParameters(
   source: string,
 ): TemplateParameterResult {
-  return formatTemplatesWithDiagnostics(source, getParserConfig("mediawiki"), {
-    lineWidth: 120,
-    layout: "preserve",
-    parameterSpacing: true,
-    inlineTemplateSpacing: "auto",
-    parameterLayout: "flush",
-  });
+  return formatTemplatesWithDiagnostics(
+    source,
+    nodeParserRuntime.getParserConfig("mediawiki"),
+    {
+      lineWidth: 120,
+      layout: "preserve",
+      parameterSpacing: true,
+      inlineTemplateSpacing: "auto",
+      parameterLayout: "flush",
+    },
+    undefined,
+    nodeParserRuntime,
+  );
 }

@@ -2,11 +2,15 @@
 
 ## Repository layout
 
-- `src/formatter.ts`: formatter pipeline and fail-closed orchestration.
+- `src/formatterCore.ts`: shared formatter pipeline and fail-closed
+  orchestration; `src/formatter.ts` and `src/browser.ts` are thin runtime
+  entries.
 - `src/options.ts` and `src/options/schema.ts`: options, defaults, profiles, and
   runtime metadata.
-- `src/parser.ts`, `src/parserContext.ts`, `src/equivalence.ts`: parser
-  boundaries and structural verification.
+- `src/parserRuntime.ts`, `src/parser.node.ts`, `src/parser.browser.ts`, and
+  `src/parserContext.ts`: shared parser contract and runtime-specific config
+  loading. `src/equivalenceCore.ts` contains shared structural verification;
+  `src/equivalence.ts` is the Node-facing wrapper.
 - `src/rules/`: transformations and rule diagnostics.
 - `src/cli.ts` and `src/cli/`: CLI parsing, config, paths, streams, diagnostics,
   reports, and siteinfo.
@@ -41,6 +45,7 @@ pnpm build
 pnpm typecheck
 pnpm typecheck:tests
 pnpm exec vitest run tests/<relevant-file>.test.ts
+pnpm check:browser
 ```
 
 The full core gate is:
@@ -51,8 +56,34 @@ pnpm corpus
 ```
 
 `pnpm check` builds all packages, validates version and documentation metadata,
-type-checks, runs tests, checks extension package contents, and executes smoke
-tests.
+type-checks, bundles the browser entry for `platform=browser`, runs tests, checks
+extension and core package contents, and executes smoke tests.
+
+## Browser entry
+
+The normal root build emits `dist/browser.js` and `dist/browser.d.ts`. Run the
+focused compatibility and dependency checks with:
+
+```sh
+pnpm build
+pnpm exec vitest run tests/browser-entry.test.ts
+pnpm check:browser
+pnpm check:core-package-content
+```
+
+`check:browser` bundles a Web Worker fixture that imports
+`wikitext-fmt/browser` using esbuild with `platform=browser` and `format=esm`.
+No Node built-in is externalized; the check rejects Node, CLI, config-discovery,
+VS Code, and `fast-glob` inputs. Browser/Node parity tests cover representative
+rules, diagnostics, failures, CRLF, malformed input, configuration restrictions,
+and safe idempotency.
+
+A future frontend repository should depend on the published package and import
+only from `wikitext-fmt/browser`; it should not import repository `src/` files.
+Worker code can call the formatter synchronously inside `onmessage` and post the
+structured result back to the main thread. The browser entry ships the parser
+runtime through the package dependency graph and performs no runtime asset
+download.
 
 ## Documentation checks
 

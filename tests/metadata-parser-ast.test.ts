@@ -10,7 +10,7 @@ import {
   lineRangeAt,
   lineTextAt,
   nodeRange,
-} from "../src/parserContext.js";
+} from "../src/parserContext.node.js";
 
 const config = getParserConfig("mediawiki");
 

@@ -27,6 +27,18 @@ function packageMetadata(version = "0.2.0") {
     bugs: { url: CORE_BUGS_URL },
     homepage: CORE_HOMEPAGE,
     publishConfig: { access: "public", registry: CORE_REGISTRY },
+    main: "./dist/index.js",
+    types: "./dist/index.d.ts",
+    exports: {
+      ".": {
+        types: "./dist/index.d.ts",
+        import: "./dist/index.js",
+      },
+      "./browser": {
+        types: "./dist/browser.d.ts",
+        import: "./dist/browser.js",
+      },
+    },
     files: [...CORE_PACKAGE_FILES],
     packageManager: "pnpm@11.17.0",
   };

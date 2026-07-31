@@ -105,15 +105,21 @@ Inspect the npm file list:
 
 ```sh
 pnpm pack --dry-run
+pnpm check:browser
 pnpm check:core-package-content
 ```
 
 The package must contain:
 
-- `dist`;
+- `dist`, including `browser.js`, `browser.d.ts`, and the runtime adapter;
 - root `README.md`, `CHANGELOG.md`, and `LICENSE`;
 - the complete user/contributor `docs/` hierarchy;
-- generated runtime parser/localization JSON.
+- generated runtime parser/localization JSON and the declared parser dependency
+  containing the bundled browser runtime/configuration assets.
+
+The browser bundle check must resolve the published `wikitext-fmt/browser`
+subpath without marking Node built-ins external. Release smoke tests import both
+the root and browser subpaths from the packed installation.
 
 It must exclude tests, fixtures, reports, extension build output, credentials,
 and dependency directories.
