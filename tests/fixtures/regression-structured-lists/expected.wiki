@@ -1,0 +1,21 @@
+: c<!-- ordinary comment -->
+:* {{Template|a=1}}
+:# [[Target|label]]
+:; <span class="x">text</span>
+:* <ref name="x">source</ref>
+: <!-- comment -->content
+:* {{Template}}<!-- trailing comment -->
+; term:definition
+; term : definition
+:　Unicode space
+<!-- wikitext-fmt-ignore -->
+:c
+<nowiki>
+:c
+</nowiki>
+<pre>
+:c
+</pre>
+{|
+| :c
+|}

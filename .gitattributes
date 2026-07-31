@@ -3,3 +3,4 @@
 *.{bat,[bB][aA][tT]} text eol=crlf
 *.{ps1,[pP][sS]1} text eol=crlf
 *.wiki whitespace=-trailing-space
+tests/fixtures/regression-structured-lists-crlf/*.wiki -text whitespace=-trailing-space
