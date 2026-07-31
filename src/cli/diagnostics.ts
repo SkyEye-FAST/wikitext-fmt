@@ -41,7 +41,7 @@ export interface DiagnosticsSummary {
   listLinesEligible: number;
   listLinesChanged: number;
   listLinesAlreadyCanonical: number;
-  listLinesSkippedAmbiguous: number;
+  listLinesSkipped: number;
   mixedMarkerLinesChanged: number;
   commentBearingLinesChanged: number;
   structuredContentLinesChanged: number;
@@ -115,7 +115,7 @@ export function emptyDiagnosticsSummary(): DiagnosticsSummary {
     listLinesEligible: 0,
     listLinesChanged: 0,
     listLinesAlreadyCanonical: 0,
-    listLinesSkippedAmbiguous: 0,
+    listLinesSkipped: 0,
     mixedMarkerLinesChanged: 0,
     commentBearingLinesChanged: 0,
     structuredContentLinesChanged: 0,
@@ -197,8 +197,8 @@ export function createDiagnosticsSummary(
     listLinesChanged: result.listDiagnostics.listLinesChanged,
     listLinesAlreadyCanonical:
       result.listDiagnostics.listLinesAlreadyCanonical,
-    listLinesSkippedAmbiguous:
-      result.listDiagnostics.listLinesSkippedAmbiguous,
+    listLinesSkipped:
+      result.listDiagnostics.listLinesSkipped,
     mixedMarkerLinesChanged: result.listDiagnostics.mixedMarkerLinesChanged,
     commentBearingLinesChanged:
       result.listDiagnostics.commentBearingLinesChanged,

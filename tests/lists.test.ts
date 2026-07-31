@@ -122,23 +122,31 @@ describe("list formatting", () => {
 
   it("reports changed list categories", () => {
     const source =
-      ":*item\n:c<!-- c -->\n:{{T}}\n* already canonical\n";
+      ":*item\n:c<!-- c -->\n:{{T}}\n* already canonical\n:\u00A0unchanged\n";
     const result = formatWikitextDetailedResult(source);
 
     expect(result.formatted).toBe(
-      ":* item\n: c<!-- c -->\n: {{T}}\n* already canonical\n",
+      ":* item\n: c<!-- c -->\n: {{T}}\n* already canonical\n:\u00A0unchanged\n",
     );
     expect(result.listDiagnostics).toEqual({
-      listLinesInspected: 4,
+      listLinesInspected: 5,
       listLinesEligible: 4,
       listLinesChanged: 3,
       listLinesAlreadyCanonical: 1,
-      listLinesSkippedAmbiguous: 0,
+      listLinesSkipped: 1,
       mixedMarkerLinesChanged: 1,
       commentBearingLinesChanged: 1,
       structuredContentLinesChanged: 1,
-      skipReasons: {},
+      skipReasons: { "unicode-separator": 1 },
     });
+    expect(result.listDiagnostics.listLinesEligible).toBe(
+      result.listDiagnostics.listLinesChanged +
+        result.listDiagnostics.listLinesAlreadyCanonical,
+    );
+    expect(result.listDiagnostics.listLinesInspected).toBe(
+      result.listDiagnostics.listLinesEligible +
+        result.listDiagnostics.listLinesSkipped,
+    );
   });
 
   it.each([
@@ -251,7 +259,7 @@ describe("list formatting", () => {
     const result = formatWikitextDetailedResult(withNewline);
     expect(result.formatted).toBe(withNewline);
     expect(result.listDiagnostics.listLinesChanged).toBe(0);
-    expect(result.listDiagnostics.listLinesSkippedAmbiguous).toBeGreaterThan(0);
+    expect(result.listDiagnostics.listLinesSkipped).toBeGreaterThan(0);
   });
 
   it.each([

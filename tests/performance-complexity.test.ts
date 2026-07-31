@@ -152,7 +152,7 @@ describe("parser complexity", () => {
       listLinesEligible: 0,
       listLinesChanged: 0,
       listLinesAlreadyCanonical: 0,
-      listLinesSkippedAmbiguous: 0,
+      listLinesSkipped: 0,
       mixedMarkerLinesChanged: 0,
       commentBearingLinesChanged: 0,
       structuredContentLinesChanged: 0,

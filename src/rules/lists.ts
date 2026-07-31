@@ -38,7 +38,7 @@ export interface ListDiagnostics {
   listLinesEligible: number;
   listLinesChanged: number;
   listLinesAlreadyCanonical: number;
-  listLinesSkippedAmbiguous: number;
+  listLinesSkipped: number;
   mixedMarkerLinesChanged: number;
   commentBearingLinesChanged: number;
   structuredContentLinesChanged: number;
@@ -118,7 +118,7 @@ function emptyListDiagnostics(): ListDiagnostics {
     listLinesEligible: 0,
     listLinesChanged: 0,
     listLinesAlreadyCanonical: 0,
-    listLinesSkippedAmbiguous: 0,
+    listLinesSkipped: 0,
     mixedMarkerLinesChanged: 0,
     commentBearingLinesChanged: 0,
     structuredContentLinesChanged: 0,
@@ -130,7 +130,7 @@ function recordSkip(
   diagnostics: ListDiagnostics,
   reason: ListSkipReason,
 ): void {
-  diagnostics.listLinesSkippedAmbiguous++;
+  diagnostics.listLinesSkipped++;
   diagnostics.skipReasons[reason] =
     (diagnostics.skipReasons[reason] ?? 0) + 1;
 }
