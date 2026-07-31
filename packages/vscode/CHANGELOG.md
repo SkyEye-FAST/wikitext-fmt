@@ -13,12 +13,19 @@ Core-only changes remain in the root changelog.
 - Added document check and read-only diff preview commands, structured
   output-channel reports, resolved-configuration inspection, and opening the
   config file actually used by the active document.
+- Added complete list changes, skipped-line counts, core-named list diagnostics,
+  and unified `lists: <reason>` entries to output-channel reports.
+- Added extension-host coverage for CRLF check, preview, format, and save flows,
+  plus mixed-EOL and bare-CR fail-closed behavior.
 
 ### Changed
 
 - Both safe and non-safe editor modes now use the core detailed result APIs and
   preserve structured failures and rule diagnostics. Any failure or warning
   remains fail-closed and produces no document edit.
+- Clean UTF-8 file documents are checked against their original bytes before
+  VS Code normalizes the text model, preserving pure CRLF and rejecting mixed
+  LF/CRLF or bare CR with `unsupported-line-endings`.
 - Limited all document commands to `wikitext` and compatible `mediawiki`
   documents in both contribution metadata and runtime checks.
 - Marked `formatTemplateParameters` as deprecated in VS Code metadata and

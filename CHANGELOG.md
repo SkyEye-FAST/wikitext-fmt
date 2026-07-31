@@ -24,8 +24,8 @@ here. The project follows the pre-1.0 policy in
   preserving every content and structure byte.
 - Added a no-candidate list fast path, delayed parser context creation, and
   candidate-line structural range indexing without changing list eligibility.
-- Renamed the unreleased `listLinesSkippedAmbiguous` diagnostics field to
-  `listLinesSkipped` across detailed results, CLI JSON, and batch summaries.
+- Standardized `listLinesSkipped` across detailed results, CLI JSON, and batch
+  summaries so the counter clearly includes every skip reason.
 
 ### Fixed
 
@@ -33,6 +33,9 @@ here. The project follows the pre-1.0 policy in
   ignore ranges, opaque blocks, Unicode separators, multiline or unclosed
   structures, and ambiguous marker boundaries remain fail-closed with specific
   diagnostics.
+- Preserved precise `protected-block` and `ignore-range` list skip reasons even
+  when a document has candidates but no root-level parser-confirmed list, without
+  restoring full structured analysis to that fast path.
 - Mixed LF/CRLF input and bare CR now fail closed with the stable
   `unsupported-line-endings` code instead of being silently normalized.
 

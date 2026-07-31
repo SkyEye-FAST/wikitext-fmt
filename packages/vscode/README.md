@@ -228,6 +228,12 @@ changes. See the
 - `mediawiki` support depends on another extension contributing that language.
 - Preview and check are read-only and always use the same configuration and
   detailed core call as normal formatting.
+- Output-channel reports include list changes, skipped lines, the complete core
+  `listDiagnostics` field names, and unified `lists: <reason>` skip reasons.
+- Pure CRLF file documents retain CRLF through preview, formatting, and save.
+  For clean UTF-8 files, the extension checks original bytes before VS Code
+  normalizes its text model, so mixed LF/CRLF and bare CR remain unchanged and
+  report `unsupported-line-endings`.
 - Safe/config failures appear as VS Code warnings with output-channel details.
 
 If formatting does nothing, check the language mode and default formatter, then

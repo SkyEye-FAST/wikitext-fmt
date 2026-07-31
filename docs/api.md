@@ -114,9 +114,8 @@ skips, and their reason histogram. Only the page-title component is normalized;
 labels and fragments are not counted as replacements.
 
 `ListDiagnostics` distinguishes inspected, eligible, changed, already-canonical,
-and conservatively skipped list lines. The public skipped counter is
-`listLinesSkipped`; the earlier unreleased `listLinesSkippedAmbiguous` name was
-removed because the counter includes every skip reason, not only ambiguity.
+and conservatively skipped list lines. The `listLinesSkipped` counter includes
+every skip reason, not only ambiguity.
 `listLinesEligible` includes changed and already-canonical lines, so the
 following invariants hold:
 
