@@ -17,6 +17,7 @@ import {
 const LIST_LINE = /^([*#:;]+)([ \t]*)(\S.*)$/u;
 const EMPTY_LIST_LINE = /^([*#:;]+)[ \t]*$/u;
 const LIST_CANDIDATE = /^([*#:;]+)(.*)$/u;
+const HAS_LIST_CANDIDATE = /^[*#:;]/mu;
 const LIST_PREFIX = /^([*#:;]+)([ \t]*)$/u;
 const STRUCTURED_CONTENT_SELECTOR =
   "template, magic-word, link, file, category, ext-link, ext, html, comment";
@@ -96,6 +97,15 @@ interface PlannedLine {
   structuredContent: boolean;
 }
 
+interface ListLineCandidate {
+  lineIndex: number;
+  lineStart: number;
+  lineEnd: number;
+  line: string;
+  markers: string;
+  body: string;
+}
+
 interface StructuralNode {
   type: string;
   raw: string;
@@ -139,6 +149,36 @@ function sourceLineEnd(
     : range.end;
 }
 
+function collectListLineCandidates(source: string): ListLineCandidate[] {
+  if (!HAS_LIST_CANDIDATE.test(source)) return [];
+  const candidates: ListLineCandidate[] = [];
+  let lineIndex = 0;
+  let lineStart = 0;
+  while (lineStart <= source.length) {
+    const newline = source.indexOf("\n", lineStart);
+    const rawLineEnd = newline < 0 ? source.length : newline;
+    const lineEnd =
+      source.charCodeAt(rawLineEnd - 1) === 13 ? rawLineEnd - 1 : rawLineEnd;
+    const line = source.slice(lineStart, lineEnd);
+    const candidate = LIST_CANDIDATE.exec(line);
+    const markers = candidate?.[1];
+    if (markers) {
+      candidates.push({
+        lineIndex,
+        lineStart,
+        lineEnd,
+        line,
+        markers,
+        body: candidate[2] ?? "",
+      });
+    }
+    if (newline < 0) break;
+    lineStart = newline + 1;
+    lineIndex++;
+  }
+  return candidates;
+}
+
 function collectStructuralNodes(
   context: ParsedDocumentContext,
 ): StructuralNode[] {
@@ -163,6 +203,41 @@ function collectStructuralNodes(
   );
 }
 
+function structuresByCandidateLine(
+  candidates: readonly ListLineCandidate[],
+  structures: readonly StructuralNode[],
+): ReadonlyMap<number, readonly StructuralNode[]> {
+  const byLine = new Map<number, StructuralNode[]>();
+  let firstCandidate = 0;
+  for (const structure of structures) {
+    while (
+      firstCandidate < candidates.length &&
+      candidates[firstCandidate]!.lineEnd <= structure.range.start
+    ) {
+      firstCandidate++;
+    }
+    for (
+      let index = firstCandidate;
+      index < candidates.length &&
+      candidates[index]!.lineStart < structure.range.end;
+      index++
+    ) {
+      const candidate = candidates[index]!;
+      if (
+        intersects(
+          { start: candidate.lineStart, end: candidate.lineEnd },
+          structure.range,
+        )
+      ) {
+        const lineStructures = byLine.get(candidate.lineIndex) ?? [];
+        lineStructures.push(structure);
+        byLine.set(candidate.lineIndex, lineStructures);
+      }
+    }
+  }
+  return byLine;
+}
+
 function lineStructures(
   structures: readonly StructuralNode[],
   contentStart: number,
@@ -178,16 +253,6 @@ function lineStructures(
       start: structure.range.start - contentStart,
       raw: structure.raw,
     }));
-}
-
-function nodesOverlappingLine(
-  structures: readonly StructuralNode[],
-  lineStart: number,
-  lineEnd: number,
-): StructuralNode[] {
-  return structures.filter((structure) =>
-    intersects(structure.range, { start: lineStart, end: lineEnd }),
-  );
 }
 
 function listNodesAtLineStart(
@@ -321,11 +386,44 @@ function extensionRanges(context: ParsedDocumentContext): SourceRange[] {
 export function formatListsWithDiagnostics(
   source: string,
   config: Config,
-  context: ParsedDocumentContext = createParserContext(source, config),
+  context?: ParsedDocumentContext,
   options: ListFormatOptions = {},
 ): ListFormatResult {
   const diagnostics = emptyListDiagnostics();
-  if (context.source !== source || context.root.toString() !== source) {
+  const candidates = collectListLineCandidates(source);
+  if (candidates.length === 0) {
+    return { formatted: source, diagnostics };
+  }
+
+  const resolvedContext = context ?? createParserContext(source, config);
+  if (
+    resolvedContext.source !== source ||
+    resolvedContext.root.toString() !== source
+  ) {
+    return { formatted: source, diagnostics };
+  }
+
+  diagnostics.listLinesInspected = candidates.length;
+  const listNodes = listNodesAtLineStart(resolvedContext);
+  const hasParserConfirmedCandidate = candidates.some((candidate) =>
+    (listNodes.get(candidate.lineStart) ?? []).some(
+      (node) => node.parentNode?.type === "root",
+    ),
+  );
+  if (!hasParserConfirmedCandidate) {
+    for (const candidate of candidates) {
+      const described = describeParserListLine(
+        resolvedContext,
+        candidate.lineIndex,
+        candidate.markers,
+        listNodes,
+        [],
+      );
+      recordSkip(
+        diagnostics,
+        "reason" in described ? described.reason : "not-parser-confirmed",
+      );
+    }
     return { formatted: source, diagnostics };
   }
 
@@ -333,27 +431,26 @@ export function formatListsWithDiagnostics(
   const protectedRanges = collectProtectedRanges(source, {
     protectComments: false,
     protectTables: true,
-    additionalRanges: extensionRanges(context),
+    additionalRanges: extensionRanges(resolvedContext),
   }).filter(
     (range) =>
       !ignoreRanges.some(
         (ignore) => ignore.start === range.start && ignore.end === range.end,
       ),
   );
-  const listNodes = listNodesAtLineStart(context);
-  const structures = collectStructuralNodes(context);
+  const structures = collectStructuralNodes(resolvedContext);
+  const structuresByLine = structuresByCandidateLine(candidates, structures);
   const planned: PlannedLine[] = [];
 
-  for (let lineIndex = 0; lineIndex < context.lineStarts.length; lineIndex++) {
-    const lineStart = context.lineStarts[lineIndex]!;
-    const lineEnd = sourceLineEnd(context, lineIndex);
-    const line = source.slice(lineStart, lineEnd);
-    const candidate = LIST_CANDIDATE.exec(line);
-    const candidateMarkers = candidate?.[1];
-    if (!candidateMarkers) continue;
-    diagnostics.listLinesInspected++;
-
-    const candidateBody = candidate[2] ?? "";
+  for (const candidate of candidates) {
+    const {
+      lineIndex,
+      lineStart,
+      lineEnd,
+      line,
+      markers: candidateMarkers,
+      body: candidateBody,
+    } = candidate;
     if (
       candidateBody.includes("\uE000wikitext-fmt:") ||
       /^[ \t]*\{\|/u.test(candidateBody)
@@ -390,22 +487,18 @@ export function formatListsWithDiagnostics(
     }
 
     const described = describeParserListLine(
-      context,
+      resolvedContext,
       lineIndex,
       candidateMarkers,
       listNodes,
-      structures,
+      structuresByLine.get(lineIndex) ?? [],
     );
     if ("reason" in described) {
       recordSkip(diagnostics, described.reason);
       continue;
     }
 
-    const overlappingStructures = nodesOverlappingLine(
-      structures,
-      lineStart,
-      lineEnd,
-    );
+    const overlappingStructures = structuresByLine.get(lineIndex) ?? [];
     const comments = overlappingStructures.filter(
       (structure) => structure.type === "comment",
     );
@@ -507,13 +600,18 @@ export function formatListsWithDiagnostics(
 
   const candidateListNodes = listNodesAtLineStart(candidateContext);
   const candidateStructures = collectStructuralNodes(candidateContext);
+  const candidateLines = collectListLineCandidates(candidate);
+  const candidateStructuresByLine = structuresByCandidateLine(
+    candidateLines,
+    candidateStructures,
+  );
   for (const line of planned) {
     const described = describeParserListLine(
       candidateContext,
       line.lineIndex,
       line.before.markers,
       candidateListNodes,
-      candidateStructures,
+      candidateStructuresByLine.get(line.lineIndex) ?? [],
     );
     if (
       "reason" in described ||

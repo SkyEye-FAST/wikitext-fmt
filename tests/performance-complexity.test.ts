@@ -11,6 +11,7 @@ import {
   semanticRangeIdentities,
 } from "../src/semanticIdentity.js";
 import { formatWikitextSafeDetailed } from "../src/formatter.js";
+import { formatListsWithDiagnostics } from "../src/rules/lists.js";
 import {
   collectParserTableCandidates,
   type ParserTableCandidateStats,
@@ -38,7 +39,7 @@ function collectWithStats(source: string): {
   return { candidates, stats };
 }
 
-describe("parser table candidate complexity", () => {
+describe("parser complexity", () => {
   it("assigns high-cardinality semantic identities with linear containment work", () => {
     const ranges = Array.from({ length: 10_000 }, (_value, index) => ({
       start: index * 4,
@@ -133,6 +134,58 @@ describe("parser table candidate complexity", () => {
       fallbackParses: 0,
       fallbackSourceBytes: 0,
       coveredOpeners: 10,
+    });
+  });
+
+  it("avoids parser work when list candidates are absent", () => {
+    const source = Array.from(
+      { length: 500 },
+      (_value, index) => `{{Navbox|name=section ${index}|child={{T|x=${index}}}}}`,
+    ).join("\n");
+    const measured = measureParserContexts(() =>
+      formatListsWithDiagnostics(source, config),
+    );
+
+    expect(measured.result.formatted).toBe(source);
+    expect(measured.result.diagnostics).toEqual({
+      listLinesInspected: 0,
+      listLinesEligible: 0,
+      listLinesChanged: 0,
+      listLinesAlreadyCanonical: 0,
+      listLinesSkippedAmbiguous: 0,
+      mixedMarkerLinesChanged: 0,
+      commentBearingLinesChanged: 0,
+      structuredContentLinesChanged: 0,
+      skipReasons: {},
+    });
+    expect(measured.metrics).toEqual({
+      contextsCreated: 0,
+      sourceBytesParsed: 0,
+    });
+  });
+
+  it("reuses an existing list parser context and parses candidate sources lazily", () => {
+    const canonical = "* item\n";
+    const context = createParserContext(canonical, config);
+    const reused = measureParserContexts(() =>
+      formatListsWithDiagnostics(canonical, config, context),
+    );
+    expect(reused.result.formatted).toBe(canonical);
+    expect(reused.metrics).toEqual({
+      contextsCreated: 0,
+      sourceBytesParsed: 0,
+    });
+
+    const candidate = "*item\n";
+    const created = measureParserContexts(() =>
+      formatListsWithDiagnostics(candidate, config, undefined, {
+        verifyCandidate: false,
+      }),
+    );
+    expect(created.result.formatted).toBe("* item\n");
+    expect(created.metrics).toEqual({
+      contextsCreated: 1,
+      sourceBytesParsed: candidate.length,
     });
   });
 
