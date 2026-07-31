@@ -3,7 +3,7 @@
 [![Checks](https://github.com/SkyEye-FAST/wikitext-fmt/actions/workflows/checks.yml/badge.svg)](https://github.com/SkyEye-FAST/wikitext-fmt/actions/workflows/checks.yml)
 [![npm version](https://img.shields.io/npm/v/wikitext-fmt)](https://www.npmjs.com/package/wikitext-fmt)
 [![npm downloads](https://img.shields.io/npm/dm/wikitext-fmt)](https://www.npmjs.com/package/wikitext-fmt)
-[![Visual Studio Marketplace](https://img.shields.io/visual-studio-marketplace/v/skyeyefast.wikitext-formatter)](https://marketplace.visualstudio.com/items?itemName=skyeyefast.wikitext-formatter)
+[![Visual Studio Marketplace](https://vsmarketplacebadges.dev/version/skyeyefast.wikitext-formatter.svg)](https://marketplace.visualstudio.com/items?itemName=skyeyefast.wikitext-formatter)
 [![License: GPL-3.0-or-later](https://img.shields.io/badge/license-GPL--3.0--or--later-blue.svg)](LICENSE)
 
 `wikitext-fmt` is a conservative, parser-assisted structural formatter for
