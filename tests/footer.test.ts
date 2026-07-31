@@ -1,14 +1,14 @@
 import { describe, expect, it } from "vitest";
 
 import { formatWikitext } from "../src/index.js";
-import { getParserConfig } from "../src/parser.js";
-import { createParserContext } from "../src/parserContext.node.js";
+import { createNodeParserSession, getParserConfig } from "../src/parser.js";
 import {
   formatPageFooter,
   isStandaloneBehaviorSwitchLine,
-} from "../src/rules/categories.node.js";
+} from "../src/rules/categories.js";
 
 const config = getParserConfig("mediawiki");
+const session = createNodeParserSession(config);
 const localization = {
   localizationSource: "builtin",
   localizedSyntaxStyle: "preserve",
@@ -38,7 +38,7 @@ describe("page footer formatting", () => {
   it("preserves behavior switches inside templates", () => {
     const source = "{{Foo|value=\n__NOTOC__   \n}}\n";
     expect(
-      formatPageFooter(source, config, {
+      formatPageFooter(session.createContext(source), {
         formatCategories: true,
         formatBehaviorSwitches: true,
         behaviorSwitchPlacement: "footer",
@@ -54,7 +54,7 @@ describe("page footer formatting", () => {
     const source =
       "{{Foo|category=[[Category:Inside]]|sort={{DEFAULTSORT:Inside}}|language=[[en:Inside]]}}\nBody\n[[Category:Outside]]\n";
     expect(
-      formatPageFooter(source, config, {
+      formatPageFooter(session.createContext(source), {
         formatCategories: true,
         formatBehaviorSwitches: false,
         behaviorSwitchPlacement: "preserve",
@@ -68,7 +68,7 @@ describe("page footer formatting", () => {
     );
   });
 
-  it("produces the same footer output with an explicit parser context", () => {
+  it("produces the same footer output from equivalent current contexts", () => {
     const source =
       "{{Foo|category=[[Category:Inside]]}}\nBody\n[[Category:Outside]]\n";
     const options = {
@@ -79,23 +79,17 @@ describe("page footer formatting", () => {
       interlanguagePlacement: "preserve",
       interlanguagePrefixes: [],
       ...localization,
-    } satisfies Parameters<typeof formatPageFooter>[2];
-    expect(
-      formatPageFooter(
-        source,
-        config,
-        options,
-        createParserContext(source, config),
-      ).formatted,
-    ).toBe(formatPageFooter(source, config, options).formatted);
+    } satisfies Parameters<typeof formatPageFooter>[1];
+    expect(formatPageFooter(session.createContext(source), options).formatted).toBe(
+      formatPageFooter(session.createContext(source), options).formatted,
+    );
   });
 
   it("moves parser-confirmed English category lines with explicit context", () => {
     const source = "[[Category:A]]\nBody\n";
     expect(
       formatPageFooter(
-        source,
-        config,
+        session.createContext(source),
         {
           formatCategories: true,
           formatBehaviorSwitches: false,
@@ -105,7 +99,6 @@ describe("page footer formatting", () => {
           interlanguagePrefixes: [],
           ...localization,
         },
-        createParserContext(source, config),
       ).formatted,
     ).toBe("Body\n\n[[Category:A]]\n");
   });
@@ -114,8 +107,7 @@ describe("page footer formatting", () => {
     const source = "Body\n[[分類:歌曲|示例]]\n";
     expect(
       formatPageFooter(
-        source,
-        config,
+        session.createContext(source),
         {
           formatCategories: true,
           formatBehaviorSwitches: false,
@@ -125,7 +117,6 @@ describe("page footer formatting", () => {
           interlanguagePrefixes: [],
           ...localization,
         },
-        createParserContext(source, config),
       ).formatted,
     ).toBe("Body\n\n[[分類:歌曲|示例]]\n");
   });
@@ -134,8 +125,7 @@ describe("page footer formatting", () => {
     const source = "[[CatX:Foo]]\nBody\n";
     expect(
       formatPageFooter(
-        source,
-        config,
+        session.createContext(source),
         {
           formatCategories: true,
           formatBehaviorSwitches: false,
@@ -147,18 +137,17 @@ describe("page footer formatting", () => {
           localizedSyntaxStyle: "canonical-english",
           localizationAliases: { categoryNamespaces: ["CatX"] },
         },
-        createParserContext(source, config),
       ).formatted,
     ).toBe("Body\n\n[[Category:Foo]]\n");
   });
 
-  it("does not use a stale parser context for a different source", () => {
+  it("requires callers to recreate context for a different source", () => {
     const staleSource = "{{Foo|category=[[Category:Inside]]}}\nBody\n";
     const source = "Body\n[[Category:Outside]]\n";
+    expect(session.createContext(staleSource).source).not.toBe(source);
     expect(
       formatPageFooter(
-        source,
-        config,
+        session.createContext(source),
         {
           formatCategories: true,
           formatBehaviorSwitches: false,
@@ -168,7 +157,6 @@ describe("page footer formatting", () => {
           interlanguagePrefixes: [],
           ...localization,
         },
-        createParserContext(staleSource, config),
       ).formatted,
     ).toBe("Body\n\n[[Category:Outside]]\n");
   });
@@ -176,7 +164,7 @@ describe("page footer formatting", () => {
   it("does not move inline interlanguage-like links", () => {
     const source = "Body [[en:Inline]]\n[[en:Footer]]\n";
     expect(
-      formatPageFooter(source, config, {
+      formatPageFooter(session.createContext(source), {
         formatCategories: false,
         formatBehaviorSwitches: false,
         behaviorSwitchPlacement: "preserve",
@@ -192,8 +180,7 @@ describe("page footer formatting", () => {
     const source = "Body [[Category:Inline]]\n[[Category:Footer]]\n";
     expect(
       formatPageFooter(
-        source,
-        config,
+        session.createContext(source),
         {
           formatCategories: true,
           formatBehaviorSwitches: false,
@@ -203,7 +190,6 @@ describe("page footer formatting", () => {
           interlanguagePrefixes: [],
           ...localization,
         },
-        createParserContext(source, config),
       ).formatted,
     ).toBe("Body [[Category:Inline]]\n\n[[Category:Footer]]\n");
   });
@@ -222,7 +208,7 @@ describe("page footer formatting", () => {
   it("orders switches, DEFAULTSORT aliases, and categories conservatively", () => {
     const source =
       "[[Category:B]]\n__NOTOC__   \nBody\n{{DEFAULTSORTKEY:Example}}   \n__NOINDEX__\n";
-    const result = formatPageFooter(source, config, {
+    const result = formatPageFooter(session.createContext(source), {
       formatCategories: true,
       formatBehaviorSwitches: true,
       behaviorSwitchPlacement: "footer",

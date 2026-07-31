@@ -3,14 +3,15 @@ import { performance } from "node:perf_hooks";
 
 import { verifyStructuralEquivalence } from "../dist/equivalence.js";
 import { formatWikitextSafeDetailed } from "../dist/index.js";
-import { getParserConfig } from "../dist/parser.js";
 import {
-  createParserContext,
-  measureParserContexts,
-} from "../dist/parserContext.node.js";
-import { collectParserTableCandidates } from "../dist/rules/tables.node.js";
+  createNodeParserSession,
+  getParserConfig,
+} from "../dist/parser.js";
+import { measureParserContexts } from "../dist/parserContext.js";
+import { collectParserTableCandidates } from "../dist/rules/tables.js";
 
 const config = getParserConfig("mediawiki");
+const session = createNodeParserSession(config);
 
 function pageOfSize(targetBytes) {
   const unit = "Representative prose with [[Page|links]] and ordinary text.\n";
@@ -147,9 +148,7 @@ function benchmark(entry) {
     coveredOpeners: 0,
   };
   collectParserTableCandidates(
-    entry.source,
-    createParserContext(entry.source, config),
-    config,
+    session.createContext(entry.source),
     candidateStats,
   );
 

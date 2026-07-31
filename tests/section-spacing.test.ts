@@ -1,8 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { formatWikitext, formatWikitextDetailedResult } from "../src/index.js";
-import { getParserConfig } from "../src/parser.js";
-import { createParserContext } from "../src/parserContext.node.js";
+import { createNodeParserSession, getParserConfig } from "../src/parser.js";
 import { formatSectionSpacing } from "../src/rules/sectionSpacing.js";
 
 const options = {
@@ -10,6 +9,7 @@ const options = {
   formatSectionSpacing: true,
 };
 const config = getParserConfig("mediawiki");
+const session = createNodeParserSession(config);
 
 describe("experimental section spacing", () => {
   it("is disabled by default", () => {
@@ -32,7 +32,7 @@ describe("experimental section spacing", () => {
   it("uses parser-confirmed heading nodes when context is provided", () => {
     const source = "Intro\n== A ==\nText\n";
     expect(
-      formatSectionSpacing(source, createParserContext(source, config))
+      formatSectionSpacing(source, session.createContext(source))
         .formatted,
     ).toBe("Intro\n\n== A ==\n\nText\n");
   });
@@ -40,7 +40,7 @@ describe("experimental section spacing", () => {
   it("ignores a stale section-spacing parser context for a different source", () => {
     const source = "Intro\n== A ==\nText\n";
     expect(
-      formatSectionSpacing(source, createParserContext("Plain text\n", config))
+      formatSectionSpacing(source, session.createContext("Plain text\n"))
         .formatted,
     ).toBe("Intro\n\n== A ==\n\nText\n");
   });
@@ -48,7 +48,7 @@ describe("experimental section spacing", () => {
   it("does not treat parser level-1 headings as section-spacing headings", () => {
     const source = "Intro\n= Not a section =\nText\n";
     expect(
-      formatSectionSpacing(source, createParserContext(source, config))
+      formatSectionSpacing(source, session.createContext(source))
         .formatted,
     ).toBe(source);
   });

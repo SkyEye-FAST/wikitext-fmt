@@ -1,4 +1,4 @@
-import { createFormatter } from "./formatterCore.js";
+import { createFormatter } from "./formatterEngine.js";
 import { nodeParserRuntime } from "./parser.node.js";
 
 export type {
@@ -6,7 +6,7 @@ export type {
   FormatFailure,
   FormatFailureCode,
   FormatResult,
-} from "./formatterCore.js";
+} from "./formatterEngine.js";
 
 const nodeFormatter = createFormatter(nodeParserRuntime);
 

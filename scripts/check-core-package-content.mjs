@@ -37,6 +37,8 @@ const forbiddenSegments =
   /(?:^|\/)(?:\.env(?:\.|$)|\.github|\.npmrc|benchmarks|coverage|dist-test|fixtures|node_modules|packages|release-artifacts|scripts|src|tests)(?:\/|$)/u;
 const forbiddenFiles =
   /(?:\.log|\.tgz|\.vsix|corpus-.*-report\.json|benchmark-(?:current|comparison)-report\.json)$/u;
+const obsoleteInternalOutput =
+  /^package\/dist\/(?:formatterCore|equivalenceCore|parserContext\.node|rules\/(?:categories|lists|tables|templates)\.node)\.(?:js|d\.ts)(?:\.map)?$/u;
 
 function normalizeEntry(entry) {
   const normalized = entry.replace(/^\.\//u, "").replace(/\/+$/u, "");
@@ -82,6 +84,9 @@ export function validateCorePackageEntries(entries, readmeContents) {
     }
     if (forbiddenSegments.test(relative) || forbiddenFiles.test(relative)) {
       errors.push(`forbidden package file: ${entry}`);
+    }
+    if (obsoleteInternalOutput.test(entry)) {
+      errors.push(`obsolete internal output: ${entry}`);
     }
   }
   return errors;

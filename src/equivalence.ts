@@ -4,21 +4,21 @@ import type {
   DocumentFingerprint,
   StructuralEquivalenceKind,
   StructuralEquivalenceResult,
-} from "./equivalenceCore.js";
+} from "./equivalenceEngine.js";
 import {
   documentStructuralFingerprint as documentStructuralFingerprintWithRuntime,
   tableStructuralFingerprint as tableStructuralFingerprintWithRuntime,
   templateStructuralFingerprint as templateStructuralFingerprintWithRuntime,
   templateTokenStructuralFingerprint,
   verifyStructuralEquivalence as verifyStructuralEquivalenceWithRuntime,
-} from "./equivalenceCore.js";
+} from "./equivalenceEngine.js";
 import type { ResolvedFormatOptions } from "./options.js";
-import { nodeParserRuntime } from "./parser.node.js";
+import { createNodeParserSession } from "./parser.node.js";
 
 export type {
   StructuralEquivalenceKind,
   StructuralEquivalenceResult,
-} from "./equivalenceCore.js";
+} from "./equivalenceEngine.js";
 
 export { templateTokenStructuralFingerprint };
 
@@ -28,8 +28,7 @@ export function templateStructuralFingerprint(
 ): string {
   return templateStructuralFingerprintWithRuntime(
     source,
-    config,
-    nodeParserRuntime,
+    createNodeParserSession(config),
   );
 }
 
@@ -39,8 +38,7 @@ export function tableStructuralFingerprint(
 ): string {
   return tableStructuralFingerprintWithRuntime(
     source,
-    config,
-    nodeParserRuntime,
+    createNodeParserSession(config),
   );
 }
 
@@ -51,9 +49,8 @@ export function documentStructuralFingerprint(
 ): DocumentFingerprint {
   return documentStructuralFingerprintWithRuntime(
     source,
-    config,
     options,
-    nodeParserRuntime,
+    createNodeParserSession(config),
   );
 }
 
@@ -67,9 +64,8 @@ export function verifyStructuralEquivalence(
   return verifyStructuralEquivalenceWithRuntime(
     before,
     after,
-    config,
     structure,
-    nodeParserRuntime,
+    createNodeParserSession(config),
     options,
   );
 }

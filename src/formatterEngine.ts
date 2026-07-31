@@ -4,16 +4,15 @@ import {
   fallbackDetailedResult,
   stripDiagnostics,
 } from "./diagnostics.js";
-import { verifyStructuralEquivalence } from "./equivalenceCore.js";
+import { verifyStructuralEquivalence } from "./equivalenceEngine.js";
 import {
   normalizeSourceLineEndings,
   type SupportedNormalizedSource,
 } from "./lineEndings.js";
-import type { FormatOptions } from "./options.js";
+import type { FormatOptions, ResolvedFormatOptions } from "./options.js";
 import { resolveOptions } from "./options.js";
 import {
   collectNodes,
-  createParserContext,
   nodeRange,
   type ParsedDocumentContext,
   type ParserNodeLike,
@@ -21,6 +20,7 @@ import {
 } from "./parserContext.js";
 import {
   type ParserRuntime,
+  type ParserSession,
   UnsupportedParserConfigError,
 } from "./parserRuntime.js";
 import { normalizeBlankLines } from "./rules/blankLines.js";
@@ -110,33 +110,15 @@ export interface FormatDetailedResult extends FormatResult {
 }
 
 function formatNormalizedWikitextDetailedResult(
-  runtime: ParserRuntime,
+  session: ParserSession,
   source: string,
-  options: FormatOptions = {},
+  resolved: ResolvedFormatOptions,
 ): FormatDetailedResult {
-  const resolved = resolveOptions(options);
   const diagnostics = emptyDetailedDiagnostics();
   try {
-    let config;
-    try {
-      config = runtime.getParserConfig(resolved.parserConfig);
-    } catch (error) {
-      if (error instanceof UnsupportedParserConfigError) {
-        return fallbackDetailedResult(
-          source,
-          {
-            code: "unsupported-parser-config",
-            stage: "parser-config",
-            message: `${error.message} The input was left unchanged.`,
-          },
-          diagnostics,
-        );
-      }
-      throw error;
-    }
     let initialContext: ParsedDocumentContext;
     try {
-      initialContext = createParserContext(source, config, runtime);
+      initialContext = session.createContext(source);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       return fallbackDetailedResult(
@@ -166,7 +148,7 @@ function formatNormalizedWikitextDetailedResult(
     let context: ParsedDocumentContext | undefined = initialContext;
     const contextFor = (snapshot: string): ParsedDocumentContext => {
       if (!context || contextSource !== snapshot) {
-        context = createParserContext(snapshot, config, runtime);
+        context = session.createContext(snapshot);
         contextSource = snapshot;
       }
       return context;
@@ -185,10 +167,8 @@ function formatNormalizedWikitextDetailedResult(
       });
       const tableContext = contextFor(tableBlocks.text);
       const tableResult = formatTablesWithDiagnostics(
-        tableBlocks.text,
-        config,
-        resolved,
         tableContext,
+        resolved,
       );
       tableOutput = tableResult.formatted;
       diagnostics.tableDiagnostics = tableResult.diagnostics.map(
@@ -233,9 +213,8 @@ function formatNormalizedWikitextDetailedResult(
           : verifyStructuralEquivalence(
               beforeTables,
               tableOutput,
-              config,
               "tables",
-              runtime,
+              session,
             );
       diagnostics.equivalenceDiagnostics.push(equivalence);
       if (!equivalence.equivalent) {
@@ -281,14 +260,9 @@ function formatNormalizedWikitextDetailedResult(
         protectTables: false,
         additionalRanges: parserExtensionRanges(contextFor(tableOutput)),
       });
-      const templateContext = createParserContext(
-        templateBlocks.text,
-        config,
-        runtime,
-      );
+      const templateContext = session.createContext(templateBlocks.text);
       const templates = formatTemplatesWithDiagnostics(
-        templateBlocks.text,
-        config,
+        templateContext,
         {
           lineWidth: resolved.lineWidth,
           layout: templateLayoutEnabled ? "auto" : "preserve",
@@ -296,7 +270,6 @@ function formatNormalizedWikitextDetailedResult(
           inlineTemplateSpacing: resolved.inlineTemplateSpacing,
           parameterLayout: resolved.templateParameterLayout,
         },
-        templateContext,
       );
       const previous = tableOutput;
       tableOutput = templateBlocks.restore(templates.formatted);
@@ -319,9 +292,8 @@ function formatNormalizedWikitextDetailedResult(
           : verifyStructuralEquivalence(
               previous,
               tableOutput,
-              config,
               "templates",
-              runtime,
+              session,
             );
       diagnostics.equivalenceDiagnostics.push(equivalence);
       if (!equivalence.equivalent) {
@@ -341,8 +313,6 @@ function formatNormalizedWikitextDetailedResult(
     if (resolved.formatLists && isRuleEnabled("lists", resolved.level)) {
       const listContext = contextFor(tableOutput);
       const lists = formatListsWithDiagnostics(
-        tableOutput,
-        config,
         listContext,
         { verifyCandidate: false },
       );
@@ -472,8 +442,7 @@ function formatNormalizedWikitextDetailedResult(
     ) {
       const footerContext = contextFor(output);
       const footer = formatPageFooter(
-        output,
-        config,
+        footerContext,
         {
           formatCategories: categoriesEnabled,
           formatBehaviorSwitches: behaviorSwitchesEnabled,
@@ -485,7 +454,6 @@ function formatNormalizedWikitextDetailedResult(
           localizedSyntaxStyle: resolved.localizedSyntaxStyle,
           localizationAliases: resolved.localizationAliases,
         },
-        footerContext,
       );
       output = footer.formatted;
       diagnostics.footerDiagnostics = footer.diagnostics;
@@ -495,7 +463,7 @@ function formatNormalizedWikitextDetailedResult(
 
     let outputRoundTripSafe: boolean;
     try {
-      outputRoundTripSafe = runtime.isRoundTripSafe(output, config);
+      outputRoundTripSafe = session.isRoundTripSafe(output);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       return fallbackDetailedResult(
@@ -526,9 +494,8 @@ function formatNormalizedWikitextDetailedResult(
         : verifyStructuralEquivalence(
             source,
             output,
-            config,
             "document",
-            runtime,
+            session,
             resolved,
           );
     diagnostics.equivalenceDiagnostics.push(documentEquivalence);
@@ -577,6 +544,44 @@ function restoreDetailedResult(
   };
 }
 
+function formatWikitextDetailedResultWithSession(
+  session: ParserSession,
+  source: string,
+  resolved: ResolvedFormatOptions,
+): FormatDetailedResult {
+  const normalized = normalizeSourceLineEndings(source);
+  if (!normalized.supported) {
+    const detail =
+      normalized.lineEnding === "mixed"
+        ? "mixed LF and CRLF line endings"
+        : "bare carriage returns";
+    return fallbackDetailedResult(source, {
+      code: "unsupported-line-endings",
+      stage: "input-normalization",
+      message: `The input uses unsupported ${detail}; left it unchanged.`,
+    });
+  }
+  return restoreDetailedResult(
+    formatNormalizedWikitextDetailedResult(
+      session,
+      normalized.normalized,
+      resolved,
+    ),
+    normalized,
+  );
+}
+
+function parserConfigFailure(
+  source: string,
+  error: UnsupportedParserConfigError,
+): FormatDetailedResult {
+  return fallbackDetailedResult(source, {
+    code: "unsupported-parser-config",
+    stage: "parser-config",
+    message: `${error.message} The input was left unchanged.`,
+  });
+}
+
 function formatWikitextDetailedResult(
   runtime: ParserRuntime,
   source: string,
@@ -594,14 +599,29 @@ function formatWikitextDetailedResult(
       message: `The input uses unsupported ${detail}; left it unchanged.`,
     });
   }
-  return restoreDetailedResult(
-    formatNormalizedWikitextDetailedResult(
-      runtime,
-      normalized.normalized,
-      options,
-    ),
-    normalized,
-  );
+
+  try {
+    const resolved = resolveOptions(options);
+    const session = runtime.createSession(resolved.parserConfig);
+    return restoreDetailedResult(
+      formatNormalizedWikitextDetailedResult(
+        session,
+        normalized.normalized,
+        resolved,
+      ),
+      normalized,
+    );
+  } catch (error) {
+    if (error instanceof UnsupportedParserConfigError) {
+      return parserConfigFailure(source, error);
+    }
+    const message = error instanceof Error ? error.message : String(error);
+    return fallbackDetailedResult(source, {
+      code: "formatter-exception",
+      stage: "formatting",
+      message: `Formatting failed safely: ${message}`,
+    });
+  }
 }
 
 function formatWikitextResult(
@@ -638,8 +658,12 @@ function formatWikitextSafeDetailed(
   let diagnostics = emptyDetailedDiagnostics();
   try {
     const resolved = resolveOptions(options);
-    runtime.getParserConfig(resolved.parserConfig);
-    const first = formatWikitextDetailedResult(runtime, source, options);
+    const session = runtime.createSession(resolved.parserConfig);
+    const first = formatWikitextDetailedResultWithSession(
+      session,
+      source,
+      resolved,
+    );
     diagnostics = {
       tableDiagnostics: first.tableDiagnostics,
       tableFormatDiagnostics: first.tableFormatDiagnostics,
@@ -667,10 +691,10 @@ function formatWikitextSafeDetailed(
         diagnostics,
       );
     }
-    const second = formatWikitextDetailedResult(
-      runtime,
+    const second = formatWikitextDetailedResultWithSession(
+      session,
       first.formatted,
-      options,
+      resolved,
     );
     if (second.warning) {
       return fallbackDetailedResult(
@@ -698,15 +722,7 @@ function formatWikitextSafeDetailed(
     return first;
   } catch (error) {
     if (error instanceof UnsupportedParserConfigError) {
-      return fallbackDetailedResult(
-        source,
-        {
-          code: "unsupported-parser-config",
-          stage: "parser-config",
-          message: `${error.message} The input was left unchanged.`,
-        },
-        diagnostics,
-      );
+      return parserConfigFailure(source, error);
     }
     const message = error instanceof Error ? error.message : String(error);
     return fallbackDetailedResult(

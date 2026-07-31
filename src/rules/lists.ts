@@ -1,8 +1,5 @@
-import type { Config } from "wikiparser-node";
-
 import {
   collectNodes,
-  createParserContext,
   lineIndexAt,
   lineRangeAt,
   nodeRange,
@@ -10,7 +7,6 @@ import {
   type ParserNodeLike,
   type SourceRange,
 } from "../parserContext.js";
-import type { ParserRuntime } from "../parserRuntime.js";
 import {
   collectIgnoreRanges,
   collectProtectedRanges,
@@ -391,33 +387,22 @@ function extensionRanges(context: ParsedDocumentContext): SourceRange[] {
  * Format parser-confirmed list prefixes without touching list item content.
  */
 export function formatListsWithDiagnostics(
-  source: string,
-  config: Config,
-  context?: ParsedDocumentContext,
+  context: ParsedDocumentContext,
   options: ListFormatOptions = {},
-  runtime?: ParserRuntime,
 ): ListFormatResult {
+  const source = context.source;
   const diagnostics = emptyListDiagnostics();
   const candidates = collectListLineCandidates(source);
   if (candidates.length === 0) {
     return { formatted: source, diagnostics };
   }
 
-  const parserRuntime = context?.runtime ?? runtime;
-  if (!parserRuntime) {
-    throw new Error("List formatting requires a parser runtime");
-  }
-  const resolvedContext =
-    context ?? createParserContext(source, config, parserRuntime);
-  if (
-    resolvedContext.source !== source ||
-    resolvedContext.root.toString() !== source
-  ) {
+  if (context.root.toString() !== source) {
     return { formatted: source, diagnostics };
   }
 
   diagnostics.listLinesInspected = candidates.length;
-  const listNodes = listNodesAtLineStart(resolvedContext);
+  const listNodes = listNodesAtLineStart(context);
   const hasParserConfirmedCandidate = candidates.some((candidate) =>
     (listNodes.get(candidate.lineStart) ?? []).some(
       (node) => node.parentNode?.type === "root",
@@ -429,7 +414,7 @@ export function formatListsWithDiagnostics(
   const protectedRanges = collectProtectedRanges(source, {
     protectComments: false,
     protectTables: true,
-    additionalRanges: extensionRanges(resolvedContext),
+    additionalRanges: extensionRanges(context),
   }).filter(
     (range) =>
       !ignoreRanges.some(
@@ -457,7 +442,7 @@ export function formatListsWithDiagnostics(
         continue;
       }
       const described = describeParserListLine(
-        resolvedContext,
+        context,
         candidate.lineIndex,
         candidate.markers,
         listNodes,
@@ -471,7 +456,7 @@ export function formatListsWithDiagnostics(
     return { formatted: source, diagnostics };
   }
 
-  const structures = collectStructuralNodes(resolvedContext);
+  const structures = collectStructuralNodes(context);
   const structuresByLine = structuresByCandidateLine(candidates, structures);
   const planned: PlannedLine[] = [];
 
@@ -520,7 +505,7 @@ export function formatListsWithDiagnostics(
     }
 
     const described = describeParserListLine(
-      resolvedContext,
+      context,
       lineIndex,
       candidateMarkers,
       listNodes,
@@ -617,7 +602,7 @@ export function formatListsWithDiagnostics(
 
   let candidateContext: ParsedDocumentContext;
   try {
-    candidateContext = createParserContext(candidate, config, parserRuntime);
+    candidateContext = context.session.createContext(candidate);
   } catch {
     for (const _line of planned) {
       recordSkip(diagnostics, "candidate-not-roundtrip-safe");
@@ -671,19 +656,10 @@ export function formatListsWithDiagnostics(
 }
 
 export function formatLists(
-  source: string,
-  config: Config,
-  context?: ParsedDocumentContext,
+  context: ParsedDocumentContext,
   options?: ListFormatOptions,
-  runtime?: ParserRuntime,
 ): string {
-  return formatListsWithDiagnostics(
-    source,
-    config,
-    context,
-    options,
-    runtime,
-  ).formatted;
+  return formatListsWithDiagnostics(context, options).formatted;
 }
 
 /**

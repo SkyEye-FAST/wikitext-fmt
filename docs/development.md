@@ -2,15 +2,20 @@
 
 ## Repository layout
 
-- `src/formatterCore.ts`: shared formatter pipeline and fail-closed
-  orchestration; `src/formatter.ts` and `src/browser.ts` are thin runtime
-  entries.
+- `src/formatterEngine.ts`: shared formatter pipeline and fail-closed
+  orchestration. Each public call resolves options and creates one immutable
+  parser session; safe formatting reuses that session for both passes.
+  `src/formatter.ts` and `src/browser.ts` are thin runtime entries.
 - `src/options.ts` and `src/options/schema.ts`: options, defaults, profiles, and
   runtime metadata.
 - `src/parserRuntime.ts`, `src/parser.node.ts`, `src/parser.browser.ts`, and
-  `src/parserContext.ts`: shared parser contract and runtime-specific config
-  loading. `src/equivalenceCore.ts` contains shared structural verification;
+  `src/parserContext.ts`: immutable parser sessions, runtime-specific config
+  resolution, and source-snapshot contexts. Contexts retain their session, so
+  reparsing and equivalence checks cannot mix runtimes or configurations.
+  `src/equivalenceEngine.ts` contains shared structural verification;
   `src/equivalence.ts` is the Node-facing wrapper.
+- `src/public.ts`: browser-safe public types, formatter metadata, localization
+  helpers, and diagnostics shared by the Node and browser entries.
 - `src/rules/`: transformations and rule diagnostics.
 - `src/cli.ts` and `src/cli/`: CLI parsing, config, paths, streams, diagnostics,
   reports, and siteinfo.
@@ -71,12 +76,16 @@ pnpm check:browser
 pnpm check:core-package-content
 ```
 
-`check:browser` bundles a Web Worker fixture that imports
-`wikitext-fmt/browser` using esbuild with `platform=browser` and `format=esm`.
-No Node built-in is externalized; the check rejects Node, CLI, config-discovery,
-VS Code, and `fast-glob` inputs. Browser/Node parity tests cover representative
-rules, diagnostics, failures, CRLF, malformed input, configuration restrictions,
-and safe idempotency.
+`check:browser` uses the root workspace's esbuild dependency to bundle a Web
+Worker fixture that imports `wikitext-fmt/browser` with `platform=browser` and
+`format=esm`. No Node built-in is externalized; the check rejects Node, CLI,
+config-discovery, VS Code, and `fast-glob` inputs. It then executes the bundle in
+a `worker_threads` harness and verifies real Worker message handling and
+formatting. This is an executable worker-level smoke test, not a Chromium test;
+the repository intentionally does not add a browser automation dependency for
+this single check. Browser/Node parity tests cover representative rules,
+diagnostics, failures, CRLF, malformed input, configuration restrictions, and
+safe idempotency.
 
 A future frontend repository should depend on the published package and import
 only from `wikitext-fmt/browser`; it should not import repository `src/` files.

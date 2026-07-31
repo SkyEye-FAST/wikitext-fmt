@@ -10,12 +10,12 @@ The formatter should fail closed. When parsing, exact round-tripping, structural
 
 ## Repository layout
 
-- `src/formatter.ts` orchestrates rule execution, protected regions, diagnostics, equivalence checks, and safe fallback behavior.
+- `src/formatterEngine.ts` orchestrates rule execution, protected regions, diagnostics, equivalence checks, and safe fallback behavior; `src/formatter.ts` binds the Node runtime.
 - `src/options.ts` defines public options, resolved options, defaults, and profile overrides.
-- `src/parser.ts` and `src/parserContext.ts` contain parser integration and source-range helpers.
+- `src/parserRuntime.ts`, `src/parser.ts`, and `src/parserContext.ts` contain parser sessions, runtime integration, and source-range helpers.
 - `src/rules/` contains individual formatting rules and their diagnostics.
 - `src/rules/index.ts` defines rule names and reliability levels.
-- `src/equivalence.ts` verifies semantic structure before accepting formatter output.
+- `src/equivalenceEngine.ts` verifies semantic structure before accepting formatter output; `src/equivalence.ts` is the Node-facing public wrapper.
 - `src/cli.ts` and `src/cli/` implement command-line behavior, output channels, reports, and exit handling.
 - `src/config.ts` handles configuration discovery, loading, and validation.
 - `src/localization/` handles built-in, custom, and MediaWiki siteinfo aliases.

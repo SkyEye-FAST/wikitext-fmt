@@ -16,6 +16,13 @@ here. The project follows the pre-1.0 policy in
   that request arbitrary named or filesystem parser configurations; safe APIs
   retain the original source instead of throwing.
 
+### Changed
+
+- Refactored parser integration around one immutable session per formatter
+  invocation, shared by safe-format passes, rule reparsing, and structural
+  verification; consolidated browser-safe exports and removed internal Node
+  forwarding modules without changing formatter behavior or public APIs.
+
 ## 0.5.0 - 2026-07-31
 
 ### Added

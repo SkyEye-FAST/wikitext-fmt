@@ -19,9 +19,9 @@ export interface TemplateParameterResult {
 export function formatTemplateParameters(
   source: string,
 ): TemplateParameterResult {
+  const session = nodeParserRuntime.createSession("mediawiki");
   return formatTemplatesWithDiagnostics(
-    source,
-    nodeParserRuntime.getParserConfig("mediawiki"),
+    session.createContext(source),
     {
       lineWidth: 120,
       layout: "preserve",
@@ -29,7 +29,5 @@ export function formatTemplateParameters(
       inlineTemplateSpacing: "auto",
       parameterLayout: "flush",
     },
-    undefined,
-    nodeParserRuntime,
   );
 }

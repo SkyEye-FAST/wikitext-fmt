@@ -2,11 +2,11 @@ import { describe, expect, it } from "vitest";
 
 import { formatWikitext, formatWikitextDetailedResult } from "../src/index.js";
 import generatedAliases from "../src/localization/generated/mediawiki-aliases.json" with { type: "json" };
-import { getParserConfig } from "../src/parser.js";
-import { createParserContext } from "../src/parserContext.node.js";
+import { createNodeParserSession, getParserConfig } from "../src/parser.js";
 import { formatFileLinks } from "../src/rules/fileLinks.js";
 
 const config = getParserConfig("mediawiki");
+const session = createNodeParserSession(config);
 
 describe("file/image link formatting", () => {
   it("leaves English file links unchanged except trailing whitespace", () => {
@@ -90,7 +90,7 @@ describe("file/image link formatting", () => {
           localizedSyntaxStyle: "canonical-english",
           localizationAliases: {},
         },
-        createParserContext(source, config),
+        session.createContext(source),
       ).formatted,
     ).toBe("[[File:A.png|thumb|right]]\n");
   });
@@ -105,7 +105,7 @@ describe("file/image link formatting", () => {
           localizedSyntaxStyle: "canonical-english",
           localizationAliases: {},
         },
-        createParserContext("Plain text\n", config),
+        session.createContext("Plain text\n"),
       ).formatted,
     ).toBe("[[File:A.png|thumb]]\n");
   });

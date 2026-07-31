@@ -1,23 +1,21 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { getParserConfig } from "../src/parser.js";
-import {
-  createParserContext,
-  measureParserContexts,
-} from "../src/parserContext.node.js";
+import { createNodeParserSession, getParserConfig } from "../src/parser.js";
+import { measureParserContexts } from "../src/parserContext.js";
 import {
   type SemanticIdentityStats,
   outermostSourceRanges,
   semanticRangeIdentities,
 } from "../src/semanticIdentity.js";
 import { formatWikitextSafeDetailed } from "../src/formatter.js";
-import { formatListsWithDiagnostics } from "../src/rules/lists.node.js";
+import { formatListsWithDiagnostics } from "../src/rules/lists.js";
 import {
   collectParserTableCandidates,
   type ParserTableCandidateStats,
-} from "../src/rules/tables.node.js";
+} from "../src/rules/tables.js";
 
 const config = getParserConfig("mediawiki");
+const session = createNodeParserSession(config);
 
 function collectWithStats(source: string): {
   candidates: ReturnType<typeof collectParserTableCandidates>;
@@ -31,9 +29,7 @@ function collectWithStats(source: string): {
     coveredOpeners: 0,
   };
   const candidates = collectParserTableCandidates(
-    source,
-    createParserContext(source, config),
-    config,
+    session.createContext(source),
     stats,
   );
   return { candidates, stats };
@@ -143,7 +139,7 @@ describe("parser complexity", () => {
       (_value, index) => `{{Navbox|name=section ${index}|child={{T|x=${index}}}}}`,
     ).join("\n");
     const measured = measureParserContexts(() =>
-      formatListsWithDiagnostics(source, config),
+      formatListsWithDiagnostics(session.createContext(source)),
     );
 
     expect(measured.result.formatted).toBe(source);
@@ -159,16 +155,16 @@ describe("parser complexity", () => {
       skipReasons: {},
     });
     expect(measured.metrics).toEqual({
-      contextsCreated: 0,
-      sourceBytesParsed: 0,
+      contextsCreated: 1,
+      sourceBytesParsed: source.length,
     });
   });
 
   it("reuses an existing list parser context and parses candidate sources lazily", () => {
     const canonical = "* item\n";
-    const context = createParserContext(canonical, config);
+    const context = session.createContext(canonical);
     const reused = measureParserContexts(() =>
-      formatListsWithDiagnostics(canonical, config, context),
+      formatListsWithDiagnostics(context),
     );
     expect(reused.result.formatted).toBe(canonical);
     expect(reused.metrics).toEqual({
@@ -178,7 +174,7 @@ describe("parser complexity", () => {
 
     const candidate = "*item\n";
     const created = measureParserContexts(() =>
-      formatListsWithDiagnostics(candidate, config, undefined, {
+      formatListsWithDiagnostics(session.createContext(candidate), {
         verifyCandidate: false,
       }),
     );
@@ -195,7 +191,7 @@ describe("parser complexity", () => {
       (_value, index) => `{{T${index}|\n:c\n}}`,
     ).join("\n");
     const measured = measureParserContexts(() =>
-      formatListsWithDiagnostics(source, config),
+      formatListsWithDiagnostics(session.createContext(source)),
     );
     expect(measured.result.formatted).toBe(source);
     expect(measured.result.diagnostics).toMatchObject({
@@ -209,9 +205,9 @@ describe("parser complexity", () => {
       sourceBytesParsed: source.length,
     });
 
-    const context = createParserContext(source, config);
+    const context = session.createContext(source);
     const querySelectorAll = vi.spyOn(context.root, "querySelectorAll");
-    formatListsWithDiagnostics(source, config, context);
+    formatListsWithDiagnostics(context);
     expect(querySelectorAll).toHaveBeenCalledWith("list");
     expect(querySelectorAll).toHaveBeenCalledWith("ext");
     expect(querySelectorAll).not.toHaveBeenCalledWith(

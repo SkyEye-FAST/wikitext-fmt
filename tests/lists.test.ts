@@ -7,18 +7,18 @@ import {
   verifyStructuralEquivalence,
 } from "../src/index.js";
 import { resolveOptions } from "../src/options.js";
-import { getParserConfig } from "../src/parser.js";
-import { createParserContext } from "../src/parserContext.node.js";
+import { createNodeParserSession, getParserConfig } from "../src/parser.js";
 import {
   formatLists,
   formatListsWithDiagnostics,
-} from "../src/rules/lists.node.js";
+} from "../src/rules/lists.js";
 
 const config = getParserConfig("mediawiki");
+const session = createNodeParserSession(config);
 const resolved = resolveOptions({});
 
 function formatListsDirect(source: string): string {
-  return formatLists(source, config, createParserContext(source, config));
+  return formatLists(session.createContext(source));
 }
 
 function assertListPipeline(source: string, expected: string): void {
@@ -159,9 +159,7 @@ describe("list formatting", () => {
     expect(formatWikitextDetailedResult(source).formatted).toBe(source);
     expect(
       formatListsWithDiagnostics(
-        source,
-        config,
-        createParserContext(source, config),
+        session.createContext(source),
       ).diagnostics.skipReasons,
     ).toEqual({ "unicode-separator": 1 });
   });
@@ -246,7 +244,7 @@ describe("list formatting", () => {
   ] as const)(
     "reports a precise skip reason for %s",
     (_name, source, skipReason) => {
-      const result = formatListsWithDiagnostics(source, config);
+      const result = formatListsWithDiagnostics(session.createContext(source));
 
       expect(result.formatted).toBe(source);
       expect(result.diagnostics).toEqual({
@@ -325,9 +323,7 @@ describe("list formatting", () => {
   ])("preserves explicitly protected content %s", (line) => {
     const source = `${line}\n`;
     const direct = formatListsWithDiagnostics(
-      source,
-      config,
-      createParserContext(source, config),
+      session.createContext(source),
     );
     expect(direct.formatted).toBe(source);
     expect(direct.diagnostics.skipReasons).toEqual({ "protected-block": 1 });
@@ -336,9 +332,7 @@ describe("list formatting", () => {
   it("does not mistake redirect-like or ordinary prose syntax for list content", () => {
     const redirectLike = "#UNKNOWN[[Target]]\n";
     const redirectResult = formatListsWithDiagnostics(
-      redirectLike,
-      config,
-      createParserContext(redirectLike, config),
+      session.createContext(redirectLike),
     );
     expect(redirectResult.formatted).toBe(redirectLike);
     expect(redirectResult.diagnostics.skipReasons).toEqual({

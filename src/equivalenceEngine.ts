@@ -1,9 +1,8 @@
-import type { Config, ParameterToken, TranscludeToken } from "wikiparser-node";
+import type { ParameterToken, TranscludeToken } from "wikiparser-node";
 
 import { normalizeSourceLineEndings } from "./lineEndings.js";
 import type { ResolvedFormatOptions } from "./options.js";
-import { createParserContext } from "./parserContext.js";
-import type { ParserRuntime } from "./parserRuntime.js";
+import type { ParserSession } from "./parserRuntime.js";
 import { normalizeBlankLines } from "./rules/blankLines.js";
 import { formatPageFooter } from "./rules/categories.js";
 import { formatExternalLinks } from "./rules/externalLinks.js";
@@ -92,10 +91,9 @@ type TemplateValuePart =
 
 function collectTransclusions(
   source: string,
-  config: Config,
-  runtime: ParserRuntime,
+  session: ParserSession,
 ): TransclusionNode[] {
-  const root = createParserContext(source, config, runtime).root;
+  const root = session.createContext(source).root;
   return root
     .querySelectorAll<TransclusionNode>("template, magic-word")
     .sort((a, b) => a.getAbsoluteIndex() - b.getAbsoluteIndex());
@@ -279,11 +277,10 @@ export function templateTokenStructuralFingerprint(
 
 function outermostParserConfirmedTables(
   source: string,
-  config: Config,
-  runtime: ParserRuntime,
+  session: ParserSession,
 ) {
-  const context = createParserContext(source, config, runtime);
-  return collectParserTableCandidates(source, context, config)
+  const context = session.createContext(source);
+  return collectParserTableCandidates(context)
     .sort((a, b) => a.start - b.start || b.end - a.end)
     .filter(
       (candidate, index, all) =>
@@ -333,18 +330,16 @@ function templatesInsideParserConfirmedTables(
 
 function templateStructuralFingerprintWithNormalizer(
   source: string,
-  config: Config,
-  runtime: ParserRuntime,
+  session: ParserSession,
   normalizeWikilinkTarget?: WikilinkTargetNormalizer,
 ): string {
   const hasTableOpener = source.includes("{|");
   const tables = hasTableOpener
-    ? outermostParserConfirmedTables(source, config, runtime)
+    ? outermostParserConfirmedTables(source, session)
     : [];
   const nodes = collectTransclusions(
     hasTableOpener ? maskParserConfirmedTables(source, tables) : source,
-    config,
-    runtime,
+    session,
   );
   const indices = new Map(nodes.map((node, index) => [node, index]));
   const fingerprint: TemplateFingerprint[] = nodes.map((node) => {
@@ -365,10 +360,9 @@ function templateStructuralFingerprintWithNormalizer(
 
 export function templateStructuralFingerprint(
   source: string,
-  config: Config,
-  runtime: ParserRuntime,
+  session: ParserSession,
 ): string {
-  return templateStructuralFingerprintWithNormalizer(source, config, runtime);
+  return templateStructuralFingerprintWithNormalizer(source, session);
 }
 
 interface TableCellFingerprint {
@@ -563,11 +557,10 @@ function tableNodeFingerprint(
 
 export function tableStructuralFingerprint(
   source: string,
-  config: Config,
-  runtime: ParserRuntime,
+  session: ParserSession,
 ): string {
-  const context = createParserContext(source, config, runtime);
-  const candidates = collectParserTableCandidates(source, context, config);
+  const context = session.createContext(source);
+  const candidates = collectParserTableCandidates(context);
   const fingerprint: TableFingerprint[] = candidates.map((candidate, index) => {
     let parent = -1;
     for (
@@ -803,9 +796,8 @@ function normalizeSectionSpacingSkeleton(source: string): string {
 
 function canonicalizeDocumentSyntax(
   source: string,
-  config: Config,
   options: ResolvedFormatOptions,
-  runtime: ParserRuntime,
+  session: ParserSession,
 ): string {
   let output = source;
   if (options.formatReferences) {
@@ -816,7 +808,7 @@ function canonicalizeDocumentSyntax(
     output = blocks.restore(
       formatReferences(
         blocks.text,
-        createParserContext(blocks.text, config, runtime),
+        session.createContext(blocks.text),
       ).formatted,
     );
   }
@@ -831,7 +823,7 @@ function canonicalizeDocumentSyntax(
         localizedSyntaxStyle: "canonical-english",
         localizationAliases: options.localizationAliases,
       },
-      createParserContext(output, config, runtime),
+      session.createContext(output),
     ).formatted;
   }
   if (options.formatFileLinks) {
@@ -842,19 +834,19 @@ function canonicalizeDocumentSyntax(
         localizedSyntaxStyle: "canonical-english",
         localizationAliases: options.localizationAliases,
       },
-      createParserContext(output, config, runtime),
+      session.createContext(output),
     ).formatted;
   }
   if (options.formatExternalLinks) {
     output = formatExternalLinks(
       output,
-      createParserContext(output, config, runtime),
+      session.createContext(output),
     ).formatted;
   }
   if (options.formatSectionSpacing) {
     output = formatSectionSpacing(
       output,
-      createParserContext(output, config, runtime),
+      session.createContext(output),
     ).formatted;
   }
   if (options.normalizeBlankLines) output = normalizeBlankLines(output);
@@ -865,8 +857,7 @@ function canonicalizeDocumentSyntax(
     options.formatInterlanguageLinks
   ) {
     output = formatPageFooter(
-      output,
-      config,
+      session.createContext(output),
       {
         formatCategories: options.formatCategories,
         formatBehaviorSwitches: options.formatBehaviorSwitches,
@@ -878,7 +869,6 @@ function canonicalizeDocumentSyntax(
         localizedSyntaxStyle: "canonical-english",
         localizationAliases: options.localizationAliases,
       },
-      createParserContext(output, config, runtime),
     ).formatted;
   }
   return protectedText.restore(output);
@@ -886,12 +876,11 @@ function canonicalizeDocumentSyntax(
 
 export function documentStructuralFingerprint(
   source: string,
-  config: Config,
   options: ResolvedFormatOptions,
-  runtime: ParserRuntime,
+  session: ParserSession,
 ): DocumentFingerprint {
-  source = canonicalizeDocumentSyntax(source, config, options, runtime);
-  const context = createParserContext(source, config, runtime);
+  source = canonicalizeDocumentSyntax(source, options, session);
+  const context = session.createContext(source);
   const root = context.root as unknown as GenericNode;
   const normalizeDocumentWikilinkTarget: WikilinkTargetNormalizer = (
     node,
@@ -909,13 +898,12 @@ export function documentStructuralFingerprint(
   const templates = JSON.parse(
     templateStructuralFingerprintWithNormalizer(
       source,
-      config,
-      runtime,
+      session,
       normalizeDocumentWikilinkTarget,
     ),
   ) as unknown;
   const tables = JSON.parse(
-    tableStructuralFingerprint(source, config, runtime),
+    tableStructuralFingerprint(source, session),
   ) as unknown;
   const links = structuralNodes(root, "link");
   const files = structuralNodes(root, "file");
@@ -1115,9 +1103,8 @@ export function documentStructuralFingerprint(
 export function verifyStructuralEquivalence(
   before: string,
   after: string,
-  config: Config,
   structure: StructuralEquivalenceKind,
-  runtime: ParserRuntime,
+  session: ParserSession,
   options?: ResolvedFormatOptions,
 ): StructuralEquivalenceResult {
   const normalizedBefore = normalizeSourceLineEndings(before);
@@ -1144,15 +1131,13 @@ export function verifyStructuralEquivalence(
     }
     const beforeFingerprint = documentStructuralFingerprint(
       before,
-      config,
       options,
-      runtime,
+      session,
     );
     const afterFingerprint = documentStructuralFingerprint(
       after,
-      config,
       options,
-      runtime,
+      session,
     );
     for (const category of Object.keys(beforeFingerprint) as Array<
       keyof DocumentFingerprint
@@ -1174,8 +1159,8 @@ export function verifyStructuralEquivalence(
     structure === "templates"
       ? templateStructuralFingerprint
       : tableStructuralFingerprint;
-  const beforeFingerprint = fingerprint(before, config, runtime);
-  const afterFingerprint = fingerprint(after, config, runtime);
+  const beforeFingerprint = fingerprint(before, session);
+  const afterFingerprint = fingerprint(after, session);
   if (beforeFingerprint === afterFingerprint) {
     return { equivalent: true, structure };
   }

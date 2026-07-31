@@ -1,14 +1,24 @@
 import type Parser from "wikiparser-node";
-import type { Config, ConfigData } from "wikiparser-node";
+import type { Config } from "wikiparser-node";
 
-type ParserImplementation = Pick<typeof Parser, "getConfig" | "parse">;
+import { createParserContext } from "./parserContext.js";
+import type { ParsedDocumentContext } from "./parserContext.js";
 
-export type ParserRoot = ReturnType<ParserImplementation["parse"]>;
+export type ParserRoot = ReturnType<typeof Parser.parse>;
+
+export interface ParserImplementation {
+  parse(source: string, config: Config): ParserRoot;
+}
+
+export interface ParserSession {
+  readonly config: Config;
+  parse(source: string): ParserRoot;
+  createContext(source: string): ParsedDocumentContext;
+  isRoundTripSafe(source: string): boolean;
+}
 
 export interface ParserRuntime {
-  getParserConfig(name: string): Config;
-  parseWikitext(source: string, config: Config): ParserRoot;
-  isRoundTripSafe(source: string, config: Config): boolean;
+  createSession(name: string): ParserSession;
 }
 
 export class UnsupportedParserConfigError extends Error {
@@ -23,15 +33,24 @@ export class UnsupportedParserConfigError extends Error {
 
 export function createParserRuntime(
   parser: ParserImplementation,
-  loadConfigData: (name: string) => ConfigData,
+  resolveConfig: (name: string) => Config,
 ): ParserRuntime {
-  const parseWikitext = (source: string, config: Config): ParserRoot =>
-    parser.parse(source, false, undefined, config);
-
   return {
-    getParserConfig: (name) => parser.getConfig(loadConfigData(name)),
-    parseWikitext,
-    isRoundTripSafe: (source, config) =>
-      parseWikitext(source, config).toString() === source,
+    createSession: (name) => createParserSession(parser, resolveConfig(name)),
   };
+}
+
+export function createParserSession(
+  parser: ParserImplementation,
+  config: Config,
+): ParserSession {
+  const parse = (source: string): ParserRoot => parser.parse(source, config);
+  let session: ParserSession;
+  session = {
+    config,
+    parse,
+    createContext: (source) => createParserContext(source, session),
+    isRoundTripSafe: (source) => parse(source).toString() === source,
+  };
+  return Object.freeze(session);
 }

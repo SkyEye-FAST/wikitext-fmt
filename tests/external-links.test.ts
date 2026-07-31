@@ -1,8 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { formatWikitext, formatWikitextDetailedResult } from "../src/index.js";
-import { getParserConfig } from "../src/parser.js";
-import { createParserContext } from "../src/parserContext.node.js";
+import { createNodeParserSession, getParserConfig } from "../src/parser.js";
 import { formatExternalLinks } from "../src/rules/externalLinks.js";
 
 const options = {
@@ -10,6 +9,7 @@ const options = {
   formatExternalLinks: true,
 };
 const config = getParserConfig("mediawiki");
+const session = createNodeParserSession(config);
 
 describe("experimental external link formatting", () => {
   it("is disabled by default", () => {
@@ -81,7 +81,7 @@ describe("experimental external link formatting", () => {
   it("uses parser-confirmed whole-line external links when context is provided", () => {
     const source = "[https://example.com  Label]\n";
     expect(
-      formatExternalLinks(source, createParserContext(source, config))
+      formatExternalLinks(source, session.createContext(source))
         .formatted,
     ).toBe("[https://example.com Label]\n");
   });
@@ -89,7 +89,7 @@ describe("experimental external link formatting", () => {
   it("ignores a stale external-link parser context safely", () => {
     const source = "[https://example.com  Label]\n";
     expect(
-      formatExternalLinks(source, createParserContext("Plain text\n", config))
+      formatExternalLinks(source, session.createContext("Plain text\n"))
         .formatted,
     ).toBe(source);
   });

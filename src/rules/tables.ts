@@ -1,13 +1,8 @@
-import type { Config } from "wikiparser-node";
 import type {
   ResolvedFormatOptions,
   TableCellSeparatorStyle,
 } from "../options.js";
-import {
-  createParserContext,
-  type ParsedDocumentContext,
-} from "../parserContext.js";
-import type { ParserRuntime } from "../parserRuntime.js";
+import type { ParsedDocumentContext } from "../parserContext.js";
 import { semanticRangeIdentities } from "../semanticIdentity.js";
 
 export interface TableLineDiagnostic {
@@ -703,14 +698,12 @@ function analyzeParserTable(
 }
 
 export function profileParserTableAnalyses(
-  source: string,
-  config: Config,
+  context: ParsedDocumentContext,
   options: ResolvedFormatOptions,
-  runtime: ParserRuntime,
   onProfile?: (profile: ParserTableAnalysisProfile) => void,
 ): ParserTableAnalysisProfile[] {
-  const context = createParserContext(source, config, runtime);
-  const candidates = collectParserTableCandidates(source, context, config);
+  const source = context.source;
+  const candidates = collectParserTableCandidates(context);
   return candidates.map(({ node, offset, start }, index) => {
     const started = performance.now();
     const analysis = analyzeParserTable(
@@ -740,11 +733,10 @@ export function potentialParserTableOpenerPositions(source: string): number[] {
 }
 
 export function collectParserTableCandidates(
-  source: string,
   context: ParsedDocumentContext,
-  config: Config,
   stats?: ParserTableCandidateStats,
 ): ParserTableCandidate[] {
+  const source = context.source;
   if (stats) {
     stats.openerCount = 0;
     stats.rootCandidates = 0;
@@ -801,11 +793,7 @@ export function collectParserTableCandidates(
       stats.fallbackParses++;
       stats.fallbackSourceBytes += fallbackSource.length;
     }
-    const reparsed = createParserContext(
-      fallbackSource,
-      config,
-      context.runtime,
-    );
+    const reparsed = context.session.createContext(fallbackSource);
     for (const node of reparsed.root.querySelectorAll<ParserTableNode>("table")) {
       add(node, opener);
     }
@@ -862,19 +850,13 @@ function applyTableChanges(
 }
 
 function formatParserTables(
-  source: string,
-  config: Config,
+  context: ParsedDocumentContext,
   options: ResolvedFormatOptions,
-  context?: ParsedDocumentContext,
-  runtime?: ParserRuntime,
 ): TableFormatWithDiagnosticsResult {
+  const source = context.source;
   const maxPasses = 64;
   let output = source;
-  let firstContext = context?.source === source ? context : undefined;
-  const parserRuntime = firstContext?.runtime ?? runtime;
-  if (!parserRuntime) {
-    throw new Error("Table formatting requires a parser runtime");
-  }
+  let firstContext: ParsedDocumentContext | undefined = context;
   let diagnostics: TableDiagnostic[] = [];
   let diagnosticIds: string[] = [];
   const summary = emptySummary();
@@ -897,9 +879,9 @@ function formatParserTables(
 
   for (let pass = 0; pass < maxPasses; pass++) {
     const current =
-      firstContext ?? createParserContext(output, config, parserRuntime);
+      firstContext ?? context.session.createContext(output);
     firstContext = undefined;
-    const tables = collectParserTableCandidates(output, current, config);
+    const tables = collectParserTableCandidates(current);
     const semanticIds = semanticRangeIdentities(tables, "table");
     const analyses = tables.map(({ node, offset, start }) =>
       analyzeParserTable(output, node, offset, options, start),
@@ -944,26 +926,15 @@ function formatParserTables(
 }
 
 export function formatTablesWithDiagnostics(
-  source: string,
-  config: Config,
+  context: ParsedDocumentContext,
   options: ResolvedFormatOptions,
-  context?: ParsedDocumentContext,
-  runtime?: ParserRuntime,
 ): TableFormatWithDiagnosticsResult {
-  return formatParserTables(source, config, options, context, runtime);
+  return formatParserTables(context, options);
 }
 
 export function formatTables(
-  source: string,
-  config: Config,
+  context: ParsedDocumentContext,
   options: ResolvedFormatOptions,
-  runtime: ParserRuntime,
 ): string {
-  return formatTablesWithDiagnostics(
-    source,
-    config,
-    options,
-    undefined,
-    runtime,
-  ).formatted;
+  return formatTablesWithDiagnostics(context, options).formatted;
 }

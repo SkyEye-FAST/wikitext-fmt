@@ -10,11 +10,11 @@ import {
   verifyStructuralEquivalence,
 } from "../src/index.js";
 import { resolveOptions } from "../src/options.js";
-import { getParserConfig } from "../src/parser.js";
-import { createParserContext } from "../src/parserContext.node.js";
+import { createNodeParserSession, getParserConfig } from "../src/parser.js";
 import { formatWikilinks } from "../src/rules/wikilinks.js";
 
 const config = getParserConfig("mediawiki");
+const session = createNodeParserSession(config);
 const directOptions = {
   interlanguagePrefixes: resolveOptions().interlanguagePrefixes,
 };
@@ -145,7 +145,7 @@ describe("ordinary wikilink formatting", () => {
       formatWikilinks(
         complex,
         directOptions,
-        createParserContext(complex, config),
+        session.createContext(complex),
       ),
     ).toMatchObject({
       formatted: complex,
@@ -162,7 +162,7 @@ describe("ordinary wikilink formatting", () => {
       formatWikilinks(
         source,
         directOptions,
-        createParserContext("Plain text", config),
+        session.createContext("Plain text"),
       ),
     ).toMatchObject({
       formatted: source,
@@ -180,7 +180,7 @@ describe("ordinary wikilink formatting", () => {
       formatWikilinks(
         source,
         { interlanguagePrefixes: [] },
-        createParserContext(source, interwikiConfig),
+        createNodeParserSession(interwikiConfig).createContext(source),
       ),
     ).toMatchObject({
       formatted: source,
@@ -196,7 +196,7 @@ describe("ordinary wikilink formatting", () => {
       { length: 1_000 },
       (_value, index) => `[[Repeated_Page_${index}]]`,
     ).join("\n");
-    const context = createParserContext(source, config);
+    const context = session.createContext(source);
     for (const node of context.root.querySelectorAll(
       "link, redirect-target, file, category, link-target",
     )) {

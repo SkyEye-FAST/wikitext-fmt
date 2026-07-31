@@ -2,10 +2,15 @@ import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, isAbsolute, resolve } from "node:path";
 
-import Parser, { type ConfigData } from "wikiparser-node";
+import Parser, { type Config, type ConfigData } from "wikiparser-node";
 import bundledDefaultConfig from "wikiparser-node/config/default.json" with { type: "json" };
 
-import { createParserRuntime } from "./parserRuntime.js";
+import {
+  createParserRuntime,
+  createParserSession,
+  type ParserImplementation,
+  type ParserRuntime,
+} from "./parserRuntime.js";
 
 const require = createRequire(import.meta.url);
 
@@ -17,6 +22,10 @@ interface ConfigLoaderDependencies {
 const defaultConfigLoaderDependencies: ConfigLoaderDependencies = {
   readFile: (filename) => readFileSync(filename, "utf8"),
   resolvePackageJson: () => require.resolve("wikiparser-node/package.json"),
+};
+
+const nodeParserImplementation: ParserImplementation = {
+  parse: (source, config) => Parser.parse(source, false, undefined, config),
 };
 
 function loadConfig(
@@ -57,10 +66,24 @@ export function loadParserConfigDataForTesting(
   return loadConfig(name, dependencies);
 }
 
-export const nodeParserRuntime = createParserRuntime(Parser, loadConfig);
+export function createNodeParserRuntime(
+  dependencies: ConfigLoaderDependencies = defaultConfigLoaderDependencies,
+): ParserRuntime {
+  return createParserRuntime(nodeParserImplementation, (name) =>
+    Parser.getConfig(loadConfig(name, dependencies)),
+  );
+}
 
-export const {
-  getParserConfig,
-  isRoundTripSafe,
-  parseWikitext,
-} = nodeParserRuntime;
+export const nodeParserRuntime = createNodeParserRuntime();
+
+export const createNodeParserSession = (config: Config) =>
+  createParserSession(nodeParserImplementation, config);
+
+export const getParserConfig = (name: string): Config =>
+  nodeParserRuntime.createSession(name).config;
+
+export const parseWikitext = (source: string, config: Config) =>
+  createNodeParserSession(config).parse(source);
+
+export const isRoundTripSafe = (source: string, config: Config): boolean =>
+  createNodeParserSession(config).isRoundTripSafe(source);

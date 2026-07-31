@@ -1,18 +1,18 @@
 import { describe, expect, it } from "vitest";
 import Parser from "wikiparser-node";
 
-import { getParserConfig } from "../src/parser.js";
+import { createNodeParserSession, getParserConfig } from "../src/parser.js";
 import {
   collectNodes,
-  createParserContext,
   isNodeWholeLine,
   lineIndexAt,
   lineRangeAt,
   lineTextAt,
   nodeRange,
-} from "../src/parserContext.node.js";
+} from "../src/parserContext.js";
 
 const config = getParserConfig("mediawiki");
+const session = createNodeParserSession(config);
 
 function summarize(source: string) {
   const root = Parser.parse(source, false, undefined, config);
@@ -41,7 +41,7 @@ function summarize(source: string) {
 describe("parser AST capabilities for metadata-like rules", () => {
   it("provides shared source range and line utilities for parser-assisted rules", () => {
     const source = "Lead\n[[Category:Foo]]\nTail";
-    const context = createParserContext(source, config);
+    const context = session.createContext(source);
     const [category] = collectNodes(context, "category");
     expect(category).toBeTruthy();
     expect(nodeRange(category!)).toEqual({ start: 5, end: 21 });
@@ -137,17 +137,17 @@ describe("parser AST capabilities for metadata-like rules", () => {
   });
 
   it("supports whole-line checks for category nodes but not embedded categories", () => {
-    const wholeLine = createParserContext("[[Category:A]]\n", config);
+    const wholeLine = session.createContext("[[Category:A]]\n");
     const [wholeLineCategory] = collectNodes(wholeLine, "category");
     expect(wholeLineCategory).toBeTruthy();
     expect(isNodeWholeLine(wholeLine, wholeLineCategory!)).toBe(true);
 
-    const inline = createParserContext("Text [[Category:Inline]]\n", config);
+    const inline = session.createContext("Text [[Category:Inline]]\n");
     const [inlineCategory] = collectNodes(inline, "category");
     expect(inlineCategory).toBeTruthy();
     expect(isNodeWholeLine(inline, inlineCategory!)).toBe(false);
 
-    const nested = createParserContext("{{T|x=[[Category:Inside]]}}\n", config);
+    const nested = session.createContext("{{T|x=[[Category:Inside]]}}\n");
     const [nestedCategory] = collectNodes(nested, "category");
     expect(nestedCategory).toBeTruthy();
     expect(isNodeWholeLine(nested, nestedCategory!)).toBe(false);
@@ -342,10 +342,7 @@ describe("parser AST capabilities for metadata-like rules", () => {
         }),
       ]),
     );
-    const context = createParserContext(
-      "[https://example.com  Label]\n",
-      config,
-    );
+    const context = session.createContext("[https://example.com  Label]\n");
     const [externalLink] = collectNodes(context, "ext-link");
     expect(externalLink).toBeTruthy();
     expect(isNodeWholeLine(context, externalLink!)).toBe(true);
@@ -409,7 +406,7 @@ describe("parser AST capabilities for metadata-like rules", () => {
         }),
       ]),
     );
-    const context = createParserContext("#REDIRECT [[Target]]\n", config);
+    const context = session.createContext("#REDIRECT [[Target]]\n");
     const [redirect] = collectNodes(context, "redirect");
     expect(redirect).toBeTruthy();
     expect(isNodeWholeLine(context, redirect!)).toBe(true);

@@ -1,4 +1,10 @@
-import { build } from "../packages/vscode/node_modules/esbuild/lib/main.js";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { pathToFileURL } from "node:url";
+import { Worker } from "node:worker_threads";
+
+import { build } from "esbuild";
 
 const forbiddenInputs = [
   "node:fs",
@@ -52,6 +58,53 @@ if (!inputs.some((input) => input.endsWith("dist/browser.js"))) {
   throw new Error("Browser bundle did not resolve wikitext-fmt/browser");
 }
 
+async function verifyWorkerExecution(bundle) {
+  const temporaryRoot = await mkdtemp(
+    join(tmpdir(), "wikitext-fmt-browser-worker-"),
+  );
+  const filename = join(temporaryRoot, "worker-smoke.mjs");
+  const harness = `
+    import { parentPort } from "node:worker_threads";
+    globalThis.self = globalThis;
+    globalThis.postMessage = (value) => parentPort.postMessage(value);
+    parentPort.on("message", (data) => globalThis.onmessage({ data }));
+    ${bundle}
+    parentPort.postMessage({ ready: true });
+  `;
+  await writeFile(filename, harness);
+  const worker = new Worker(pathToFileURL(filename));
+  try {
+    const result = await new Promise((resolve, reject) => {
+      const timer = setTimeout(
+        () => reject(new Error("Browser Worker smoke test timed out")),
+        10_000,
+      );
+      worker.on("error", (error) => {
+        clearTimeout(timer);
+        reject(error);
+      });
+      worker.on("message", (message) => {
+        if (message?.ready) {
+          worker.postMessage("==Title==\n");
+          return;
+        }
+        clearTimeout(timer);
+        resolve(message);
+      });
+    });
+    if (JSON.stringify(result) !== JSON.stringify({ formatted: "== Title ==\n" })) {
+      throw new Error(
+        `Browser Worker smoke test returned an unexpected result: ${JSON.stringify(result)}`,
+      );
+    }
+  } finally {
+    await worker.terminate();
+    await rm(temporaryRoot, { recursive: true, force: true });
+  }
+}
+
+await verifyWorkerExecution(output);
+
 console.log(
-  `Browser bundle verified: ${inputs.length} inputs, ${result.outputFiles[0].contents.length} bytes.`,
+  `Browser bundle and Worker execution verified: ${inputs.length} inputs, ${result.outputFiles[0].contents.length} bytes.`,
 );

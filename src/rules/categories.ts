@@ -1,9 +1,7 @@
-import type { Config } from "wikiparser-node";
 import type { ResolvedFormatOptions } from "../options.js";
 import {
   collectNodes,
   collectNodeRanges,
-  createParserContext,
   isRangeInside,
   isNodeWholeLine,
   lineIndexAt,
@@ -15,7 +13,6 @@ import {
   resolveLocalizationAliases,
   type BehaviorSwitchId,
 } from "../localization/aliases.js";
-import type { ParserRuntime } from "../parserRuntime.js";
 import { hasFinalNewline, withFinalNewline } from "../utils/text.js";
 
 export interface FooterDiagnostics {
@@ -92,33 +89,14 @@ export function isStandaloneBehaviorSwitchLine(
 }
 
 function templateRanges(
-  source: string,
-  config: Config,
-  context?: ParsedDocumentContext,
-  runtime?: ParserRuntime,
+  context: ParsedDocumentContext,
 ): SourceRange[] {
-  // Parser contexts are valid only for the exact source snapshot used to build
-  // them. Callers must recreate the context after any prior rule changes text.
-  const current =
-    context?.source === source
-      ? context
-      : createParserContext(
-          source,
-          config,
-          runtime ?? context?.runtime ?? missingParserRuntime(),
-        );
-  return collectNodeRanges(current, "template");
-}
-
-function missingParserRuntime(): never {
-  throw new Error("Page footer formatting requires a parser runtime");
+  return collectNodeRanges(context, "template");
 }
 
 function parserCategoryLineIndexes(
-  source: string,
-  context?: ParsedDocumentContext,
-): Set<number> | undefined {
-  if (context?.source !== source) return undefined;
+  context: ParsedDocumentContext,
+): Set<number> {
   const indexes = new Set<number>();
   for (const node of collectNodes(context, "category")) {
     if (!isNodeWholeLine(context, node)) continue;
@@ -229,8 +207,7 @@ function countMoved(
 }
 
 export function formatPageFooter(
-  source: string,
-  config: Config,
+  context: ParsedDocumentContext,
   options: Pick<
     ResolvedFormatOptions,
     | "formatCategories"
@@ -243,9 +220,8 @@ export function formatPageFooter(
     | "localizedSyntaxStyle"
     | "localizationAliases"
   >,
-  context?: ParsedDocumentContext,
-  runtime?: ParserRuntime,
 ): PageFooterResult {
+  const source = context.source;
   const diagnostics: FooterDiagnostics = {
     behaviorSwitchesMoved: 0,
     behaviorSwitchesFormatted: 0,
@@ -276,17 +252,9 @@ export function formatPageFooter(
     ),
   );
   const canonicalEnglish = options.localizedSyntaxStyle === "canonical-english";
-  const ranges = templateRanges(source, config, context, runtime);
-  const parserCategoryLines = parserCategoryLineIndexes(source, context);
-  let lineStarts = context?.source === source ? context.lineStarts : undefined;
-  if (!lineStarts) {
-    lineStarts = [];
-    let offset = 0;
-    for (const line of lines) {
-      lineStarts.push(offset);
-      offset += line.length + 1;
-    }
-  }
+  const ranges = templateRanges(context);
+  const parserCategoryLines = parserCategoryLineIndexes(context);
+  const lineStarts = context.lineStarts;
   const candidates = collectMetadataCandidates(
     lines,
     lineStarts,

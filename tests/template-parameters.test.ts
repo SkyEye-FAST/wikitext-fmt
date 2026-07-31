@@ -9,8 +9,12 @@ import {
   formatWikitextDetailedResult,
   formatWikitextSafeDetailed,
 } from "../src/index.js";
-import { getParserConfig, parseWikitext } from "../src/parser.js";
-import { formatTemplatesWithDiagnostics } from "../src/rules/templates.node.js";
+import {
+  createNodeParserSession,
+  getParserConfig,
+  parseWikitext,
+} from "../src/parser.js";
+import { formatTemplatesWithDiagnostics } from "../src/rules/templates.js";
 import type {
   FormatOptions,
   InlineTemplateSpacing,
@@ -18,6 +22,7 @@ import type {
 } from "../src/options.js";
 
 const config = getParserConfig("mediawiki");
+const session = createNodeParserSession(config);
 
 function anonymousValues(source: string): string[] {
   const template = parseWikitext(source, config).querySelector<{
@@ -628,8 +633,7 @@ describe("unified parser-assisted template formatting", () => {
   it("fails closed and reports a convergence limit", () => {
     const input = "{{T|a=1|b=2}}\n";
     const result = formatTemplatesWithDiagnostics(
-      input,
-      getParserConfig("mediawiki"),
+      session.createContext(input),
       {
         lineWidth: 120,
         layout: "auto",

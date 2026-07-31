@@ -45,6 +45,27 @@ describe("core package content", () => {
     expect(errors).toContain("forbidden package file: package/.npmrc");
   });
 
+  it("rejects outputs from removed runtime-binding modules", () => {
+    const errors = validateCorePackageEntries(
+      [
+        ...required,
+        "package/dist/formatterCore.js",
+        "package/dist/parserContext.node.d.ts",
+        "package/dist/rules/tables.node.js.map",
+      ],
+      "",
+    );
+    expect(errors).toContain(
+      "obsolete internal output: package/dist/formatterCore.js",
+    );
+    expect(errors).toContain(
+      "obsolete internal output: package/dist/parserContext.node.d.ts",
+    );
+    expect(errors).toContain(
+      "obsolete internal output: package/dist/rules/tables.node.js.map",
+    );
+  });
+
   it("requires relative Markdown links from the packaged README", () => {
     expect(readmeMarkdownLinks("[Docs](docs/missing.md)")).toEqual([
       "package/docs/missing.md",

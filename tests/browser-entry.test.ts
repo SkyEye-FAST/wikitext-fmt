@@ -94,4 +94,24 @@ describe("browser entry", () => {
     expect(browser.loadSiteInfoAliases).toBeTypeOf("function");
     expect(browser.normalizeSiteInfoPayload).toBeTypeOf("function");
   });
+
+  it("keeps shared Node and browser public exports available", () => {
+    for (const name of [
+      "formatWikitext",
+      "formatWikitextDetailedResult",
+      "formatWikitextResult",
+      "formatWikitextSafe",
+      "formatWikitextSafeDetailed",
+      "defaultOptions",
+      "ruleLevels",
+      "classifyParserFunction",
+      "loadSiteInfoAliases",
+      "normalizeSiteInfoPayload",
+    ] as const) {
+      expect(browser[name]).toBeDefined();
+      expect(node[name]).toBeDefined();
+    }
+    expect(node.verifyStructuralEquivalence).toBeTypeOf("function");
+    expect(node.loadConfig).toBeTypeOf("function");
+  });
 });

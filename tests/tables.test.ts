@@ -10,11 +10,15 @@ import {
   formatWikitextSafeDetailed,
 } from "../src/index.js";
 import { resolveOptions } from "../src/options.js";
-import { getParserConfig, parseWikitext } from "../src/parser.js";
-import { createParserContext } from "../src/parserContext.node.js";
-import { formatTablesWithDiagnostics } from "../src/rules/tables.node.js";
+import {
+  createNodeParserSession,
+  getParserConfig,
+  parseWikitext,
+} from "../src/parser.js";
+import { formatTablesWithDiagnostics } from "../src/rules/tables.js";
 
 const config = getParserConfig("mediawiki");
+const session = createNodeParserSession(config);
 const production: FormatOptions = { profile: "production" };
 
 function expectProductionTable(
@@ -246,8 +250,7 @@ describe("production parser table formatter", () => {
   it("reports an ambiguous disagreement when the fallback cannot balance it", () => {
     const input = "{|\n| [[A || B\n|}";
     const result = formatTablesWithDiagnostics(
-      input,
-      config,
+      session.createContext(input),
       resolveOptions({ profile: "production" }),
     );
     expect(result.formatted).toBe(input);
@@ -303,29 +306,25 @@ describe("production parser table formatter", () => {
     );
   });
 
-  it("produces identical output with an explicit current parser context", () => {
+  it("uses the exact parser context source snapshot", () => {
     const source = "{|\n| A || B\n|}\n";
     const options = resolveOptions({
       profile: "production",
       tableCellSeparatorStyle: "split",
     });
-    expect(
-      formatTablesWithDiagnostics(
-        source,
-        config,
-        options,
-        createParserContext(source, config),
-      ),
-    ).toEqual(formatTablesWithDiagnostics(source, config, options));
+    const context = session.createContext(source);
+    expect(formatTablesWithDiagnostics(context, options)).toEqual(
+      formatTablesWithDiagnostics(session.createContext(source), options),
+    );
   });
 
-  it("ignores a stale parser context", () => {
+  it("requires callers to recreate context after source changes", () => {
     const source = "{|\n| A || B\n|}\n";
+    const staleContext = session.createContext("Plain text\n");
+    expect(staleContext.source).not.toBe(source);
     const result = formatTablesWithDiagnostics(
-      source,
-      config,
+      session.createContext(source),
       resolveOptions({ profile: "production" }),
-      createParserContext("Plain text\n", config),
     );
     expect(result.formatted).toBe("{|\n| A \n| B\n|}\n");
   });

@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
 
 import { formatWikitext, formatWikitextDetailedResult } from "../src/index.js";
-import { getParserConfig } from "../src/parser.js";
-import { createParserContext } from "../src/parserContext.node.js";
+import { createNodeParserSession, getParserConfig } from "../src/parser.js";
 import { formatRedirects } from "../src/rules/redirects.js";
 
 const config = getParserConfig("mediawiki");
+const session = createNodeParserSession(config);
 const redirectOptions = {
   localizationSource: "builtin",
   localizedSyntaxStyle: "preserve",
@@ -36,7 +36,7 @@ describe("redirect formatting", () => {
       formatRedirects(
         source,
         redirectOptions,
-        createParserContext(source, config),
+        session.createContext(source),
       ).formatted,
     ).toBe("#REDIRECT [[Target]]\n");
   });
@@ -47,7 +47,7 @@ describe("redirect formatting", () => {
       formatRedirects(
         source,
         redirectOptions,
-        createParserContext("Plain text\n", config),
+        session.createContext("Plain text\n"),
       ).formatted,
     ).toBe("#REDIRECT [[Target]]\n");
   });
