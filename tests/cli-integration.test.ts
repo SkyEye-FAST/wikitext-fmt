@@ -172,12 +172,14 @@ describe("CLI production behavior", () => {
       stderr: "",
     });
 
-    const warning = await runCli(["--safe", "--stdin", "--fail-on-warning"], {
+    const crlf = await runCli(["--safe", "--stdin", "--fail-on-warning"], {
       stdin: "==Title==\r\nText\r\n",
     });
-    expect(warning.code).toBe(1);
-    expect(warning.stdout).toBe("==Title==\r\nText\r\n");
-    expect(warning.stderr).toMatch(/^warning: .*round-trip/imu);
+    expect(crlf).toEqual({
+      code: 0,
+      stdout: "== Title ==\r\nText\r\n",
+      stderr: "",
+    });
   });
 
   it("expands globs deterministically and fails on unmatched globs", async () => {
@@ -286,24 +288,64 @@ describe("CLI production behavior", () => {
     ]);
   });
 
-  it("makes --safe --check --fail-on-warning fail on fallback warnings", async () => {
+  it("preserves CRLF in --check and --write modes", async () => {
     const root = await temporaryDirectory();
     const file = join(root, "crlf.wiki");
     await writeFile(file, "==Title==\r\nText\r\n");
 
-    const defaultWarning = await runCli(["--safe", "--check", file], {
+    const check = await runCli(["--safe", "--check", file], {
       cwd: root,
     });
-    expect(defaultWarning.code).toBe(0);
-    expect(defaultWarning.stdout).toBe("");
-    expect(defaultWarning.stderr).toMatch(/warning: .*round-trip/iu);
+    expect(check).toEqual({ code: 1, stdout: "", stderr: "" });
+    expect(await readFile(file, "utf8")).toBe("==Title==\r\nText\r\n");
 
-    const failingWarning = await runCli(
+    const write = await runCli(["--safe", "--write", file], { cwd: root });
+    expect(write).toEqual({ code: 0, stdout: "", stderr: "" });
+    expect(await readFile(file, "utf8")).toBe("== Title ==\r\nText\r\n");
+  });
+
+  it.each([
+    ["mixed", "==Title==\r\nText\n"],
+    ["bare CR", "==Title==\rText"],
+    ["CRLF and bare CR", "==Title==\r\nText\rTail"],
+  ])("fails closed for unsupported %s line endings", async (_name, source) => {
+    const root = await temporaryDirectory();
+    const file = join(root, "unsupported.wiki");
+    await writeFile(file, source);
+
+    const check = await runCli(
       ["--safe", "--check", "--fail-on-warning", file],
       { cwd: root },
     );
-    expect(failingWarning.code).toBe(1);
-    expect(failingWarning.stdout).toBe("");
-    expect(failingWarning.stderr).toMatch(/warning: .*round-trip/iu);
+    expect(check.code).toBe(1);
+    expect(check.stdout).toBe("");
+    expect(check.stderr).toMatch(/warning: .*unsupported/iu);
+    expect(await readFile(file, "utf8")).toBe(source);
+
+    const defaultWrite = await runCli(["--safe", "--write", file], {
+      cwd: root,
+    });
+    expect(defaultWrite.code).toBe(0);
+    expect(defaultWrite.stdout).toBe("");
+    expect(defaultWrite.stderr).toMatch(/warning: .*unsupported/iu);
+    expect(await readFile(file, "utf8")).toBe(source);
+
+    const write = await runCli(
+      ["--safe", "--write", "--fail-on-warning", file],
+      { cwd: root },
+    );
+    expect(write.code).toBe(1);
+    expect(write.stdout).toBe("");
+    expect(write.stderr).toMatch(/warning: .*unsupported/iu);
+    expect(await readFile(file, "utf8")).toBe(source);
+
+    const diff = await runCli(
+      ["--safe", "--diff", "--fail-on-warning", file],
+      { cwd: root },
+    );
+    expect(diff.code).toBe(1);
+    expect(diff.stdout).toBe("");
+    expect(diff.stderr).toMatch(/warning: .*unsupported/iu);
+    expect(await readFile(file, "utf8")).toBe(source);
   });
 });

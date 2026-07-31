@@ -1,4 +1,5 @@
 import type { Config, ParameterToken, TranscludeToken } from "wikiparser-node";
+import { normalizeSourceLineEndings } from "./lineEndings.js";
 import type { ResolvedFormatOptions } from "./options.js";
 import { createParserContext } from "./parserContext.js";
 import { outermostSourceRanges } from "./semanticIdentity.js";
@@ -1107,6 +1108,24 @@ export function verifyStructuralEquivalence(
   structure: StructuralEquivalenceKind,
   options?: ResolvedFormatOptions,
 ): StructuralEquivalenceResult {
+  const normalizedBefore = normalizeSourceLineEndings(before);
+  const normalizedAfter = normalizeSourceLineEndings(after);
+  if (!normalizedBefore.supported || !normalizedAfter.supported) {
+    const unsupported = !normalizedBefore.supported ? "before" : "after";
+    const lineEnding = !normalizedBefore.supported
+      ? normalizedBefore.lineEnding
+      : !normalizedAfter.supported
+        ? normalizedAfter.lineEnding
+        : undefined;
+    return {
+      equivalent: false,
+      structure,
+      reason: `${unsupported} source uses unsupported ${lineEnding} line endings`,
+    };
+  }
+  before = normalizedBefore.normalized;
+  after = normalizedAfter.normalized;
+
   if (structure === "document") {
     if (!options) {
       throw new Error("Document equivalence requires resolved format options");

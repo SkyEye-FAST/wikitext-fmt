@@ -123,14 +123,12 @@ describe("formatter API", () => {
     );
   });
 
-  it("falls back without changing CRLF input when exact round-tripping is unavailable", () => {
+  it("formats CRLF input and preserves its line endings", () => {
     const input = "==Title==\r\nText\r\n";
     const result = formatWikitextSafe(input);
-    expect(result.formatted).toBe(input);
-    expect(result.failure).toMatchObject({
-      code: "input-roundtrip",
-      stage: "initial-roundtrip",
-    });
-    expect(result.warning).toMatch(/round-trip/u);
+    expect(result.formatted).toBe("== Title ==\r\nText\r\n");
+    expect(result.failure).toBeUndefined();
+    expect(result.warning).toBeUndefined();
+    expect(formatWikitext(result.formatted)).toBe(result.formatted);
   });
 });

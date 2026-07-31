@@ -368,4 +368,55 @@ describe("structural equivalence rejection", () => {
       ),
     ).toEqual({ equivalent: true, structure: "templates" });
   });
+
+  it("normalizes pure CRLF snapshots before standalone equivalence checks", () => {
+    expect(
+      verifyStructuralEquivalence(
+        ":c<!-- exact comment -->\r\n",
+        ": c<!-- exact comment -->\r\n",
+        config,
+        "document",
+        documentOptions,
+      ),
+    ).toEqual({ equivalent: true, structure: "document" });
+  });
+
+  it.each([
+    [
+      "templates",
+      "{{Outer\r\n| nested = {{Inner|a=1|b=2}}\r\n}}\r\n",
+      "{{Outer\r\n| nested = {{Inner\r\n| a = 1\r\n| b = 2\r\n}}\r\n}}\r\n",
+    ],
+    [
+      "tables",
+      "{|\r\n| {{T|a=1}} || B\r\n|}\r\n",
+      "{|\r\n| {{T|a=1}} \r\n| B\r\n|}\r\n",
+    ],
+  ] as const)(
+    "normalizes nested CRLF %s before structure-specific equivalence",
+    (structure, before, after) => {
+      expect(
+        verifyStructuralEquivalence(before, after, config, structure),
+      ).toEqual({ equivalent: true, structure });
+    },
+  );
+
+  it.each([
+    ["mixed", "A\r\nB\n"],
+    ["bare-cr", "A\rB"],
+  ])("rejects unsupported %s input in standalone equivalence", (_name, before) => {
+    expect(
+      verifyStructuralEquivalence(
+        before,
+        "A\nB\n",
+        config,
+        "document",
+        documentOptions,
+      ),
+    ).toMatchObject({
+      equivalent: false,
+      structure: "document",
+      reason: expect.stringContaining("unsupported"),
+    });
+  });
 });

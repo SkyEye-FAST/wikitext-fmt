@@ -175,12 +175,20 @@ describe("list formatting", () => {
     assertListPipeline(":a", ": a");
   });
 
-  it("fails closed without changing CRLF when parser round-tripping is unavailable", () => {
-    const source = ":a\r\n:*b   \r\n";
+  it("formats CRLF through the document normalization envelope", () => {
+    const source = ":item\r\n:*item\r\n:c<!-- x -->\r\n:{{T}}\r\n";
+    const expected =
+      ": item\r\n:* item\r\n: c<!-- x -->\r\n: {{T}}\r\n";
     expect(formatListsDirect(source)).toBe(source);
     const result = formatWikitextDetailedResult(source);
-    expect(result.formatted).toBe(source);
-    expect(result.failure).toMatchObject({ code: "input-roundtrip" });
+    expect(result.formatted).toBe(expected);
+    expect(result.failure).toBeUndefined();
+    expect(result.formatted).not.toMatch(/(^|[^\r])\n/u);
+
+    const safe = formatWikitextSafeDetailed(source);
+    expect(safe.formatted).toBe(expected);
+    expect(safe.failure).toBeUndefined();
+    expect(formatWikitext(expected)).toBe(expected);
   });
 
   it.each([

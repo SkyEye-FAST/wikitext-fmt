@@ -5,6 +5,10 @@ import {
   stripDiagnostics,
 } from "./diagnostics.js";
 import { verifyStructuralEquivalence } from "./equivalence.js";
+import {
+  normalizeSourceLineEndings,
+  type SupportedNormalizedSource,
+} from "./lineEndings.js";
 import type { FormatOptions } from "./options.js";
 import { resolveOptions } from "./options.js";
 import { getParserConfig, isRoundTripSafe } from "./parser.js";
@@ -41,6 +45,7 @@ export interface FormatResult {
 export type FormatFailureCode =
   | "input-parse"
   | "input-roundtrip"
+  | "unsupported-line-endings"
   | "output-parse"
   | "template-equivalence"
   | "table-equivalence"
@@ -86,7 +91,7 @@ export interface FormatDetailedResult extends FormatResult {
   equivalenceDiagnostics: DetailedDiagnostics["equivalenceDiagnostics"];
 }
 
-export function formatWikitextDetailedResult(
+function formatNormalizedWikitextDetailedResult(
   source: string,
   options: FormatOptions = {},
 ): FormatDetailedResult {
@@ -512,6 +517,44 @@ export function formatWikitextDetailedResult(
       diagnostics,
     );
   }
+}
+
+function restoreDetailedResult(
+  result: FormatDetailedResult,
+  normalized: SupportedNormalizedSource,
+): FormatDetailedResult {
+  if (normalized.lineEnding !== "crlf") return result;
+  return {
+    ...result,
+    formatted: normalized.restore(result.formatted),
+    tableDiagnostics: result.tableDiagnostics.map((diagnostic) => ({
+      ...diagnostic,
+      start: normalized.originalOffset(diagnostic.start),
+      end: normalized.originalOffset(diagnostic.end),
+    })),
+  };
+}
+
+export function formatWikitextDetailedResult(
+  source: string,
+  options: FormatOptions = {},
+): FormatDetailedResult {
+  const normalized = normalizeSourceLineEndings(source);
+  if (!normalized.supported) {
+    const detail =
+      normalized.lineEnding === "mixed"
+        ? "mixed LF and CRLF line endings"
+        : "bare carriage returns";
+    return fallbackDetailedResult(source, {
+      code: "unsupported-line-endings",
+      stage: "input-normalization",
+      message: `The input uses unsupported ${detail}; left it unchanged.`,
+    });
+  }
+  return restoreDetailedResult(
+    formatNormalizedWikitextDetailedResult(normalized.normalized, options),
+    normalized,
+  );
 }
 
 export function formatWikitextResult(
