@@ -119,7 +119,16 @@ The package must contain:
 
 The browser bundle check must resolve the published `wikitext-fmt/browser`
 subpath without marking Node built-ins external. Release smoke tests import both
-the root and browser subpaths from the packed installation.
+the root and browser subpaths from the packed installation. When validating a
+prepared artifact, pass the same tarball to every installed-package check:
+
+```sh
+node scripts/check-core-package-content.mjs release-artifacts/wikitext-fmt-VERSION.tgz
+node scripts/release-smoke.mjs --tarball release-artifacts/wikitext-fmt-VERSION.tgz
+node scripts/check-browser-consumer.mjs --tarball release-artifacts/wikitext-fmt-VERSION.tgz
+```
+
+The consumer check must not repack when `--tarball` is supplied.
 
 It must exclude tests, fixtures, reports, extension build output, credentials,
 and dependency directories.

@@ -113,5 +113,7 @@ describe("browser entry", () => {
     }
     expect(node.verifyStructuralEquivalence).toBeTypeOf("function");
     expect(node.loadConfig).toBeTypeOf("function");
+    expect("verifyStructuralEquivalence" in browser).toBe(false);
+    expect("loadConfig" in browser).toBe(false);
   });
 });

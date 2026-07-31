@@ -81,6 +81,8 @@ jobs:
             "release-artifacts/$TARBALL_FILENAME"
           node scripts/release-smoke.mjs \
             --tarball "release-artifacts/$TARBALL_FILENAME"
+          node scripts/check-browser-consumer.mjs \
+            --tarball "release-artifacts/$TARBALL_FILENAME"
           (
             cd release-artifacts
             sha256sum "$TARBALL_FILENAME" > SHA256SUMS

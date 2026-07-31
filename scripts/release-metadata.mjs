@@ -123,6 +123,10 @@ export function validateCorePackageMetadata(packageMetadata) {
     `package.json files must contain only: ${CORE_PACKAGE_FILES.join(", ")}`,
   );
   assertRelease(
+    sameStringSet(Object.keys(packageMetadata.exports ?? {}), [".", "./browser"]),
+    "package.json exports must contain only the package root and ./browser",
+  );
+  assertRelease(
     packageMetadata.main === "./dist/index.js" &&
       packageMetadata.types === "./dist/index.d.ts" &&
       packageMetadata.exports?.["."]?.types === "./dist/index.d.ts" &&

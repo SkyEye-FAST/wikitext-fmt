@@ -1,9 +1,9 @@
-import type { StructuralEquivalenceResult } from "./equivalence.js";
 import type {
   FormatDetailedResult,
   FormatFailure,
   FormatResult,
-} from "./formatter.js";
+  StructuralEquivalenceResult,
+} from "./publicTypes.js";
 import type { FooterDiagnostics } from "./rules/categories.js";
 import type { ExternalLinkDiagnostics } from "./rules/externalLinks.js";
 import type { FileLinkDiagnostics } from "./rules/fileLinks.js";

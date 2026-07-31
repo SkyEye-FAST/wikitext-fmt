@@ -1,5 +1,4 @@
 import {
-  type DetailedDiagnostics,
   emptyDetailedDiagnostics,
   fallbackDetailedResult,
   stripDiagnostics,
@@ -23,6 +22,11 @@ import {
   type ParserSession,
   UnsupportedParserConfigError,
 } from "./parserRuntime.js";
+import type {
+  FormatDetailedResult,
+  FormatterApi,
+  FormatResult,
+} from "./publicTypes.js";
 import { normalizeBlankLines } from "./rules/blankLines.js";
 import { formatPageFooter } from "./rules/categories.js";
 import { formatExternalLinks } from "./rules/externalLinks.js";
@@ -39,45 +43,13 @@ import { formatTemplatesWithDiagnostics } from "./rules/templates.js";
 import { formatWikilinks } from "./rules/wikilinks.js";
 import { protectBlocks } from "./utils/protectBlocks.js";
 
-export interface FormatResult {
-  formatted: string;
-  failure?: FormatFailure;
-  warning?: string;
-}
-
-export type FormatFailureCode =
-  | "input-parse"
-  | "input-roundtrip"
-  | "unsupported-parser-config"
-  | "unsupported-line-endings"
-  | "output-parse"
-  | "template-equivalence"
-  | "table-equivalence"
-  | "document-equivalence"
-  | "idempotency"
-  | "template-convergence"
-  | "table-convergence"
-  | "formatter-exception";
-
-export interface FormatFailure {
-  code: FormatFailureCode;
-  stage?: string;
-  message: string;
-}
-
-export interface FormatterApi {
-  formatWikitext(source: string, options?: FormatOptions): string;
-  formatWikitextDetailedResult(
-    source: string,
-    options?: FormatOptions,
-  ): FormatDetailedResult;
-  formatWikitextResult(source: string, options?: FormatOptions): FormatResult;
-  formatWikitextSafe(source: string, options?: FormatOptions): FormatResult;
-  formatWikitextSafeDetailed(
-    source: string,
-    options?: FormatOptions,
-  ): FormatDetailedResult;
-}
+export type {
+  FormatDetailedResult,
+  FormatFailure,
+  FormatFailureCode,
+  FormatResult,
+  FormatterApi,
+} from "./publicTypes.js";
 
 type ExtensionNode = ParserNodeLike & { name?: string };
 
@@ -92,21 +64,6 @@ function parserExtensionRanges(
         protectReferences || !/^(?:ref|references)$/iu.test(node.name ?? ""),
     )
     .map(nodeRange);
-}
-
-export interface FormatDetailedResult extends FormatResult {
-  tableDiagnostics: DetailedDiagnostics["tableDiagnostics"];
-  tableFormatDiagnostics: DetailedDiagnostics["tableFormatDiagnostics"];
-  footerDiagnostics: DetailedDiagnostics["footerDiagnostics"];
-  redirectDiagnostics: DetailedDiagnostics["redirectDiagnostics"];
-  fileLinkDiagnostics: DetailedDiagnostics["fileLinkDiagnostics"];
-  wikilinkDiagnostics: DetailedDiagnostics["wikilinkDiagnostics"];
-  externalLinkDiagnostics: DetailedDiagnostics["externalLinkDiagnostics"];
-  referenceDiagnostics: DetailedDiagnostics["referenceDiagnostics"];
-  listDiagnostics: DetailedDiagnostics["listDiagnostics"];
-  sectionSpacingDiagnostics: DetailedDiagnostics["sectionSpacingDiagnostics"];
-  templateParameterDiagnostics: DetailedDiagnostics["templateParameterDiagnostics"];
-  equivalenceDiagnostics: DetailedDiagnostics["equivalenceDiagnostics"];
 }
 
 function formatNormalizedWikitextDetailedResult(

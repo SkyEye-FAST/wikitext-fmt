@@ -1,5 +1,3 @@
-import browserRuntimeSideEffect from "wikiparser-node/bundle/bundle-lsp.min.js";
-
 import type { Config } from "wikiparser-node";
 
 import {
@@ -31,22 +29,13 @@ function isBrowserParserAdapter(value: unknown): value is BrowserParserAdapter {
   );
 }
 
-function browserParserAdapter(): BrowserParserAdapter {
-  // wikiparser-node marks this UMD bundle as side-effect-free even though its
-  // only parser API is installed on globalThis. Reading the imported value
-  // keeps bundlers from dropping evaluation; the value itself is not an API.
-  if (browserRuntimeSideEffect === undefined) {
-    throw new Error(
-      "The browser-compatible wikiparser-node bundle did not evaluate.",
-    );
-  }
-  const candidate: unknown = Reflect.get(globalThis, "Parser");
-  if (!isBrowserParserAdapter(candidate)) {
+function validateBrowserParser(value: unknown): BrowserParserAdapter {
+  if (!isBrowserParserAdapter(value)) {
     throw new Error(
       "The browser-compatible wikiparser-node runtime did not expose globalThis.Parser.parse.",
     );
   }
-  return candidate;
+  return value;
 }
 
 function isBrowserParserRoot(value: unknown): value is BrowserParserRoot {
@@ -61,8 +50,12 @@ function isBrowserParserRoot(value: unknown): value is BrowserParserRoot {
   );
 }
 
-function parseBrowserRoot(source: string, config?: Config): BrowserParserRoot {
-  const root = browserParserAdapter().parse(source, false, undefined, config);
+function parseBrowserRoot(
+  parser: BrowserParserAdapter,
+  source: string,
+  config?: Config,
+): BrowserParserRoot {
+  const root = parser.parse(source, false, undefined, config);
   if (!isBrowserParserRoot(root)) {
     throw new Error(
       "The browser-compatible wikiparser-node runtime returned an invalid parser root.",
@@ -88,17 +81,82 @@ function isParserConfig(value: unknown): value is Config {
   );
 }
 
-function resolveBrowserConfig(name: string): Config {
-  if (name === undefined || name === "mediawiki" || name === "default") {
-    // The upstream browser bundle is a UMD side-effect module. It exposes its
-    // fully resolved built-in configuration only through parsed root tokens.
-    const config = parseBrowserRoot("").getAttribute("config");
+interface BrowserParserState {
+  readonly parser: BrowserParserAdapter;
+  readonly config: Readonly<Config>;
+}
+
+interface GlobalParserSnapshot {
+  readonly descriptor: PropertyDescriptor | undefined;
+  readonly value: unknown;
+}
+
+function captureGlobalParser(): GlobalParserSnapshot {
+  const descriptor = Object.getOwnPropertyDescriptor(globalThis, "Parser");
+  return {
+    descriptor,
+    value: descriptor ? Reflect.get(globalThis, "Parser") : undefined,
+  };
+}
+
+function restoreGlobalParser(snapshot: GlobalParserSnapshot): void {
+  if (snapshot.descriptor) {
+    Object.defineProperty(globalThis, "Parser", snapshot.descriptor);
+    if (
+      !("value" in snapshot.descriptor) &&
+      snapshot.descriptor.set &&
+      !Reflect.set(globalThis, "Parser", snapshot.value)
+    ) {
+      throw new Error(
+        "The pre-existing globalThis.Parser accessor could not be restored after initialization.",
+      );
+    }
+    return;
+  }
+  if (!Reflect.deleteProperty(globalThis, "Parser")) {
+    throw new Error(
+      "The browser-compatible wikiparser-node runtime global could not be removed after initialization.",
+    );
+  }
+}
+
+async function initializeBrowserParser(): Promise<BrowserParserState> {
+  const previousGlobalParser = captureGlobalParser();
+
+  try {
+    // The upstream browser bundle is a UMD side-effect module whose only parser
+    // API is installed on globalThis. A dynamic import lets us record and later
+    // restore that property before any dependency evaluation can overwrite it.
+    const browserRuntimeModule = await import(
+      "wikiparser-node/bundle/bundle-lsp.min.js",
+    );
+    if (
+      typeof browserRuntimeModule !== "object" ||
+      browserRuntimeModule === null
+    ) {
+      throw new Error(
+        "The browser-compatible wikiparser-node bundle did not evaluate.",
+      );
+    }
+
+    const parser = validateBrowserParser(Reflect.get(globalThis, "Parser"));
+    const config = parseBrowserRoot(parser, "").getAttribute("config");
     if (!isParserConfig(config)) {
       throw new Error(
         "The browser-compatible wikiparser-node runtime returned an invalid parser configuration.",
       );
     }
-    return config;
+    return Object.freeze({ parser, config });
+  } finally {
+    restoreGlobalParser(previousGlobalParser);
+  }
+}
+
+const browserParserState = await initializeBrowserParser();
+
+function resolveBrowserConfig(name: string): Config {
+  if (name === undefined || name === "mediawiki" || name === "default") {
+    return browserParserState.config as Config;
   }
 
   throw new UnsupportedParserConfigError(
@@ -108,7 +166,8 @@ function resolveBrowserConfig(name: string): Config {
 }
 
 const browserParserImplementation: ParserImplementation = {
-  parse: (source, config) => parseBrowserRoot(source, config),
+  parse: (source, config) =>
+    parseBrowserRoot(browserParserState.parser, source, config),
 };
 
 export const browserParserRuntime = createParserRuntime(

@@ -49,7 +49,9 @@ For exact boundaries, see
 ## Installation
 
 The CLI and Node.js entry support Node.js 22.13+ on the 22.x line, or Node.js
-24.11+. The browser entry supports modern browsers and Web Workers.
+24.11+. The browser entry executes in modern browsers and Web Workers without a
+Node.js runtime. Package installation and frontend bundling still use a build
+environment subject to package metadata; use those supported Node versions.
 
 Install the CLI globally:
 

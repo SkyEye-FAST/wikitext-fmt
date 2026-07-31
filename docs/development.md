@@ -76,16 +76,20 @@ pnpm check:browser
 pnpm check:core-package-content
 ```
 
-`check:browser` uses the root workspace's esbuild dependency to bundle a Web
-Worker fixture that imports `wikitext-fmt/browser` with `platform=browser` and
-`format=esm`. No Node built-in is externalized; the check rejects Node, CLI,
-config-discovery, VS Code, and `fast-glob` inputs. It then executes the bundle in
-a `worker_threads` harness and verifies real Worker message handling and
-formatting. This is an executable worker-level smoke test, not a Chromium test;
-the repository intentionally does not add a browser automation dependency for
-this single check. Browser/Node parity tests cover representative rules,
-diagnostics, failures, CRLF, malformed input, configuration restrictions, and
-safe idempotency.
+`check:browser` runs two layers. `check-browser-bundle.mjs` quickly bundles the
+workspace entry with the root esbuild dependency using `platform=browser` and
+`format=esm`. `check-browser-consumer.mjs` packs the npm artifact, installs it in
+a standalone temporary pnpm project with `--ignore-workspace`, compiles its
+public browser declarations without Node types, and bundles from that installed
+copy. Both reject Node, CLI, config-discovery, VS Code, and `fast-glob` inputs;
+both execute the result in a module `worker_threads` harness with Node globals
+removed. The checks report raw and gzip Worker bundle sizes without imposing an
+arbitrary threshold. This is executable worker-level coverage, not a Chromium
+test; the repository intentionally does not add a browser automation dependency
+for this single check. Browser/Node parity and isolated adapter tests cover
+representative rules, diagnostics, failures, CRLF, malformed input,
+configuration restrictions, parser capture, global restoration, and safe
+idempotency.
 
 A future frontend repository should depend on the published package and import
 only from `wikitext-fmt/browser`; it should not import repository `src/` files.

@@ -6,6 +6,8 @@ here. The project follows the pre-1.0 policy in
 
 ## Unreleased
 
+## 0.6.0 - 2026-07-31
+
 ### Added
 
 - Added the public `wikitext-fmt/browser` package subpath with all formatter
@@ -15,6 +17,9 @@ here. The project follows the pre-1.0 policy in
 - Added the structured `unsupported-parser-config` failure for browser callers
   that request arbitrary named or filesystem parser configurations; safe APIs
   retain the original source instead of throwing.
+- Added packed external-consumer validation for browser-only TypeScript
+  declarations and installed-package Worker bundles, including Node-dependency
+  inspection and raw and gzip bundle-size reporting.
 
 ### Changed
 
@@ -22,6 +27,9 @@ here. The project follows the pre-1.0 policy in
   invocation, shared by safe-format passes, rule reparsing, and structural
   verification; consolidated browser-safe exports and removed internal Node
   forwarding modules without changing formatter behavior or public APIs.
+- Captured the upstream browser parser and bundled configuration once during
+  module initialization, restored the temporary global parser property, and
+  isolated browser declarations from Node-owned parser and filesystem types.
 
 ## 0.5.0 - 2026-07-31
 

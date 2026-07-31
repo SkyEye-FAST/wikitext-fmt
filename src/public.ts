@@ -1,9 +1,24 @@
 export type {
+  ExternalLinkDiagnostics,
   FormatDetailedResult,
   FormatFailure,
   FormatFailureCode,
   FormatResult,
-} from "./formatterEngine.js";
+  FooterDiagnostics,
+  FileLinkDiagnostics,
+  ListDiagnostics,
+  ListSkipReason,
+  RedirectDiagnostics,
+  ReferenceDiagnostics,
+  SectionSpacingDiagnostics,
+  StructuralEquivalenceKind,
+  StructuralEquivalenceResult,
+  TableDiagnostic,
+  TableFormatDiagnostics,
+  TemplateDiagnostics,
+  TemplateParameterDiagnostics,
+  WikilinkDiagnostics,
+} from "./publicTypes.js";
 export {
   type BehaviorSwitchPlacement,
   defaultOptions,
@@ -20,24 +35,6 @@ export {
   type TemplateParameterLayout,
 } from "./options.js";
 export { ruleLevels, type RuleName } from "./rules/index.js";
-export type { FooterDiagnostics } from "./rules/categories.js";
-export type { ExternalLinkDiagnostics } from "./rules/externalLinks.js";
-export type { FileLinkDiagnostics } from "./rules/fileLinks.js";
-export type { ListDiagnostics, ListSkipReason } from "./rules/lists.js";
-export type { ReferenceDiagnostics } from "./rules/references.js";
-export type { RedirectDiagnostics } from "./rules/redirects.js";
-export type { SectionSpacingDiagnostics } from "./rules/sectionSpacing.js";
-export type {
-  TableDiagnostic,
-  TableFormatDiagnostics,
-} from "./rules/tables.js";
-export type { TemplateParameterDiagnostics } from "./rules/templateParameters.js";
-export type { TemplateDiagnostics } from "./rules/templates.js";
-export type { WikilinkDiagnostics } from "./rules/wikilinks.js";
-export type {
-  StructuralEquivalenceKind,
-  StructuralEquivalenceResult,
-} from "./equivalenceEngine.js";
 export type { ResolvedLocalizationAliases } from "./localization/aliases.js";
 export type { DiagnosticsSummary } from "./diagnosticsSummary.js";
 export {

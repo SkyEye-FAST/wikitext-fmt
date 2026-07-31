@@ -152,5 +152,8 @@ describe("core release workflow", () => {
     expect(productionPublishStep).not.toContain("--dry-run");
     expect(releaseWorkflow).not.toMatch(/pnpm (?:-r|--recursive) publish/u);
     expect(releaseWorkflow.match(/pnpm publish/gu)).toHaveLength(2);
+    expect(releaseWorkflow).toMatch(
+      /node scripts\/check-browser-consumer\.mjs[\s\\]*--tarball "release-artifacts\/\$TARBALL_FILENAME"/u,
+    );
   });
 });

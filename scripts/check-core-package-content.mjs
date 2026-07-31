@@ -24,6 +24,7 @@ const requiredEntries = [
   "package/dist/index.d.ts",
   "package/dist/browser.js",
   "package/dist/browser.d.ts",
+  "package/dist/publicTypes.d.ts",
   "package/dist/parser.browser.js",
   "package/dist/cli.js",
   "package/dist/localization/generated/mediawiki-aliases.json",
@@ -116,7 +117,13 @@ function packageEntriesFromTarball(tarball) {
 }
 
 async function main() {
-  const tarballArgument = process.argv[2];
+  const argumentsWithoutSeparator = process.argv
+    .slice(2)
+    .filter((argument) => argument !== "--");
+  if (argumentsWithoutSeparator.length > 1) {
+    throw new Error("core package content check accepts at most one tarball path");
+  }
+  const tarballArgument = argumentsWithoutSeparator[0];
   const entries = tarballArgument
     ? packageEntriesFromTarball(resolve(repositoryRoot, tarballArgument))
     : packageEntriesFromDryRun();

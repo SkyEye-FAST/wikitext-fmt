@@ -14,6 +14,7 @@ const required = [
   "package/dist/index.d.ts",
   "package/dist/browser.js",
   "package/dist/browser.d.ts",
+  "package/dist/publicTypes.d.ts",
   "package/dist/parser.browser.js",
   "package/dist/cli.js",
   "package/dist/localization/generated/mediawiki-aliases.json",

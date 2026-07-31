@@ -15,6 +15,7 @@ import {
   isSemVer,
   prepareCoreRelease,
   prepareVscodeRelease,
+  validateCorePackageMetadata,
 } from "../scripts/release-metadata.mjs";
 import { assessRegistryVersion } from "../scripts/check-npm-release.mjs";
 import { validateExistingGithubRelease } from "../scripts/check-github-release.mjs";
@@ -88,6 +89,14 @@ function vscodePackageMetadata(version = "0.2.0") {
 }
 
 describe("core release metadata", () => {
+  it("rejects package export entries beyond the root and browser subpath", () => {
+    const metadata = packageMetadata();
+    metadata.exports["./internal"] = { import: "./dist/internal.js" };
+    expect(() => validateCorePackageMetadata(metadata)).toThrow(
+      /only the package root and \.\/browser/u,
+    );
+  });
+
   it("derives stable release metadata", () => {
     const metadata = prepareCoreRelease({
       tag: "core-v0.2.0",

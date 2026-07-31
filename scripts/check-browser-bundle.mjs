@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { Worker } from "node:worker_threads";
+import { gzipSync } from "node:zlib";
 
 import { build } from "esbuild";
 
@@ -23,7 +24,9 @@ const result = await build({
       import { formatWikitextSafe } from "wikitext-fmt/browser";
 
       self.onmessage = (event) => {
-        self.postMessage(formatWikitextSafe(event.data));
+        self.postMessage(
+          formatWikitextSafe(event.data.source, event.data.options),
+        );
       };
     `,
     loader: "ts",
@@ -66,15 +69,34 @@ async function verifyWorkerExecution(bundle) {
   const harness = `
     import { parentPort } from "node:worker_threads";
     globalThis.self = globalThis;
+    const previousParser = { sentinel: true };
+    Object.defineProperty(globalThis, "Parser", {
+      configurable: true,
+      value: previousParser,
+      writable: true,
+    });
+    globalThis.process = undefined;
+    globalThis.Buffer = undefined;
     globalThis.postMessage = (value) => parentPort.postMessage(value);
-    parentPort.on("message", (data) => globalThis.onmessage({ data }));
+    parentPort.on("message", ({ action, data }) => {
+      if (action === "replace") {
+        globalThis.Parser = { parse: () => { throw new Error("replacement used"); } };
+      } else if (action === "delete") {
+        Reflect.deleteProperty(globalThis, "Parser");
+      }
+      globalThis.onmessage({ data });
+    });
     ${bundle}
-    parentPort.postMessage({ ready: true });
+    parentPort.postMessage({
+      ready: true,
+      restoredParser: globalThis.Parser === previousParser,
+    });
   `;
   await writeFile(filename, harness);
   const worker = new Worker(pathToFileURL(filename));
   try {
-    const result = await new Promise((resolve, reject) => {
+    const results = await new Promise((resolve, reject) => {
+      const received = [];
       const timer = setTimeout(
         () => reject(new Error("Browser Worker smoke test timed out")),
         10_000,
@@ -85,16 +107,47 @@ async function verifyWorkerExecution(bundle) {
       });
       worker.on("message", (message) => {
         if (message?.ready) {
-          worker.postMessage("==Title==\n");
+          if (!message.restoredParser) {
+            clearTimeout(timer);
+            reject(new Error("Browser adapter did not restore globalThis.Parser"));
+            return;
+          }
+          worker.postMessage({
+            action: "replace",
+            data: { source: "==Title==\n" },
+          });
+          return;
+        }
+        received.push(message);
+        if (received.length === 1) {
+          worker.postMessage({
+            action: "delete",
+            data: {
+              options: { parserConfig: "enwiki" },
+              source: "==Title==\n",
+            },
+          });
           return;
         }
         clearTimeout(timer);
-        resolve(message);
+        resolve(received);
       });
     });
-    if (JSON.stringify(result) !== JSON.stringify({ formatted: "== Title ==\n" })) {
+    if (
+      JSON.stringify(results[0]) !==
+      JSON.stringify({ formatted: "== Title ==\n" })
+    ) {
       throw new Error(
-        `Browser Worker smoke test returned an unexpected result: ${JSON.stringify(result)}`,
+        `Browser Worker smoke test returned an unexpected result: ${JSON.stringify(results[0])}`,
+      );
+    }
+    if (
+      results[1]?.formatted !== "==Title==\n" ||
+      results[1]?.failure?.code !== "unsupported-parser-config" ||
+      results[1]?.failure?.stage !== "parser-config"
+    ) {
+      throw new Error(
+        `Browser Worker unsupported-config smoke test returned an unexpected result: ${JSON.stringify(results[1])}`,
       );
     }
   } finally {
@@ -106,5 +159,5 @@ async function verifyWorkerExecution(bundle) {
 await verifyWorkerExecution(output);
 
 console.log(
-  `Browser bundle and Worker execution verified: ${inputs.length} inputs, ${result.outputFiles[0].contents.length} bytes.`,
+  `Browser bundle and Worker execution verified: ${inputs.length} inputs, ${result.outputFiles[0].contents.length} raw bytes, ${gzipSync(result.outputFiles[0].contents).length} gzip bytes.`,
 );

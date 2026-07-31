@@ -21,6 +21,11 @@ built-ins, `fast-glob`, the CLI, filesystem config discovery, or the VS Code
 extension. It uses the browser-compatible `wikiparser-node` runtime and the same
 formatter implementation and safety pipeline as the Node.js entry.
 
+Browser runtime execution does not require Node.js. Installing the npm package
+and producing an application bundle still happen in a package-manager/build
+environment governed by package metadata; use the supported Node.js 22.13+ or
+24.11+ lines for that build environment.
+
 Its runtime exports are:
 
 - `formatWikitext`, `formatWikitextResult`, `formatWikitextDetailedResult`,
@@ -53,6 +58,11 @@ safe APIs do not throw for this ordinary unsupported input. The string API also
 returns the original source. Formatting and parser assets stay local, and the
 entry performs no CDN fetches. `loadSiteInfoAliases` fetches only when an
 application explicitly calls that helper.
+
+During module initialization, the adapter captures the upstream UMD parser and
+its bundled configuration once, then restores any pre-existing global `Parser`
+property (or removes the temporary property). Formatter calls retain only that
+captured internal parser and do not consult the global again.
 
 ## Formatter functions
 

@@ -1,6 +1,6 @@
 {
   "name": "wikitext-fmt",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "A parser-assisted structural formatter for MediaWiki wikitext",
   "license": "GPL-3.0-or-later",
   "keywords": [
@@ -52,8 +52,8 @@
     "typecheck:tests": "tsc -p tsconfig.test.json",
     "test": "vitest",
     "test:run": "vitest run",
-    "check": "pnpm check:versions && pnpm build:all && node scripts/check-docs.mjs && node scripts/check-browser-bundle.mjs && pnpm check:core-package-content && pnpm typecheck:tests && pnpm --filter wikitext-formatter typecheck && pnpm --filter wikitext-formatter check:package-content && pnpm test:run && pnpm smoke",
-    "check:browser": "pnpm build && node scripts/check-browser-bundle.mjs",
+    "check": "pnpm check:versions && pnpm build:all && node scripts/check-docs.mjs && node scripts/check-browser-bundle.mjs && node scripts/check-browser-consumer.mjs && pnpm check:core-package-content && pnpm typecheck:tests && pnpm --filter wikitext-formatter typecheck && pnpm --filter wikitext-formatter check:package-content && pnpm test:run && pnpm smoke",
+    "check:browser": "pnpm build && node scripts/check-browser-bundle.mjs && node scripts/check-browser-consumer.mjs",
     "check:core-package-content": "node scripts/check-core-package-content.mjs",
     "check:docs": "pnpm build && node scripts/check-docs.mjs",
     "check:release-metadata": "node scripts/prepare-release.mjs",
