@@ -410,8 +410,39 @@ export function formatListsWithDiagnostics(
       (node) => node.parentNode?.type === "root",
     ),
   );
+  // Protection ranges are enough to classify the no-root fast path precisely;
+  // structural fingerprints remain deferred until a root list can be edited.
+  const ignoreRanges = collectIgnoreRanges(source);
+  const protectedRanges = collectProtectedRanges(source, {
+    protectComments: false,
+    protectTables: true,
+    additionalRanges: extensionRanges(resolvedContext),
+  }).filter(
+    (range) =>
+      !ignoreRanges.some(
+        (ignore) => ignore.start === range.start && ignore.end === range.end,
+      ),
+  );
   if (!hasParserConfirmedCandidate) {
     for (const candidate of candidates) {
+      const lineRange = {
+        start: candidate.lineStart,
+        end: candidate.lineEnd,
+      };
+      if (ignoreRanges.some((range) => intersects(lineRange, range))) {
+        recordSkip(diagnostics, "ignore-range");
+        continue;
+      }
+      if (
+        protectedRanges.some(
+          (range) =>
+            range.start <= candidate.lineStart &&
+            range.end > candidate.lineStart,
+        )
+      ) {
+        recordSkip(diagnostics, "protected-block");
+        continue;
+      }
       const described = describeParserListLine(
         resolvedContext,
         candidate.lineIndex,
@@ -427,17 +458,6 @@ export function formatListsWithDiagnostics(
     return { formatted: source, diagnostics };
   }
 
-  const ignoreRanges = collectIgnoreRanges(source);
-  const protectedRanges = collectProtectedRanges(source, {
-    protectComments: false,
-    protectTables: true,
-    additionalRanges: extensionRanges(resolvedContext),
-  }).filter(
-    (range) =>
-      !ignoreRanges.some(
-        (ignore) => ignore.start === range.start && ignore.end === range.end,
-      ),
-  );
   const structures = collectStructuralNodes(resolvedContext);
   const structuresByLine = structuresByCandidateLine(candidates, structures);
   const planned: PlannedLine[] = [];

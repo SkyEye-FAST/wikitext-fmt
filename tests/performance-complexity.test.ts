@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { getParserConfig } from "../src/parser.js";
 import {
@@ -187,6 +187,36 @@ describe("parser complexity", () => {
       contextsCreated: 1,
       sourceBytesParsed: candidate.length,
     });
+  });
+
+  it("classifies protected-only list candidates without full structural analysis", () => {
+    const source = Array.from(
+      { length: 100 },
+      (_value, index) => `{{T${index}|\n:c\n}}`,
+    ).join("\n");
+    const measured = measureParserContexts(() =>
+      formatListsWithDiagnostics(source, config),
+    );
+    expect(measured.result.formatted).toBe(source);
+    expect(measured.result.diagnostics).toMatchObject({
+      listLinesInspected: 100,
+      listLinesEligible: 0,
+      listLinesSkipped: 100,
+      skipReasons: { "protected-block": 100 },
+    });
+    expect(measured.metrics).toEqual({
+      contextsCreated: 1,
+      sourceBytesParsed: source.length,
+    });
+
+    const context = createParserContext(source, config);
+    const querySelectorAll = vi.spyOn(context.root, "querySelectorAll");
+    formatListsWithDiagnostics(source, config, context);
+    expect(querySelectorAll).toHaveBeenCalledWith("list");
+    expect(querySelectorAll).toHaveBeenCalledWith("ext");
+    expect(querySelectorAll).not.toHaveBeenCalledWith(
+      expect.stringContaining("template"),
+    );
   });
 
   it("does not fallback-reparse parser-visible top-level tables", () => {

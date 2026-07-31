@@ -214,6 +214,55 @@ describe("list formatting", () => {
     }
   });
 
+  it.each([
+    ["only-nowiki", "<nowiki>\n:c\n</nowiki>\n", "protected-block"],
+    ["only-pre", "<pre>\n:c\n</pre>\n", "protected-block"],
+    ["only-gallery", "<gallery>\n:c\n</gallery>\n", "protected-block"],
+    [
+      "only-syntaxhighlight",
+      "<syntaxhighlight>\n:c\n</syntaxhighlight>\n",
+      "protected-block",
+    ],
+    ["only-source", "<source>\n:c\n</source>\n", "protected-block"],
+    ["only-math", "<math>\n:c\n</math>\n", "protected-block"],
+    ["only-chem", "<chem>\n:c\n</chem>\n", "protected-block"],
+    [
+      "only-templatedata",
+      "<templatedata>\n:c\n</templatedata>\n",
+      "protected-block",
+    ],
+    ["only-template", "{{T|\n:c\n}}\n", "protected-block"],
+    ["only-table", "{|\n:c\n|}\n", "protected-block"],
+    [
+      "only-ignore-range",
+      "<!-- wikitext-fmt-ignore-start -->\n:c\n<!-- wikitext-fmt-ignore-end -->\n",
+      "ignore-range",
+    ],
+    [
+      "only-comment",
+      "<!-- ordinary comment\n:c\n-->\n",
+      "not-parser-confirmed",
+    ],
+  ] as const)(
+    "reports a precise skip reason for %s",
+    (_name, source, skipReason) => {
+      const result = formatListsWithDiagnostics(source, config);
+
+      expect(result.formatted).toBe(source);
+      expect(result.diagnostics).toEqual({
+        listLinesInspected: 1,
+        listLinesEligible: 0,
+        listLinesChanged: 0,
+        listLinesAlreadyCanonical: 0,
+        listLinesSkipped: 1,
+        mixedMarkerLinesChanged: 0,
+        commentBearingLinesChanged: 0,
+        structuredContentLinesChanged: 0,
+        skipReasons: { [skipReason]: 1 },
+      });
+    },
+  );
+
   it("does not format list-like text inside opaque blocks", () => {
     const source = [
       "<nowiki>",
