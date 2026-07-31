@@ -6,7 +6,7 @@ here. The project follows the pre-1.0 policy in
 
 ## Unreleased
 
-## 0.6.0 - 2026-07-31
+## 0.6.0 - 2026-08-01
 
 ### Added
 
