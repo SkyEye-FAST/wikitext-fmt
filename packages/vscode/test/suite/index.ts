@@ -56,6 +56,18 @@ function getLastDocumentReport(api: ExtensionTestApi): DocumentReport {
   return JSON.parse(report) as DocumentReport;
 }
 
+function assertRuntimeLocaleBundle(): void {
+  const language = vscode.env.language.toLowerCase();
+  const details = vscode.l10n.t("Show Details");
+  if (language.startsWith("zh-cn")) {
+    assert.equal(details, "显示详细信息");
+  } else if (language.startsWith("zh-tw")) {
+    assert.equal(details, "顯示詳細資料");
+  } else {
+    assert.equal(details, "Show Details");
+  }
+}
+
 function assertOnlyCrlf(source: string, label: string): void {
   assert.doesNotMatch(source, /(^|[^\r])\n/u, `${label} contains isolated LF`);
   assert.doesNotMatch(source, /\r(?!\n)/u, `${label} contains bare CR`);
@@ -82,6 +94,7 @@ export async function run(): Promise<void> {
 
   const editor = await vscode.window.showTextDocument(document);
   const extensionApi = await waitForExtensionActivation();
+  assertRuntimeLocaleBundle();
 
   const commands = await vscode.commands.getCommands(true);
   for (const command of expectedCommands) {

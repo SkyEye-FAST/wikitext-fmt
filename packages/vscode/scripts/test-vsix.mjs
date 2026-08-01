@@ -136,10 +136,14 @@ const extensionsDir = await mkdtemp(
 );
 await installVsix(vscodeExecutablePath, vsix, extensionsDir);
 
-await runTests({
-  extensionTestsPath: resolve(packageRoot, "dist-test/test/suite/index.js"),
-  launchArgs: ["--extensions-dir", extensionsDir],
-  vscodeExecutablePath: resolveCliPathFromVSCodeExecutablePath(
-    vscodeExecutablePath,
-  ).replace(/\/bin\/code$/, "/code"),
-});
+const vscodeCliPath = resolveCliPathFromVSCodeExecutablePath(
+  vscodeExecutablePath,
+).replace(/\/bin\/code$/, "/code");
+
+for (const locale of ["zh-cn", "zh-tw"]) {
+  await runTests({
+    extensionTestsPath: resolve(packageRoot, "dist-test/test/suite/index.js"),
+    launchArgs: ["--extensions-dir", extensionsDir, "--locale", locale],
+    vscodeExecutablePath: vscodeCliPath,
+  });
+}

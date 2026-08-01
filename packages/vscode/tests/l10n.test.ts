@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { readFile } from "node:fs/promises";
+import { readFile, readdir } from "node:fs/promises";
 
 type NlsCatalog = Record<string, string>;
+
+const MANIFEST_KEY_ALLOWLIST = new Set<string>();
+const RUNTIME_KEY_ALLOWLIST = new Set<string>();
 
 async function loadCatalog(filename: string): Promise<NlsCatalog> {
   return JSON.parse(
@@ -16,6 +19,36 @@ function extractKeys(catalog: NlsCatalog): Set<string> {
 function extractPlaceholders(value: string): string[] {
   const matches = value.match(/\{(\w+)\}/gu);
   return matches ? [...new Set(matches)].sort() : [];
+}
+
+function extractManifestReferences(value: unknown): Set<string> {
+  const references = new Set<string>();
+  for (const match of JSON.stringify(value).matchAll(/%([\w.-]+)%/gu)) {
+    if (match[1]) references.add(match[1]);
+  }
+  return references;
+}
+
+function extractRuntimeReferences(source: string): Set<string> {
+  const references = new Set<string>();
+  for (const match of source.matchAll(/vscode\.l10n\.t\(\s*["']([^"']+)["']/gu)) {
+    if (match[1]) references.add(match[1]);
+  }
+  return references;
+}
+
+async function readTypeScriptSources(directory: URL): Promise<string[]> {
+  const entries = await readdir(directory, { withFileTypes: true });
+  const sources: string[] = [];
+  for (const entry of entries) {
+    const entryUrl = new URL(`${entry.name}${entry.isDirectory() ? "/" : ""}`, directory);
+    if (entry.isDirectory()) {
+      sources.push(...await readTypeScriptSources(entryUrl));
+    } else if (entry.name.endsWith(".ts")) {
+      sources.push(await readFile(entryUrl, "utf8"));
+    }
+  }
+  return sources;
 }
 
 async function loadAllManifestCatalogs(): Promise<
@@ -51,6 +84,21 @@ async function loadAllL10nCatalogs(): Promise<
 }
 
 describe("package.nls localization", () => {
+  it("covers every package.json localization reference without orphan keys", async () => {
+    const packageJson = JSON.parse(
+      await readFile(new URL("../package.json", import.meta.url), "utf8"),
+    ) as unknown;
+    const references = extractManifestReferences(packageJson);
+    const english = await loadCatalog("package.nls.json");
+    const missing = [...references].filter((key) => !english[key]);
+    const orphaned = Object.keys(english).filter(
+      (key) => !references.has(key) && !MANIFEST_KEY_ALLOWLIST.has(key),
+    );
+
+    expect(missing).toEqual([]);
+    expect(orphaned).toEqual([]);
+  });
+
   it("has identical key sets across all three manifest catalogs", async () => {
     const catalogs = await loadAllManifestCatalogs();
     const [en, zhCn, zhTw] = catalogs.map((c) => ({
@@ -177,6 +225,9 @@ describe("l10n runtime bundles", () => {
     expect(
       en["Wikitext Formatter Preview: {fileName}"],
     ).toContain("{fileName}");
+    expect(
+      en["Wikitext Formatter commands only support wikitext and mediawiki documents."],
+    ).toContain("MediaWiki");
   });
 
   it("resolves Simplified Chinese runtime translations", async () => {
@@ -187,6 +238,9 @@ describe("l10n runtime bundles", () => {
       zhCn["Wikitext Formatter: no active document."],
     ).toContain("没有活动文档");
     expect(zhCn["Wikitext Formatter Preview: {fileName}"]).toContain("预览");
+    expect(
+      zhCn["Wikitext Formatter commands only support wikitext and mediawiki documents."],
+    ).toContain("MediaWiki");
   });
 
   it("resolves Traditional Chinese runtime translations", async () => {
@@ -197,5 +251,23 @@ describe("l10n runtime bundles", () => {
       zhTw["Wikitext Formatter: no active document."],
     ).toContain("沒有作用中的檔案");
     expect(zhTw["Wikitext Formatter Preview: {fileName}"]).toContain("預覽");
+    expect(
+      zhTw["Wikitext Formatter commands only support wikitext and mediawiki documents."],
+    ).toContain("MediaWiki");
+  });
+
+  it("covers literal vscode.l10n.t references without orphan runtime keys", async () => {
+    const sources = await readTypeScriptSources(new URL("../src/", import.meta.url));
+    const references = new Set(
+      sources.flatMap((source) => [...extractRuntimeReferences(source)]),
+    );
+    const english = await loadCatalog("l10n/bundle.l10n.json");
+    const missing = [...references].filter((key) => !english[key]);
+    const orphaned = Object.keys(english).filter(
+      (key) => !references.has(key) && !RUNTIME_KEY_ALLOWLIST.has(key),
+    );
+
+    expect(missing).toEqual([]);
+    expect(orphaned).toEqual([]);
   });
 });

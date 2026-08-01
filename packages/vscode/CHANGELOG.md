@@ -26,6 +26,8 @@ Core-only changes remain in the root changelog.
 - Updated `scripts/check-package-content.mjs` to verify that all three
   `package.nls` files and all three `l10n/bundle.l10n` files are included in
   the VSIX.
+- Corrected the localized runtime spelling of `MediaWiki` and added source
+  reference/orphan-key checks plus real zh-cn and zh-tw VSIX smoke coverage.
 
 ## 0.3.0 - 2026-07-31
 

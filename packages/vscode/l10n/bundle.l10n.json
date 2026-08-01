@@ -1,7 +1,7 @@
 {
   "Show Details": "Show Details",
   "Wikitext Formatter Preview: {fileName}": "Wikitext Formatter Preview: {fileName}",
-  "Wikitext Formatter commands only support wikitext and mediawiki documents.": "Wikitext Formatter commands only support wikitext and Mediawiki documents.",
+  "Wikitext Formatter commands only support wikitext and mediawiki documents.": "Wikitext Formatter commands only support wikitext and MediaWiki documents.",
   "Wikitext Formatter: no active document.": "Wikitext Formatter: no active document.",
   "Wikitext Formatter: no report is available yet.": "Wikitext Formatter: no report is available yet.",
   "Wikitext Formatter: the document is already formatted.": "Wikitext Formatter: the document is already formatted.",

@@ -63,6 +63,15 @@ Run **Format Document**, or enable format on save:
 The `mediawiki` block applies only when another extension assigns that language
 id.
 
+### Extension interface language
+
+The extension interface supports English, Simplified Chinese, and Traditional
+Chinese. It follows the VS Code Display Language. Command titles, setting
+descriptions, notifications, and action buttons are localized through the
+bundled `package.nls.json` and `l10n/bundle.l10n.json` catalogs. Formatter core
+diagnostics, including failure messages, warnings, rule ids, and equivalence
+reasons, remain in their original text and are not translated.
+
 ## Commands
 
 - **Wikitext Formatter: Format Document** formats the active document.
