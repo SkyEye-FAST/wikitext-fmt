@@ -145,10 +145,18 @@ export function validateVscodePackageMetadata(packageMetadata) {
     packageMetadata.name === VSCODE_EXTENSION_NAME,
     `packages/vscode/package.json name must be ${VSCODE_EXTENSION_NAME}`,
   );
+  // displayName may be a %key% placeholder (package.nls mechanism).
+  const displayName =
+    typeof packageMetadata.displayName === "string" &&
+    /^%[^%]+%$/u.test(packageMetadata.displayName)
+      ? VSCODE_EXTENSION_DISPLAY_NAME
+      : packageMetadata.displayName;
   assertRelease(
-    packageMetadata.displayName === VSCODE_EXTENSION_DISPLAY_NAME,
+    displayName === VSCODE_EXTENSION_DISPLAY_NAME,
     `packages/vscode/package.json displayName must be ${VSCODE_EXTENSION_DISPLAY_NAME}`,
   );
+  // Store the resolved name for use by callers (e.g., release title).
+  packageMetadata._resolvedDisplayName = displayName;
   assertRelease(
     packageMetadata.publisher === VSCODE_EXTENSION_PUBLISHER,
     `packages/vscode/package.json publisher must be ${VSCODE_EXTENSION_PUBLISHER}`,
@@ -307,7 +315,7 @@ export function prepareVscodeRelease({
     version: packageMetadata.version,
     expectedTag,
     prerelease,
-    githubReleaseTitle: `${packageMetadata.displayName} ${packageMetadata.version}`,
+    githubReleaseTitle: `${packageMetadata._resolvedDisplayName ?? packageMetadata.displayName} ${packageMetadata.version}`,
     releaseNotes: extractReleaseNotes(
       changelog,
       packageMetadata.version,

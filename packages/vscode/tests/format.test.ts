@@ -274,9 +274,23 @@ describe("VS Code formatter option parity", () => {
       expect(properties[`wikitextFmt.${name}`]).toBeUndefined();
     }
     const deprecated = properties["wikitextFmt.formatTemplateParameters"];
-    expect(
-      deprecated.deprecationMessage ?? deprecated.markdownDeprecationMessage,
-    ).toMatch(/formatTemplates.*templateParameterLayout.*inlineTemplateSpacing/u);
+    const deprecationMsg = deprecated.deprecationMessage ?? deprecated.markdownDeprecationMessage ?? "";
+    // When a %key% placeholder is used, resolve it against the English nls catalog.
+    const nlsMatch = /^%(.+)%$/u.exec(deprecationMsg);
+    if (nlsMatch) {
+      const nls = JSON.parse(
+        await readFile(new URL("../package.nls.json", import.meta.url), "utf8"),
+      ) as Record<string, string>;
+      const resolved = nls[nlsMatch[1]];
+      expect(resolved).toBeDefined();
+      expect(resolved).toMatch(
+        /formatTemplates.*templateParameterLayout.*inlineTemplateSpacing/u,
+      );
+    } else {
+      expect(deprecationMsg).toMatch(
+        /formatTemplates.*templateParameterLayout.*inlineTemplateSpacing/u,
+      );
+    }
 
     const commandIds = packageJson.contributes.commands.map(
       ({ command }) => command,

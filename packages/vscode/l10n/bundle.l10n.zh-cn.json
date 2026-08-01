@@ -1,0 +1,10 @@
+{
+  "Show Details": "显示详细信息",
+  "Wikitext Formatter Preview: {fileName}": "Wikitext Formatter 预览：{fileName}",
+  "Wikitext Formatter commands only support wikitext and mediawiki documents.": "Wikitext Formatter 命令仅支持 wikitext 和 Mediawiki 文档。",
+  "Wikitext Formatter: no active document.": "Wikitext Formatter：没有活动文档。",
+  "Wikitext Formatter: no report is available yet.": "Wikitext Formatter：尚无可显示的报告。",
+  "Wikitext Formatter: the document is already formatted.": "Wikitext Formatter：文档已经完成格式化。",
+  "Wikitext Formatter: this document does not use a configuration file.": "Wikitext Formatter：当前文档没有使用配置文件。",
+  "wikitext-fmt: {message}": "wikitext-fmt：{message}"
+}

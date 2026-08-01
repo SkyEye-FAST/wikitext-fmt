@@ -14,10 +14,16 @@ const validIcon =
 const required = [
   "dist/extension.js",
   "package.json",
+  "package.nls.json",
+  "package.nls.zh-cn.json",
+  "package.nls.zh-tw.json",
   "README.md",
   "CHANGELOG.md",
   "LICENSE",
   "images/icon.png",
+  "l10n/bundle.l10n.json",
+  "l10n/bundle.l10n.zh-cn.json",
+  "l10n/bundle.l10n.zh-tw.json",
   "dist/node_modules/wikiparser-node/package.json",
   "dist/node_modules/wikiparser-node/config/default.json",
 ];

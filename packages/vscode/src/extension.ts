@@ -13,7 +13,6 @@ import {
   renderResolvedConfigurationReport,
 } from "./report.js";
 
-const SHOW_DETAILS = "Show Details";
 const PREVIEW_SCHEME = "wikitext-fmt-preview";
 
 let outputChannel: vscode.OutputChannel;
@@ -126,24 +125,25 @@ function resultWarning(result: EditorDocumentFormattingResult): string | undefin
 }
 
 async function showWarningWithDetails(message: string): Promise<void> {
+  const detailsLabel = vscode.l10n.t("Show Details");
   const action = await vscode.window.showWarningMessage(
-    `wikitext-fmt: ${message}`,
-    SHOW_DETAILS,
+    vscode.l10n.t("wikitext-fmt: {message}", { message }),
+    detailsLabel,
   );
-  if (action === SHOW_DETAILS) outputChannel.show(true);
+  if (action === detailsLabel) outputChannel.show(true);
 }
 
 function activeSupportedEditor(): vscode.TextEditor | undefined {
   const editor = vscode.window.activeTextEditor;
   if (!editor) {
     void vscode.window.showInformationMessage(
-      "Wikitext Formatter: no active document.",
+      vscode.l10n.t("Wikitext Formatter: no active document."),
     );
     return undefined;
   }
   if (!isSupportedDocument(editor.document)) {
     void vscode.window.showInformationMessage(
-      "Wikitext Formatter commands only support wikitext and mediawiki documents.",
+      vscode.l10n.t("Wikitext Formatter commands only support wikitext and mediawiki documents."),
     );
     return undefined;
   }
@@ -203,7 +203,7 @@ async function previewDocument(
   }
   if (result.kind !== "changed") {
     void vscode.window.showInformationMessage(
-      "Wikitext Formatter: the document is already formatted.",
+      vscode.l10n.t("Wikitext Formatter: the document is already formatted."),
     );
     return;
   }
@@ -213,7 +213,9 @@ async function previewDocument(
     "vscode.diff",
     document.uri,
     previewUri,
-    `Wikitext Formatter Preview: ${document.fileName}`,
+    vscode.l10n.t("Wikitext Formatter Preview: {fileName}", {
+      fileName: document.fileName,
+    }),
     { preview: true },
   );
 }
@@ -244,7 +246,7 @@ async function openConfiguration(document: vscode.TextDocument): Promise<void> {
   if (!resolution.configPath) {
     if (resolution.kind !== "warning") {
       void vscode.window.showInformationMessage(
-        "Wikitext Formatter: this document does not use a configuration file.",
+        vscode.l10n.t("Wikitext Formatter: this document does not use a configuration file."),
       );
     }
     return;
@@ -306,7 +308,7 @@ export function activate(
     vscode.commands.registerCommand("wikitext-fmt.showLastReport", () => {
       if (!lastReport) {
         void vscode.window.showInformationMessage(
-          "Wikitext Formatter: no report is available yet.",
+          vscode.l10n.t("Wikitext Formatter: no report is available yet."),
         );
         return;
       }

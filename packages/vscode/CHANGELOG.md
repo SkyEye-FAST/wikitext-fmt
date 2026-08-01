@@ -5,6 +5,28 @@ Core-only changes remain in the root changelog.
 
 ## Unreleased
 
+### Added
+
+- Localized all VS Code UI text to English, Simplified Chinese (zh-cn), and
+  Traditional Chinese (zh-tw). Command titles, setting descriptions, and
+  notifications now follow the active VS Code display language.
+- Added `package.nls` manifest catalogs for all three locales with automated
+  key-set and placeholder consistency tests.
+- Added runtime `l10n/bundle.l10n.*.json` bundles using the native VS Code
+  `vscode.l10n.t()` API for notification and dialog text.
+- Added Chinese `enumDescriptions` for each enumerated configuration property
+  so the VS Code Settings editor shows human-readable labels in all three
+  languages.
+
+### Changed
+
+- Replaced all hard-coded English strings in `src/extension.ts` with
+  `vscode.l10n.t()` calls and parameterised interpolation (e.g., the diff
+  preview title passes the file name as `{fileName}`).
+- Updated `scripts/check-package-content.mjs` to verify that all three
+  `package.nls` files and all three `l10n/bundle.l10n` files are included in
+  the VSIX.
+
 ## 0.3.0 - 2026-07-31
 
 ### Added
