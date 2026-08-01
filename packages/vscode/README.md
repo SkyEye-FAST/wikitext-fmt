@@ -127,7 +127,6 @@ Core details:
 | `wikitextFmt.formatTemplates` | `true` | Enable the unified template engine |
 | `wikitextFmt.inlineTemplateSpacing` | `"auto"` | Select `auto`, `compact`, or `spaced` for single-line named templates |
 | `wikitextFmt.templateParameterLayout` | `"flush"` | Select `compact`, `flush`, or `indented` multiline parameters |
-| `wikitextFmt.formatTemplateParameters` | `false` | Deprecated compatibility route; use the unified template settings |
 | `wikitextFmt.formatCategories` | `true` | Enable category and DEFAULTSORT footer formatting |
 | `wikitextFmt.formatLists` | `true` | Enable list-marker formatting |
 | `wikitextFmt.formatFileLinks` | `true` | Enable whole-line file-link formatting |
@@ -193,7 +192,7 @@ Precedence is:
 explicit VS Code setting > selected config option > profile preset > core default
 ```
 
-The 26 core settings listed above can override matching config values.
+The 25 core settings listed above can override matching config values.
 `wikitextFmt.safe`, `wikitextFmt.config.enabled`, and
 `wikitextFmt.config.path` are editor-only and are not core `FormatOptions`
 keys. Package and unit checks fail when a future core option is neither exposed

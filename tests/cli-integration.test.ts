@@ -93,6 +93,17 @@ describe("CLI production behavior", () => {
     expect(result.stderr).toBe("");
   });
 
+  it("rejects removed template-parameter flags", async () => {
+    for (const flag of [
+      `--${["format", "template", "parameters"].join("-")}`,
+      `--no-${["format", "template", "parameters"].join("-")}`,
+    ]) {
+      const result = await runCli([flag, "page.wiki"]);
+      expect(result.code).toBe(2);
+      expect(result.stderr).toContain(`Unknown option: ${flag}`);
+    }
+  });
+
   it("uses safe mode by default for production writes and allows an explicit unsafe override", async () => {
     const root = await temporaryDirectory();
     const file = join(root, "page.wiki");

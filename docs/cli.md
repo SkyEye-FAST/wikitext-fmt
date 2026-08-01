@@ -90,7 +90,6 @@ validation:
 | --- | --- |
 | `--no-format-headings` | `formatHeadings: false` |
 | `--no-format-templates` | `formatTemplates: false` |
-| `--format-template-parameters`, `--no-format-template-parameters` | `formatTemplateParameters` |
 | `--no-format-categories` | `formatCategories: false` |
 | `--no-format-lists` | `formatLists: false` |
 | `--no-format-file-links` | `formatFileLinks: false` |
@@ -176,5 +175,5 @@ the same change exit status, while diff output still goes to stdout.
 
 `--debug` is for people. `--diagnostics-json` emits one compact JSON record per
 input. `--report` writes one aggregate document containing file records and
-summed counters. The fields and pre-1.0 compatibility status are documented in
+summed counters. The fields are documented in
 [Safety and diagnostics](safety-and-diagnostics.md).

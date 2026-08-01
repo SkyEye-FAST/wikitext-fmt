@@ -47,7 +47,6 @@ preset.
 | `formatTemplates` | boolean | `true` | normal | `--no-format-templates` | production/aggressive: `true` | Run the unified template engine, including ASCII underscore-to-space normalization in stable ordinary invocation titles |
 | `inlineTemplateSpacing` | `auto` \| `compact` \| `spaced` | `auto` | — | `--inline-template-spacing` | unchanged | Choose complete single-line named-template ASCII syntax spacing; auto uses weighted syntax-whitespace cost and a compact tie-break |
 | `templateParameterLayout` | `compact` \| `flush` \| `indented` | `flush` | — | config/API only | unchanged | Choose multiline named/numbered parameter spacing and indentation |
-| `formatTemplateParameters` | boolean | `false` | experimental | `--format-template-parameters`, `--no-format-template-parameters` | production: `false`; aggressive: `true` | Deprecated compatibility route to unified template engine |
 | `formatCategories` | boolean | `true` | normal | `--no-format-categories` | unchanged | Format eligible footer categories/defaultsort |
 | `formatLists` | boolean | `true` | normal | `--no-format-lists` | unchanged | Normalize eligible single-line list marker separators to exactly one ASCII space |
 | `formatFileLinks` | boolean | `true` | normal | `--no-format-file-links` | unchanged | Format eligible whole-line file/image links |
@@ -76,6 +75,10 @@ enabled, `{{a_b_c|x=1}}` becomes `{{a b c|x=1}}`, subject to
 functions, magic words, triple-brace parameters, dynamic template names, and
 parameter keys and values are excluded.
 
+Template formatting has one unified rule. `formatTemplates` enables or disables
+it; `inlineTemplateSpacing`, `templateParameterLayout`, and `lineWidth` control
+its supported layout behavior.
+
 ## Profiles versus levels
 
 A profile changes selected options. A level only limits which reliability
@@ -83,11 +86,10 @@ classes may execute. Both the rule's boolean option and its level must allow it.
 
 - `default` applies no preset overrides.
 - `production` explicitly selects normal level, templates and tables, automatic
-  table splitting, and leaves template-parameter compatibility, references,
-  external links, and section spacing disabled.
-- `aggressive` selects experimental level and enables template-parameter
-  compatibility, references, external links, and section spacing in addition
-  to templates and tables.
+  table splitting, and leaves references, external links, and section spacing
+  disabled.
+- `aggressive` selects experimental level and enables references, external
+  links, and section spacing in addition to templates and tables.
 
 The aggressive profile does not enable interlanguage links automatically.
 

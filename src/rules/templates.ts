@@ -32,20 +32,12 @@ export interface TemplateDiagnostics {
   templatesAlreadyCanonical: number;
   templatesSkippedAmbiguous: number;
   uniqueTemplatesFormatted: number;
-  /** @deprecated Use uniqueTemplatesFormatted. */
-  templatesFormatted: number;
   templatesExpandedToMultiline: number;
   existingMultilineTemplatesNormalized: number;
   templatesSkipped: number;
   skipReasons: Record<string, number>;
   formattingPassesUsed: number;
   convergenceLimitReached: boolean;
-  /** @deprecated Compatibility counters for the pre-1.0 API. */
-  templateParametersFormatted: number;
-  /** @deprecated Compatibility counters for the pre-1.0 API. */
-  templateParameterLinesFormatted: number;
-  /** @deprecated Compatibility counters for the pre-1.0 API. */
-  templateParameterLinesSkippedUnsafe: number;
   templateSemanticIds: string[];
   changedTemplateSemanticIds: string[];
 }
@@ -57,8 +49,6 @@ export interface TemplateFormatResult {
 
 export interface TemplateFormatOptions {
   lineWidth: number;
-  layout: "auto" | "preserve";
-  parameterSpacing: boolean;
   inlineTemplateSpacing: InlineTemplateSpacing;
   parameterLayout: TemplateParameterLayout;
   maxPasses?: number;
@@ -84,16 +74,12 @@ function emptyDiagnostics(): TemplateDiagnostics {
     templatesAlreadyCanonical: 0,
     templatesSkippedAmbiguous: 0,
     uniqueTemplatesFormatted: 0,
-    templatesFormatted: 0,
     templatesExpandedToMultiline: 0,
     existingMultilineTemplatesNormalized: 0,
     templatesSkipped: 0,
     skipReasons: {},
     formattingPassesUsed: 0,
     convergenceLimitReached: false,
-    templateParametersFormatted: 0,
-    templateParameterLinesFormatted: 0,
-    templateParameterLinesSkippedUnsafe: 0,
     templateSemanticIds: [],
     changedTemplateSemanticIds: [],
   };
@@ -743,12 +729,6 @@ function renderTemplate(
   if (!head) return { reason: "template name is empty" };
 
   if (args.some((arg) => arg.anon)) {
-    if (options.layout === "preserve" || !options.parameterSpacing) {
-      return {
-        value: normalizedRaw,
-        multiline: normalizedRaw.includes("\n"),
-      };
-    }
     return selectAnonymousLayoutCandidate(
       node,
       collapseAnonymous,
@@ -765,17 +745,13 @@ function renderTemplate(
   const wasMultiline = raw.includes("\n");
   const nestedStructure = args.some(containsNestedStructure);
   const autoMultiline =
-    options.layout === "auto" &&
-    (args.length > 1 ||
-      nestedStructure ||
-      raw.length > options.lineWidth ||
-      compactBaseline.length > options.lineWidth);
+    args.length > 1 ||
+    nestedStructure ||
+    raw.length > options.lineWidth ||
+    compactBaseline.length > options.lineWidth;
   const multiline = wasMultiline || autoMultiline;
 
   if (!multiline) {
-    if (!options.parameterSpacing) {
-      return { value: normalizedRaw, multiline: false };
-    }
     return selectInlineNamedCandidate(
       node,
       session,
@@ -849,7 +825,6 @@ export function formatTemplatesWithDiagnostics(
   const finalize = (formatted: string): TemplateFormatResult => {
     diagnostics.templatesChanged = changedNodeIds.size;
     diagnostics.uniqueTemplatesFormatted = changedNodeIds.size;
-    diagnostics.templatesFormatted = changedNodeIds.size;
     diagnostics.templatesExpandedToMultiline = expandedNodeIds.size;
     diagnostics.existingMultilineTemplatesNormalized =
       normalizedNodeIds.size;
@@ -865,7 +840,6 @@ export function formatTemplatesWithDiagnostics(
       0,
       diagnostics.templatesEligible - diagnostics.templatesChanged,
     );
-    diagnostics.templateParametersFormatted = changedNodeIds.size;
     diagnostics.changedTemplateSemanticIds = [...changedNodeIds];
     return { formatted, diagnostics };
   };
@@ -970,10 +944,6 @@ export function formatTemplatesWithDiagnostics(
     output = applyReplacements(output, changed);
     for (const replacement of changed) {
       changedNodeIds.add(replacement.semanticId);
-      diagnostics.templateParameterLinesFormatted +=
-        replacement.value
-          .split("\n")
-          .filter((line) => /^[ \t]*\|/u.test(line)).length;
       if (replacement.expanded) expandedNodeIds.add(replacement.semanticId);
       if (replacement.normalizedMultiline)
         normalizedNodeIds.add(replacement.semanticId);
@@ -1002,8 +972,6 @@ export function formatTemplates(
     context,
     {
       lineWidth,
-      layout: "auto",
-      parameterSpacing: true,
       inlineTemplateSpacing: "auto",
       parameterLayout: "flush",
     },

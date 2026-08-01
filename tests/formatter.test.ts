@@ -2,9 +2,11 @@ import { describe, expect, it } from "vitest";
 
 import {
   formatWikitext,
+  formatWikitextDetailedResult,
   formatWikitextSafe,
   ruleLevels,
 } from "../src/index.js";
+import type { FormatOptions } from "../src/index.js";
 import { resolveOptions } from "../src/options.js";
 
 describe("formatter API", () => {
@@ -45,7 +47,6 @@ describe("formatter API", () => {
       headings: "safe",
       blankLines: "safe",
       templates: "normal",
-      templateParameters: "experimental",
       categories: "normal",
       lists: "normal",
       fileLinks: "normal",
@@ -59,6 +60,21 @@ describe("formatter API", () => {
       htmlVoidTags: "safe",
       tables: "normal",
     });
+  });
+
+  it("exposes only the unified template API", () => {
+    const options: FormatOptions = {
+      formatTemplates: true,
+      inlineTemplateSpacing: "auto",
+      templateParameterLayout: "flush",
+    };
+    const result = formatWikitextDetailedResult("{{T|a=1|b=2}}\n", options);
+    const removedResultField = ["templateParameter", "Diagnostics"].join("");
+    const removedRule = ["template", "Parameters"].join("");
+
+    expect(result.templateDiagnostics.uniqueTemplatesFormatted).toBe(1);
+    expect(result).not.toHaveProperty(removedResultField);
+    expect(ruleLevels).not.toHaveProperty(removedRule);
   });
 
   it("enables aggressive tables by default and supports an explicit opt-out", () => {

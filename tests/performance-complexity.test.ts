@@ -98,10 +98,10 @@ describe("parser complexity", () => {
       templateSource.length * 30,
     );
     expect(
-      templates.result.templateParameterDiagnostics.formattingPassesUsed,
+      templates.result.templateDiagnostics.formattingPassesUsed,
     ).toBeLessThanOrEqual(2);
     expect(
-      templates.result.templateParameterDiagnostics.templateSemanticIds,
+      templates.result.templateDiagnostics.templateSemanticIds,
     ).toHaveLength(20);
 
     const tableSource = Array.from(

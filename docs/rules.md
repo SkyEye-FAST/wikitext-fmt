@@ -10,7 +10,6 @@ level allow them. The default level is `normal`.
 | `headings` | safe | on | `formatHeadings`; `--no-format-headings` | Standalone level 2–6 headings | Empty or ambiguous marker content is unchanged |
 | `blankLines` | safe | on | `normalizeBlankLines`; `--no-normalize-blank-lines` | Runs of blank lines | Does not otherwise trim lines |
 | `templates` | normal | on | `formatTemplates`; `--no-format-templates` | Parser-confirmed templates | Argument order/state/values and structural fingerprint |
-| `templateParameters` | experimental | off | `formatTemplateParameters`; positive/negative flags | Compatibility route to template engine | Not an independent scanner |
 | `categories` | normal | on | `formatCategories`; `--no-format-categories` | Standalone categories and defaultsort | Titles, sort keys, order, and nested metadata |
 | `lists` | normal | on | `formatLists`; `--no-format-lists` | Parser-confirmed single-line list prefixes | Marker sequence, hierarchy, content nodes, and non-ASCII whitespace |
 | `fileLinks` | normal | on | `formatFileLinks`; `--no-format-file-links` | One whole-line file/image link | Target, caption, values, and option order |
@@ -75,6 +74,9 @@ Protected content is restored unchanged.
 
 The unified template engine operates on parser template and supported
 magic-word argument nodes, deepest first, with at most 64 passes.
+
+`formatTemplates` is its only enablement switch. `inlineTemplateSpacing`,
+`templateParameterLayout`, and `lineWidth` select its supported layout behavior.
 
 It can normalize named-parameter spacing and choose inline or multiline
 layout. It also replaces every ASCII underscore in a parser-confirmed ordinary
@@ -192,18 +194,6 @@ Non-goals: parameters are never reordered, renamed, renumbered, converted
 between named/anonymous state, or semantically rewritten. Anonymous-to-numbered
 conversion is not enabled implicitly by multiline layout. No site-specific
 template layout policy or page-wide style learner is inferred.
-
-## Template parameters compatibility rule
-
-`formatTemplateParameters` and `--format-template-parameters` are a deprecated
-pre-1.0 compatibility route into the same unified template engine. The wrapper
-requests preserve-layout parameter spacing with a fixed internal width; it is
-not a second brace-count or line scanner.
-
-The normal `templates` rule is already enabled by default. Enabling this
-experimental compatibility option does not authorize value changes or
-parameter reordering. Diagnostics use the public template-parameter diagnostic
-shape backed by the unified engine.
 
 ## Categories and defaultsort
 

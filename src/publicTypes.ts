@@ -104,26 +104,15 @@ export interface TemplateDiagnostics {
   templatesAlreadyCanonical: number;
   templatesSkippedAmbiguous: number;
   uniqueTemplatesFormatted: number;
-  /** @deprecated Use uniqueTemplatesFormatted. */
-  templatesFormatted: number;
   templatesExpandedToMultiline: number;
   existingMultilineTemplatesNormalized: number;
   templatesSkipped: number;
   skipReasons: Record<string, number>;
   formattingPassesUsed: number;
   convergenceLimitReached: boolean;
-  /** @deprecated Compatibility counters for the pre-1.0 API. */
-  templateParametersFormatted: number;
-  /** @deprecated Compatibility counters for the pre-1.0 API. */
-  templateParameterLinesFormatted: number;
-  /** @deprecated Compatibility counters for the pre-1.0 API. */
-  templateParameterLinesSkippedUnsafe: number;
   templateSemanticIds: string[];
   changedTemplateSemanticIds: string[];
 }
-
-/** @deprecated Use TemplateDiagnostics from the unified template formatter. */
-export type TemplateParameterDiagnostics = TemplateDiagnostics;
 
 export type WikilinkSkipReason =
   | "file-link"
@@ -188,7 +177,7 @@ export interface FormatDetailedResult extends FormatResult {
   referenceDiagnostics: ReferenceDiagnostics;
   listDiagnostics: ListDiagnostics;
   sectionSpacingDiagnostics: SectionSpacingDiagnostics;
-  templateParameterDiagnostics: TemplateParameterDiagnostics;
+  templateDiagnostics: TemplateDiagnostics;
   equivalenceDiagnostics: StructuralEquivalenceResult[];
 }
 

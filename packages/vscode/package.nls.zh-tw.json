@@ -21,8 +21,6 @@
   "configuration.formatReferences.description": "啟用引用格式化（實驗性）。",
   "configuration.formatSectionSpacing.description": "啟用章節間距格式化（實驗性）。",
   "configuration.formatTables.description": "啟用表格格式化（解析器輔助，標準層級）。",
-  "configuration.formatTemplateParameters.deprecationMessage": "統一模板引擎的相容性入口。請改用 wikitextFmt.formatTemplates、wikitextFmt.templateParameterLayout 和 wikitextFmt.inlineTemplateSpacing。",
-  "configuration.formatTemplateParameters.description": "統一模板引擎的相容別名（已棄用）。",
   "configuration.formatTemplates.description": "啟用統一的模板格式化器（解析器輔助）。",
   "configuration.formatWikilinks.description": "將解析器確認的內部連結目標中的底線規範化為空格。",
   "configuration.htmlVoidTagStyle.description": "HTML 空元素標籤風格。",

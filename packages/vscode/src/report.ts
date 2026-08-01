@@ -31,7 +31,7 @@ function addReason(
 export function createDiagnosticsReport(
   details: FormatDetailedResult,
 ): DiagnosticsReport {
-  const template = details.templateParameterDiagnostics;
+  const template = details.templateDiagnostics;
   const table = details.tableFormatDiagnostics;
   const footer = details.footerDiagnostics;
   const lists = details.listDiagnostics;
@@ -92,8 +92,6 @@ export function createDiagnosticsReport(
         details.externalLinkDiagnostics.externalLinksSkippedUnsafe,
       referenceLinesSkippedUnsafe:
         details.referenceDiagnostics.referenceLinesSkippedUnsafe,
-      templateParameterLinesSkippedUnsafe:
-        template.templateParameterLinesSkippedUnsafe,
       listLinesSkipped: lists.listLinesSkipped,
     },
     skipReasons,

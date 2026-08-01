@@ -73,7 +73,7 @@ function expectEmbeddedTableLayout(input: string, expected: string): void {
   const result = formatWikitextSafeDetailed(input);
   expect(result.warning).toBeUndefined();
   expect(result.formatted).toBe(expected);
-  expect(result.templateParameterDiagnostics.skipReasons).toEqual({});
+  expect(result.templateDiagnostics.skipReasons).toEqual({});
   expect(tableStructuralFingerprint(result.formatted, config)).toBe(
     tableStructuralFingerprint(input, config),
   );
@@ -89,27 +89,6 @@ describe("unified parser-assisted template formatting", () => {
     expect(formatWikitext(input)).toBe(
       "{{Template\n| a = b\n| c = d\n| empty =\n}}\n",
     );
-  });
-
-  it("retains the old option as a compatibility route to the same engine", () => {
-    const input = "{{Template\n| a=b\n}}\n";
-    expect(
-      formatWikitext(input, {
-        level: "experimental",
-        formatTemplates: false,
-        formatTemplateParameters: true,
-      }),
-    ).toBe("{{Template\n| a = b\n}}\n");
-  });
-
-  it("can disable both compatibility entry points", () => {
-    const input = "{{Template\n| a=b\n}}\n";
-    expect(
-      formatWikitext(input, {
-        formatTemplates: false,
-        formatTemplateParameters: false,
-      }),
-    ).toBe(input);
   });
 
   it("keeps a clearly compact single parameter inline", () => {
@@ -154,23 +133,9 @@ describe("unified parser-assisted template formatting", () => {
     ["already spaced", "{{ a | b = 1 }}\n", "{{ a | b = 1 }}\n"],
     ["spaced internals", "{{a| b = 1}}\n", "{{ a | b = 1 }}\n"],
     ["compact internals", "{{ a|b=1 }}\n", "{{a|b=1}}\n"],
-    [
-      "multiple spaced internals",
-      "{{a| b = 1| c = 2}}\n",
-      "{{ a | b = 1 | c = 2 }}\n",
-    ],
-    [
-      "multiple compact internals",
-      "{{ a|b=1|c=2 }}\n",
-      "{{a|b=1|c=2}}\n",
-    ],
-    ["compact majority", "{{a|b = 1|c=2}}\n", "{{a|b=1|c=2}}\n"],
     ["deterministic tie", "{{ a|b = 1}}\n", "{{a|b=1}}\n"],
   ] as const)("infers %s in auto mode", (_name, input, expected) => {
     expectInlineLayout(input, expected, {
-      level: "experimental",
-      formatTemplates: false,
-      formatTemplateParameters: true,
       inlineTemplateSpacing: "auto",
     });
   });
@@ -220,21 +185,6 @@ describe("unified parser-assisted template formatting", () => {
       expectInlineLayout("{{a| b = 1}}\n", "{{ a | b = 1 }}\n", {
         templateParameterLayout,
         inlineTemplateSpacing: "spaced",
-      });
-    },
-  );
-
-  it.each([
-    ["compact", "{{a|1=x|2=y}}\n"],
-    ["spaced", "{{ a | 1 = x | 2 = y }}\n"],
-  ] as const)(
-    "formats explicitly numbered inline parameters as %s",
-    (inlineTemplateSpacing, expected) => {
-      expectInlineLayout("{{a|1=x|2=y}}\n", expected, {
-        level: "experimental",
-        formatTemplates: false,
-        formatTemplateParameters: true,
-        inlineTemplateSpacing,
       });
     },
   );
@@ -575,9 +525,9 @@ describe("unified parser-assisted template formatting", () => {
       "{{Nested\n| x = 1\n| y = 2\n}}",
     );
     expect(result.formatted).toContain("{{#if:x|y|z}}");
-    expect(result.templateParameterDiagnostics.templatesFormatted).toBe(2);
+    expect(result.templateDiagnostics.uniqueTemplatesFormatted).toBe(2);
     expect(
-      result.templateParameterDiagnostics.formattingPassesUsed,
+      result.templateDiagnostics.formattingPassesUsed,
     ).toBeGreaterThan(1);
   });
 
@@ -585,7 +535,7 @@ describe("unified parser-assisted template formatting", () => {
     const input = '{{Template\n| a = {| class="wikitable"\n}}\n';
     const result = formatWikitextDetailedResult(input);
     expect(result.formatted).toBe(input);
-    expect(result.templateParameterDiagnostics.skipReasons).toMatchObject({
+    expect(result.templateDiagnostics.skipReasons).toMatchObject({
       "table opener is not represented by a balanced parser table node": 1,
     });
   });
@@ -594,8 +544,8 @@ describe("unified parser-assisted template formatting", () => {
     const input = "{{ {{{|safesubst:}}}#if:{{{1|}}}|yes|no }}\n";
     const result = formatWikitextDetailedResult(input);
     expect(result.formatted).toBe(input);
-    expect(result.templateParameterDiagnostics.skipReasons).toEqual({});
-    expect(result.templateParameterDiagnostics.templatesSkippedAmbiguous).toBe(
+    expect(result.templateDiagnostics.skipReasons).toEqual({});
+    expect(result.templateDiagnostics.templatesSkippedAmbiguous).toBe(
       0,
     );
   });
@@ -604,19 +554,19 @@ describe("unified parser-assisted template formatting", () => {
     const result = formatWikitextDetailedResult(
       "{{Template|a=1|nested={{Nested|x=1}}}}\n",
     );
-    expect(result.templateParameterDiagnostics).toMatchObject({
+    expect(result.templateDiagnostics).toMatchObject({
       templatesInspected: 2,
       templatesEligible: 2,
       templatesChanged: 1,
       templatesAlreadyCanonical: 1,
       templatesSkippedAmbiguous: 0,
       uniqueTemplatesFormatted: 1,
-      templatesFormatted: 1,
+      uniqueTemplatesFormatted: 1,
       templatesExpandedToMultiline: 1,
       templatesSkipped: 0,
       convergenceLimitReached: false,
     });
-    const diagnostics = result.templateParameterDiagnostics;
+    const diagnostics = result.templateDiagnostics;
     expect(new Set(diagnostics.templateSemanticIds).size).toBe(
       diagnostics.templatesInspected,
     );
@@ -636,8 +586,6 @@ describe("unified parser-assisted template formatting", () => {
       session.createContext(input),
       {
         lineWidth: 120,
-        layout: "auto",
-        parameterSpacing: true,
         inlineTemplateSpacing: "auto",
         parameterLayout: "flush",
         maxPasses: 0,

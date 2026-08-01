@@ -114,7 +114,7 @@ const result = formatWikitextDetailedResult(source);
 console.log(
   result.tableDiagnostics,
   result.listDiagnostics,
-  result.templateParameterDiagnostics,
+  result.templateDiagnostics,
 );
 ```
 
@@ -153,12 +153,12 @@ should branch on `failure` and its stable code rather than parse warning text.
 - redirect, file-link, wikilink, external-link, reference, and section-spacing
   diagnostics;
 - parser-confirmed list-prefix diagnostics;
-- template and template-parameter diagnostics;
+- unified template diagnostics in `templateDiagnostics`;
 - structural-equivalence diagnostics.
 
 The package exports `FormatResult`, `FormatDetailedResult`, `FormatFailure`,
-`FormatFailureCode`, `DiagnosticsSummary`, and the public per-rule diagnostic
-types.
+`FormatFailureCode`, `DiagnosticsSummary`, `TemplateDiagnostics`, and the
+public per-rule diagnostic types.
 
 `WikilinkDiagnostics` distinguishes inspected and eligible parser nodes,
 formatted links, replaced underscores, fragment-containing changes, unsafe

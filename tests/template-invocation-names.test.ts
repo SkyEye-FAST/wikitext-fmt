@@ -108,7 +108,7 @@ describe("ordinary template invocation names", () => {
     const result = formatWikitextSafeDetailed(input);
     expect(result.warning).toBeUndefined();
     expect(result.formatted).toBe(expected);
-    expect(result.templateParameterDiagnostics.skipReasons).toMatchObject({
+    expect(result.templateDiagnostics.skipReasons).toMatchObject({
       "dynamic template name": 1,
     });
     expect(templateStructuralFingerprint(result.formatted, config)).toBe(
@@ -122,7 +122,7 @@ describe("ordinary template invocation names", () => {
     const result = formatWikitextSafeDetailed(input);
     expect(result.warning).toBeUndefined();
     expect(result.formatted).toBe(input);
-    expect(result.templateParameterDiagnostics.skipReasons).toMatchObject({
+    expect(result.templateDiagnostics.skipReasons).toMatchObject({
       "dynamic template name": 1,
     });
     expect(formatWikitextSafeDetailed(result.formatted).formatted).toBe(input);
@@ -133,7 +133,6 @@ describe("ordinary template invocation names", () => {
     expect(
       formatWikitext(input, {
         formatTemplates: false,
-        formatTemplateParameters: false,
       }),
     ).toBe(input);
   });

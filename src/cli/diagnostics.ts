@@ -61,16 +61,12 @@ export function emptyDiagnosticsSummary(): DiagnosticsSummary {
     structuredContentLinesChanged: 0,
     sectionSpacingBeforeHeadingsInserted: 0,
     sectionSpacingAfterHeadingsInserted: 0,
-    templateParametersFormatted: 0,
-    templateParameterLinesFormatted: 0,
-    templateParameterLinesSkippedUnsafe: 0,
     templatesInspected: 0,
     templatesEligible: 0,
     templatesChanged: 0,
     templatesAlreadyCanonical: 0,
     templatesSkippedAmbiguous: 0,
     uniqueTemplatesFormatted: 0,
-    templatesFormatted: 0,
     templatesExpandedToMultiline: 0,
     existingMultilineTemplatesNormalized: 0,
     templatesSkipped: 0,
@@ -145,29 +141,22 @@ export function createDiagnosticsSummary(
     structuredContentLinesChanged:
       result.listDiagnostics.structuredContentLinesChanged,
     ...result.sectionSpacingDiagnostics,
-    templateParametersFormatted:
-      result.templateParameterDiagnostics.templateParametersFormatted,
-    templateParameterLinesFormatted:
-      result.templateParameterDiagnostics.templateParameterLinesFormatted,
-    templateParameterLinesSkippedUnsafe:
-      result.templateParameterDiagnostics.templateParameterLinesSkippedUnsafe,
-    templatesInspected: result.templateParameterDiagnostics.templatesInspected,
-    templatesEligible: result.templateParameterDiagnostics.templatesEligible,
-    templatesChanged: result.templateParameterDiagnostics.templatesChanged,
+    templatesInspected: result.templateDiagnostics.templatesInspected,
+    templatesEligible: result.templateDiagnostics.templatesEligible,
+    templatesChanged: result.templateDiagnostics.templatesChanged,
     templatesAlreadyCanonical:
-      result.templateParameterDiagnostics.templatesAlreadyCanonical,
+      result.templateDiagnostics.templatesAlreadyCanonical,
     templatesSkippedAmbiguous:
-      result.templateParameterDiagnostics.templatesSkippedAmbiguous,
+      result.templateDiagnostics.templatesSkippedAmbiguous,
     uniqueTemplatesFormatted:
-      result.templateParameterDiagnostics.uniqueTemplatesFormatted,
-    templatesFormatted: result.templateParameterDiagnostics.templatesFormatted,
+      result.templateDiagnostics.uniqueTemplatesFormatted,
     templatesExpandedToMultiline:
-      result.templateParameterDiagnostics.templatesExpandedToMultiline,
+      result.templateDiagnostics.templatesExpandedToMultiline,
     existingMultilineTemplatesNormalized:
-      result.templateParameterDiagnostics.existingMultilineTemplatesNormalized,
-    templatesSkipped: result.templateParameterDiagnostics.templatesSkipped,
+      result.templateDiagnostics.existingMultilineTemplatesNormalized,
+    templatesSkipped: result.templateDiagnostics.templatesSkipped,
     formattingPassesUsed:
-      result.templateParameterDiagnostics.formattingPassesUsed,
+      result.templateDiagnostics.formattingPassesUsed,
   };
 }
 

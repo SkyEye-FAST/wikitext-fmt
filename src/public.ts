@@ -16,7 +16,6 @@ export type {
   TableDiagnostic,
   TableFormatDiagnostics,
   TemplateDiagnostics,
-  TemplateParameterDiagnostics,
   WikilinkDiagnostics,
 } from "./publicTypes.js";
 export {

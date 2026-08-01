@@ -21,8 +21,6 @@
   "configuration.formatReferences.description": "Enable experimental reference formatting.",
   "configuration.formatSectionSpacing.description": "Enable experimental section spacing formatting.",
   "configuration.formatTables.description": "Enable normal-level parser-assisted table formatting.",
-  "configuration.formatTemplateParameters.deprecationMessage": "Compatibility entry point for the unified template engine. Use wikitextFmt.formatTemplates, wikitextFmt.templateParameterLayout, and wikitextFmt.inlineTemplateSpacing instead.",
-  "configuration.formatTemplateParameters.description": "Deprecated compatibility alias for the unified template engine.",
   "configuration.formatTemplates.description": "Enable the unified parser-assisted template formatter.",
   "configuration.formatWikilinks.description": "Normalize parser-confirmed internal page-link targets to use spaces instead of underscores.",
   "configuration.htmlVoidTagStyle.description": "HTML void tag style.",

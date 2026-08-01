@@ -29,13 +29,6 @@ const matrix: Array<{ name: string; options: FormatOptions }> = [
     },
   },
   {
-    name: "experimental template parameters",
-    options: {
-      level: "experimental",
-      formatTemplateParameters: true,
-    },
-  },
-  {
     name: "experimental tables",
     options: {
       level: "experimental",
@@ -79,7 +72,6 @@ const matrix: Array<{ name: string; options: FormatOptions }> = [
     name: "all experimental opt-ins",
     options: {
       level: "experimental",
-      formatTemplateParameters: true,
       formatSectionSpacing: true,
       formatReferences: true,
       formatExternalLinks: true,
@@ -93,7 +85,6 @@ const matrix: Array<{ name: string; options: FormatOptions }> = [
     name: "all experimental opt-ins with canonical footer localization",
     options: {
       level: "experimental",
-      formatTemplateParameters: true,
       formatSectionSpacing: true,
       formatReferences: true,
       formatExternalLinks: true,
@@ -144,14 +135,10 @@ describe("real page regressions", () => {
     ).toBeGreaterThan(0);
 
     const templateSummary = createDiagnosticsSummary(
-      formatWikitextSafeDetailed(feature, {
-        level: "experimental",
-        formatTemplateParameters: true,
-      }),
+      formatWikitextSafeDetailed(feature),
     );
-    expect(templateSummary.templateParameterLinesFormatted).toBeGreaterThan(0);
-    expect(templateSummary.templateParameterLinesSkippedUnsafe).toBe(0);
-    expect(templateSummary.templatesFormatted).toBeGreaterThan(0);
+    expect(templateSummary.templatesChanged).toBeGreaterThan(0);
+    expect(templateSummary.uniqueTemplatesFormatted).toBeGreaterThan(0);
 
     const redirectSummary = createDiagnosticsSummary(
       formatWikitextSafeDetailed(redirect),

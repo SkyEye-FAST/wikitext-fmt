@@ -6,6 +6,17 @@ here. The project follows the pre-1.0 policy in
 
 ## Unreleased
 
+### Removed
+
+- Removed `formatTemplateParameters`, its template-parameter CLI flags, and the
+  `templateParameters` rule metadata. Template formatting is now controlled only
+  by `formatTemplates`, `inlineTemplateSpacing`, `templateParameterLayout`, and
+  `lineWidth`.
+- Removed `TemplateParameterDiagnostics`, legacy template counters, and the
+  standalone template-parameter compatibility wrapper. Detailed results now use
+  `templateDiagnostics` instead of `templateParameterDiagnostics`.
+- Removed the VS Code `wikitextFmt.formatTemplateParameters` setting.
+
 ## 0.6.0 - 2026-08-01
 
 ### Added

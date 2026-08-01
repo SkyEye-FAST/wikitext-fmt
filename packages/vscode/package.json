@@ -124,12 +124,6 @@
           "description": "%configuration.formatTables.description%",
           "type": "boolean"
         },
-        "wikitextFmt.formatTemplateParameters": {
-          "default": false,
-          "deprecationMessage": "%configuration.formatTemplateParameters.deprecationMessage%",
-          "description": "%configuration.formatTemplateParameters.description%",
-          "type": "boolean"
-        },
         "wikitextFmt.formatTemplates": {
           "default": true,
           "description": "%configuration.formatTemplates.description%",

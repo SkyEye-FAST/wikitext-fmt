@@ -46,16 +46,12 @@ export interface DiagnosticsSummary {
   structuredContentLinesChanged: number;
   sectionSpacingBeforeHeadingsInserted: number;
   sectionSpacingAfterHeadingsInserted: number;
-  templateParametersFormatted: number;
-  templateParameterLinesFormatted: number;
-  templateParameterLinesSkippedUnsafe: number;
   templatesInspected: number;
   templatesEligible: number;
   templatesChanged: number;
   templatesAlreadyCanonical: number;
   templatesSkippedAmbiguous: number;
   uniqueTemplatesFormatted: number;
-  templatesFormatted: number;
   templatesExpandedToMultiline: number;
   existingMultilineTemplatesNormalized: number;
   templatesSkipped: number;

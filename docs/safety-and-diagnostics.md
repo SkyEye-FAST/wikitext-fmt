@@ -80,8 +80,8 @@ Detailed results expose structured information for rules that need it:
 
 - tables: inspected/eligible/changed/canonical/ambiguous counts, separator
   policy, fallback and per-line reasons;
-- templates: structural nodes, candidate layouts, skips, convergence, and
-  equivalence;
+- templates (`templateDiagnostics`): structural nodes, candidate layouts, skips,
+  convergence, and equivalence;
 - footer metadata: moved/formatted/canonicalized categories, defaultsort,
   switches, and interlanguage links;
 - redirect, file-link, wikilink, external-link, reference, and section-spacing

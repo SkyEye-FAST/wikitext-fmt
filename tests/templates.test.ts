@@ -20,7 +20,7 @@ function expectStableTemplateFormatting(
   const once = formatWikitextDetailedResult(source);
   expect(once.failure).toBeUndefined();
   expect(once.warning).toBeUndefined();
-  expect(once.templateParameterDiagnostics.convergenceLimitReached).toBe(false);
+  expect(once.templateDiagnostics.convergenceLimitReached).toBe(false);
   expect(once.formatted).toContain(expectedFragment);
 
   const twice = formatWikitextDetailedResult(once.formatted);

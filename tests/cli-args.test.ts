@@ -26,7 +26,6 @@ describe("CLI argument parsing", () => {
 
   it("parses schema-driven formatter boolean flags", () => {
     const options = parseArgs([
-      "--format-template-parameters",
       "--no-format-file-links",
       "--no-format-wikilinks",
       "--format-interlanguage-links",
@@ -37,7 +36,6 @@ describe("CLI argument parsing", () => {
       "page.wiki",
     ]);
     expect(options).toMatchObject({
-      formatTemplateParameters: true,
       formatFileLinks: false,
       formatWikilinks: false,
       formatInterlanguageLinks: true,
@@ -47,6 +45,18 @@ describe("CLI argument parsing", () => {
       formatTables: false,
       files: ["page.wiki"],
     });
+  });
+
+  it("rejects removed template-parameter flags as unknown options", () => {
+    for (const flag of [
+      `--${["format", "template", "parameters"].join("-")}`,
+      `--no-${["format", "template", "parameters"].join("-")}`,
+    ]) {
+      expect(() => parseArgs([flag, "page.wiki"])).toThrow(
+        `Unknown option: ${flag}`,
+      );
+      expect(help()).not.toContain(flag);
+    }
   });
 
   it("keeps CLI-only conflict checks explicit", () => {

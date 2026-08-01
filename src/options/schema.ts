@@ -59,15 +59,6 @@ export const optionSchema: readonly OptionSchemaEntry[] = [
     enumValues: ["compact", "flush", "indented"],
   },
   {
-    name: "formatTemplateParameters",
-    type: "boolean",
-    defaultValue: false,
-    positiveFlag: "--format-template-parameters",
-    negativeFlag: "--no-format-template-parameters",
-    ruleName: "templateParameters",
-    ruleLevel: "experimental",
-  },
-  {
     name: "formatCategories",
     type: "boolean",
     defaultValue: true,

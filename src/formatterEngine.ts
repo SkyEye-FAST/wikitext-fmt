@@ -207,12 +207,9 @@ function formatNormalizedWikitextDetailedResult(
       diagnostics.referenceDiagnostics = references.diagnostics;
     }
 
-    const templateLayoutEnabled =
+    const templatesEnabled =
       resolved.formatTemplates && isRuleEnabled("templates", resolved.level);
-    const templateSpacingCompatibilityEnabled =
-      resolved.formatTemplateParameters &&
-      isRuleEnabled("templateParameters", resolved.level);
-    if (templateLayoutEnabled || templateSpacingCompatibilityEnabled) {
+    if (templatesEnabled) {
       const templateBlocks = protectBlocks(tableOutput, {
         protectTables: false,
         additionalRanges: parserExtensionRanges(contextFor(tableOutput)),
@@ -222,15 +219,13 @@ function formatNormalizedWikitextDetailedResult(
         templateContext,
         {
           lineWidth: resolved.lineWidth,
-          layout: templateLayoutEnabled ? "auto" : "preserve",
-          parameterSpacing: true,
           inlineTemplateSpacing: resolved.inlineTemplateSpacing,
           parameterLayout: resolved.templateParameterLayout,
         },
       );
       const previous = tableOutput;
       tableOutput = templateBlocks.restore(templates.formatted);
-      diagnostics.templateParameterDiagnostics = templates.diagnostics;
+      diagnostics.templateDiagnostics = templates.diagnostics;
       if (templates.diagnostics.convergenceLimitReached) {
         return fallbackDetailedResult(
           source,
@@ -632,7 +627,7 @@ function formatWikitextSafeDetailed(
       referenceDiagnostics: first.referenceDiagnostics,
       listDiagnostics: first.listDiagnostics,
       sectionSpacingDiagnostics: first.sectionSpacingDiagnostics,
-      templateParameterDiagnostics: first.templateParameterDiagnostics,
+      templateDiagnostics: first.templateDiagnostics,
       equivalenceDiagnostics: first.equivalenceDiagnostics,
     };
     if (first.failure)

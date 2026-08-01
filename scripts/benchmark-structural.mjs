@@ -161,12 +161,12 @@ function benchmark(entry) {
     parserContextsCreated: measured.metrics.contextsCreated,
     parserContextSourceBytes: measured.metrics.sourceBytesParsed,
     formattingPasses: {
-      templates: result.templateParameterDiagnostics.formattingPassesUsed,
+      templates: result.templateDiagnostics.formattingPassesUsed,
       tables: result.tableFormatDiagnostics.formattingPassesUsed,
     },
     candidateCount: candidateStats.rootCandidates + candidateStats.fallbackParses,
     semanticNodeCount:
-      result.templateParameterDiagnostics.templateSemanticIds.length +
+      result.templateDiagnostics.templateSemanticIds.length +
       result.tableFormatDiagnostics.tableSemanticIds.length,
     totalFormattingMilliseconds,
     structuralEquivalenceMilliseconds,

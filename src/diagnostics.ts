@@ -15,7 +15,7 @@ import type {
   TableDiagnostic,
   TableFormatDiagnostics,
 } from "./rules/tables.js";
-import type { TemplateParameterDiagnostics } from "./rules/templateParameters.js";
+import type { TemplateDiagnostics } from "./rules/templates.js";
 import type { WikilinkDiagnostics } from "./rules/wikilinks.js";
 
 export interface DetailedDiagnostics {
@@ -29,7 +29,7 @@ export interface DetailedDiagnostics {
   referenceDiagnostics: ReferenceDiagnostics;
   listDiagnostics: ListDiagnostics;
   sectionSpacingDiagnostics: SectionSpacingDiagnostics;
-  templateParameterDiagnostics: TemplateParameterDiagnostics;
+  templateDiagnostics: TemplateDiagnostics;
   equivalenceDiagnostics: StructuralEquivalenceResult[];
 }
 
@@ -100,23 +100,19 @@ export function emptyDetailedDiagnostics(): DetailedDiagnostics {
       sectionSpacingBeforeHeadingsInserted: 0,
       sectionSpacingAfterHeadingsInserted: 0,
     },
-    templateParameterDiagnostics: {
+    templateDiagnostics: {
       templatesInspected: 0,
       templatesEligible: 0,
       templatesChanged: 0,
       templatesAlreadyCanonical: 0,
       templatesSkippedAmbiguous: 0,
       uniqueTemplatesFormatted: 0,
-      templatesFormatted: 0,
       templatesExpandedToMultiline: 0,
       existingMultilineTemplatesNormalized: 0,
       templatesSkipped: 0,
       skipReasons: {},
       formattingPassesUsed: 0,
       convergenceLimitReached: false,
-      templateParametersFormatted: 0,
-      templateParameterLinesFormatted: 0,
-      templateParameterLinesSkippedUnsafe: 0,
       templateSemanticIds: [],
       changedTemplateSemanticIds: [],
     },
@@ -136,7 +132,7 @@ export function stripDiagnostics(result: FormatDetailedResult): FormatResult {
     referenceDiagnostics: _referenceDiagnostics,
     listDiagnostics: _listDiagnostics,
     sectionSpacingDiagnostics: _sectionSpacingDiagnostics,
-    templateParameterDiagnostics: _templateParameterDiagnostics,
+    templateDiagnostics: _templateDiagnostics,
     equivalenceDiagnostics: _equivalenceDiagnostics,
     ...stripped
   } = result;

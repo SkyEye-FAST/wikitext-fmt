@@ -47,12 +47,14 @@ describe("core package content", () => {
   });
 
   it("rejects outputs from removed runtime-binding modules", () => {
+    const removedTemplateOutput = `package/dist/rules/template${"Parameters"}.js`;
     const errors = validateCorePackageEntries(
       [
         ...required,
         "package/dist/formatterCore.js",
         "package/dist/parserContext.node.d.ts",
         "package/dist/rules/tables.node.js.map",
+        removedTemplateOutput,
       ],
       "",
     );
@@ -65,6 +67,7 @@ describe("core package content", () => {
     expect(errors).toContain(
       "obsolete internal output: package/dist/rules/tables.node.js.map",
     );
+    expect(errors).toContain(`obsolete internal output: ${removedTemplateOutput}`);
   });
 
   it("requires relative Markdown links from the packaged README", () => {

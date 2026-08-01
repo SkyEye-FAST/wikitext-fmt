@@ -36,9 +36,7 @@ const cases: IntegrationCase[] = [
     name: "integration-infobox",
     expectedSummary: {
       fileLinksFormatted: 1,
-      templateParametersFormatted: 1,
-      templateParameterLinesFormatted: 3,
-      templateParameterLinesSkippedUnsafe: 0,
+      uniqueTemplatesFormatted: 1,
     },
   },
   {

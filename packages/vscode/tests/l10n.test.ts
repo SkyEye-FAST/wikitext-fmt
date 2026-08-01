@@ -148,9 +148,8 @@ describe("package.nls localization", () => {
     expect(en["command.formatDocument.title"]).toContain("Format Document");
     expect(en["command.checkDocument.title"]).toContain("Check Document");
     expect(en["configuration.title"]).toBe("Wikitext Formatter");
-    expect(
-      en["configuration.formatTemplateParameters.deprecationMessage"],
-    ).toContain("formatTemplates");
+    const removedKey = `configuration.${["formatTemplate", "Parameters"].join("")}.description`;
+    expect(en[removedKey]).toBeUndefined();
   });
 
   it("resolves Simplified Chinese manifest translations", async () => {

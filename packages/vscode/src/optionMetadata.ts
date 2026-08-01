@@ -18,10 +18,6 @@ export const vscodeFormatOptionMetadata = [
     name: "templateParameterLayout",
     defaultValue: defaultOptions.templateParameterLayout,
   },
-  {
-    name: "formatTemplateParameters",
-    defaultValue: defaultOptions.formatTemplateParameters,
-  },
   { name: "formatCategories", defaultValue: defaultOptions.formatCategories },
   { name: "formatLists", defaultValue: defaultOptions.formatLists },
   { name: "formatFileLinks", defaultValue: defaultOptions.formatFileLinks },
@@ -81,4 +77,3 @@ export const configFileOnlyOptionNames = [
   "localizationSource",
   "localizationAliases",
 ] as const satisfies readonly (keyof FormatOptions)[];
-

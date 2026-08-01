@@ -190,16 +190,11 @@ describe("CLI configuration", () => {
     });
   });
 
-  it("accepts experimental template parameter formatting configuration", () => {
-    expect(
-      validateConfig({
-        formatTemplateParameters: true,
-        templateParameterLayout: "flush",
-      }),
-    ).toEqual({
-      formatTemplateParameters: true,
-      templateParameterLayout: "flush",
-    });
+  it("rejects the removed template-parameter configuration key", () => {
+    const removedOption = ["formatTemplate", "Parameters"].join("");
+    expect(() => validateConfig({ [removedOption]: true })).toThrow(
+      /Unknown configuration option/u,
+    );
   });
 
   it("rejects invalid template parameter layouts", () => {

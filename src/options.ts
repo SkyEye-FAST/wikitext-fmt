@@ -26,7 +26,6 @@ export interface FormatOptions {
   formatTemplates?: boolean;
   inlineTemplateSpacing?: InlineTemplateSpacing;
   templateParameterLayout?: TemplateParameterLayout;
-  formatTemplateParameters?: boolean;
   formatCategories?: boolean;
   formatLists?: boolean;
   formatFileLinks?: boolean;
@@ -58,7 +57,6 @@ export interface ResolvedFormatOptions {
   formatTemplates: boolean;
   inlineTemplateSpacing: InlineTemplateSpacing;
   templateParameterLayout: TemplateParameterLayout;
-  formatTemplateParameters: boolean;
   formatCategories: boolean;
   formatLists: boolean;
   formatFileLinks: boolean;
@@ -90,7 +88,6 @@ export const defaultOptions: Readonly<ResolvedFormatOptions> = {
   formatTemplates: true,
   inlineTemplateSpacing: "auto",
   templateParameterLayout: "flush",
-  formatTemplateParameters: false,
   formatCategories: true,
   formatLists: true,
   formatFileLinks: true,
@@ -139,7 +136,6 @@ export function resolveOptions(
       ? {
           level: "normal",
           formatTemplates: true,
-          formatTemplateParameters: false,
           formatTables: true,
           tableCellSeparatorStyle: "auto",
           formatReferences: false,
@@ -150,7 +146,6 @@ export function resolveOptions(
         ? {
             level: "experimental",
             formatTemplates: true,
-            formatTemplateParameters: true,
             formatTables: true,
             tableCellSeparatorStyle: "auto",
             formatReferences: true,

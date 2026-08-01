@@ -72,6 +72,11 @@ async function createTarball(directory) {
 }
 
 async function writeConsumerFixtures(consumerRoot) {
+  const removed = {
+    diagnostics: ["templateParameter", "Diagnostics"].join(""),
+    option: ["formatTemplate", "Parameters"].join(""),
+    rule: ["template", "Parameters"].join(""),
+  };
   await writeFile(
     join(consumerRoot, "package.json"),
     '{"name":"wikitext-fmt-browser-consumer","private":true,"type":"module"}\n',
@@ -86,20 +91,53 @@ async function writeConsumerFixtures(consumerRoot) {
         ruleLevels,
       } from "wikitext-fmt/browser";
       import type {
-        FormatOptions,
+        FormatOptions as BrowserFormatOptions,
         FormatResult,
-        FormatDetailedResult,
+        FormatDetailedResult as BrowserFormatDetailedResult,
         FormatFailureCode,
       } from "wikitext-fmt/browser";
-      const options: FormatOptions = { parserConfig: defaultOptions.parserConfig };
+      // @ts-expect-error The removed type must not be exported by the browser entry.
+      import type { ${removed.diagnostics} as BrowserRemovedTemplateDiagnostics } from "wikitext-fmt/browser";
+      const options: BrowserFormatOptions = { parserConfig: defaultOptions.parserConfig };
       const compact: FormatResult = formatWikitextSafe("==Title==\\n", options);
-      const detailed: FormatDetailedResult = formatWikitextSafeDetailed(
+      const detailed: BrowserFormatDetailedResult = formatWikitextSafeDetailed(
         "==Title==\\n",
         options,
       );
       const code: FormatFailureCode | undefined = detailed.failure?.code;
+      const browserOptions: BrowserFormatOptions = {
+        // @ts-expect-error The removed option must not be accepted by the browser entry.
+        ${removed.option}: true,
+      };
+      // @ts-expect-error The browser detailed result must expose only unified diagnostics.
+      detailed.${removed.diagnostics};
+      // @ts-expect-error The removed rule must not be present in public metadata.
+      ruleLevels.${removed.rule};
       const level = ruleLevels.tables;
-      void [compact, detailed, code, level];
+      void [compact, detailed, code, level, browserOptions];
+    `,
+  );
+  await writeFile(
+    join(consumerRoot, "node-consumer.ts"),
+    `
+      import { ruleLevels } from "wikitext-fmt";
+      import type {
+        FormatOptions,
+        FormatDetailedResult,
+      } from "wikitext-fmt";
+      // @ts-expect-error The removed type must not be exported by the root entry.
+      import type { ${removed.diagnostics} as RemovedTemplateDiagnostics } from "wikitext-fmt";
+
+      const options: FormatOptions = {
+        // @ts-expect-error The removed option must not be accepted by the root entry.
+        ${removed.option}: true,
+      };
+      declare const detailed: FormatDetailedResult;
+      // @ts-expect-error The root detailed result must expose only unified diagnostics.
+      detailed.${removed.diagnostics};
+      // @ts-expect-error The removed rule must not be present in public metadata.
+      ruleLevels.${removed.rule};
+      void options;
     `,
   );
   await writeFile(
@@ -141,10 +179,33 @@ async function writeConsumerFixtures(consumerRoot) {
     )}\n`,
   );
   await writeFile(
+    join(consumerRoot, "tsconfig.node.json"),
+    `${JSON.stringify(
+      {
+        compilerOptions: {
+          lib: ["ESNext"],
+          module: "NodeNext",
+          moduleResolution: "NodeNext",
+          noEmit: true,
+          skipLibCheck: true,
+          strict: true,
+          target: "ES2022",
+          typeRoots: [join(repositoryRoot, "node_modules/@types")],
+          types: ["node"],
+        },
+        files: ["node-consumer.ts"],
+      },
+      null,
+      2,
+    )}\n`,
+  );
+  await writeFile(
     join(consumerRoot, "api-check.mjs"),
     `
       import * as browser from "wikitext-fmt/browser";
       import * as node from "wikitext-fmt";
+      const removedDiagnostics = ["templateParameter", "Diagnostics"].join("");
+      const removedRule = ["template", "Parameters"].join("");
       for (const name of [
         "formatWikitextSafe",
         "formatWikitextSafeDetailed",
@@ -171,6 +232,15 @@ async function writeConsumerFixtures(consumerRoot) {
       }
       if (typeof node.verifyStructuralEquivalence !== "function") {
         throw new Error("Node package root did not expose structural equivalence");
+      }
+      for (const formatter of [browser, node]) {
+        const detailed = formatter.formatWikitextSafeDetailed("{{T|a=1|b=2}}\\n");
+        if (!("templateDiagnostics" in detailed) || removedDiagnostics in detailed) {
+          throw new Error("Detailed result did not expose only unified template diagnostics");
+        }
+        if (removedRule in formatter.ruleLevels) {
+          throw new Error("Removed template rule leaked through public metadata");
+        }
       }
     `,
   );
@@ -210,6 +280,9 @@ async function validateInstalledPackage(consumerRoot) {
     cwd: consumerRoot,
   });
   run(process.execPath, [typescriptCli, "-p", "tsconfig.json"], {
+    cwd: consumerRoot,
+  });
+  run(process.execPath, [typescriptCli, "-p", "tsconfig.node.json"], {
     cwd: consumerRoot,
   });
   const declarationFiles = run(

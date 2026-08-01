@@ -3,46 +3,42 @@ import { describe, expect, it } from "vitest";
 import { formatWikitext, formatWikitextSafeDetailed } from "../src/index.js";
 
 describe("rule interaction hardening", () => {
-  it("combines template parameter formatting with section spacing", () => {
+  it("combines template formatting with section spacing", () => {
     const input = "Intro\n==Box==\n{{Infobox\n| name=value\n}}\n";
     expect(
       formatWikitext(input, {
         level: "experimental",
-        formatTemplateParameters: true,
         formatSectionSpacing: true,
       }),
     ).toBe("Intro\n\n== Box ==\n{{Infobox\n| name = value\n}}\n");
   });
 
-  it("combines template parameter formatting with file links", () => {
+  it("combines template formatting with file links", () => {
     const input =
       "{{Infobox\n| name=value\n}}\n[[ファイル:A.png|サムネイル|右]]\n";
     expect(
       formatWikitext(input, {
         level: "experimental",
-        formatTemplateParameters: true,
         localizedSyntaxStyle: "canonical-english",
       }),
     ).toBe("{{Infobox\n| name = value\n}}\n[[File:A.png|thumb|right]]\n");
   });
 
-  it("combines template parameter formatting with category footer movement", () => {
+  it("combines template formatting with category footer movement", () => {
     const input = "[[Category:A]]\n{{Infobox\n| name=value\n}}\nBody\n";
     expect(
       formatWikitext(input, {
         level: "experimental",
-        formatTemplateParameters: true,
       }),
     ).toBe("{{Infobox\n| name = value\n}}\nBody\n\n[[Category:A]]\n");
   });
 
-  it("combines template parameter formatting with table preservation", () => {
+  it("combines template formatting with table preservation", () => {
     const input =
       '{{Infobox\n| name=value\n}}\n{| class="wikitable"\n! A !! B   \n|}\n';
     expect(
       formatWikitext(input, {
         level: "experimental",
-        formatTemplateParameters: true,
         tableCellSeparatorStyle: "preserve",
       }),
     ).toBe(
@@ -50,26 +46,24 @@ describe("rule interaction hardening", () => {
     );
   });
 
-  it("combines template parameter formatting with protected block preservation", () => {
+  it("combines template formatting with protected block preservation", () => {
     const input =
       "<nowiki>{{Infobox\n| name=value\n}}</nowiki>\n{{Infobox\n| name=value\n}}\n";
     expect(
       formatWikitext(input, {
         level: "experimental",
-        formatTemplateParameters: true,
       }),
     ).toBe(
       "<nowiki>{{Infobox\n| name=value\n}}</nowiki>\n{{Infobox\n| name = value\n}}\n",
     );
   });
 
-  it("combines template parameters with canonical localization", () => {
+  it("combines template formatting with canonical localization", () => {
     const input =
       "{{Infobox\n| 名称=テスト\n}}\n[[ファイル:A.png|サムネイル|右]]\n[[分類:例]]\n";
     expect(
       formatWikitext(input, {
         level: "experimental",
-        formatTemplateParameters: true,
         localizedSyntaxStyle: "canonical-english",
       }),
     ).toBe(
@@ -106,11 +100,10 @@ describe("rule interaction hardening", () => {
     ).toBe("<references />\nBody\n\n[[Category:A]]\n");
   });
 
-  it("combines reference formatting with template parameter formatting", () => {
+  it("combines reference formatting with template formatting", () => {
     expect(
       formatWikitext('{{Infobox\n| name=value\n}}\n<ref name="x"/>\n', {
         level: "experimental",
-        formatTemplateParameters: true,
         formatReferences: true,
       }),
     ).toBe('{{Infobox\n| name = value\n}}\n<ref name="x" />\n');
@@ -177,7 +170,6 @@ describe("rule interaction hardening", () => {
 
     const result = formatWikitextSafeDetailed(input, {
       level: "experimental",
-      formatTemplateParameters: true,
       formatSectionSpacing: true,
       formatReferences: true,
       formatExternalLinks: true,

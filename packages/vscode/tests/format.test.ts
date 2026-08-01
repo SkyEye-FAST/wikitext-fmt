@@ -129,23 +129,19 @@ function detailedResult(
       sectionSpacingBeforeHeadingsInserted: 0,
       sectionSpacingAfterHeadingsInserted: 0,
     },
-    templateParameterDiagnostics: {
+    templateDiagnostics: {
       templatesInspected: 0,
       templatesEligible: 0,
       templatesChanged: 0,
       templatesAlreadyCanonical: 0,
       templatesSkippedAmbiguous: 0,
       uniqueTemplatesFormatted: 0,
-      templatesFormatted: 0,
       templatesExpandedToMultiline: 0,
       existingMultilineTemplatesNormalized: 0,
       templatesSkipped: 0,
       skipReasons: {},
       formattingPassesUsed: 0,
       convergenceLimitReached: false,
-      templateParametersFormatted: 0,
-      templateParameterLinesFormatted: 0,
-      templateParameterLinesSkippedUnsafe: 0,
       templateSemanticIds: [],
       changedTemplateSemanticIds: [],
     },
@@ -273,24 +269,8 @@ describe("VS Code formatter option parity", () => {
     for (const name of configFileOnlyOptionNames) {
       expect(properties[`wikitextFmt.${name}`]).toBeUndefined();
     }
-    const deprecated = properties["wikitextFmt.formatTemplateParameters"];
-    const deprecationMsg = deprecated.deprecationMessage ?? deprecated.markdownDeprecationMessage ?? "";
-    // When a %key% placeholder is used, resolve it against the English nls catalog.
-    const nlsMatch = /^%(.+)%$/u.exec(deprecationMsg);
-    if (nlsMatch) {
-      const nls = JSON.parse(
-        await readFile(new URL("../package.nls.json", import.meta.url), "utf8"),
-      ) as Record<string, string>;
-      const resolved = nls[nlsMatch[1]];
-      expect(resolved).toBeDefined();
-      expect(resolved).toMatch(
-        /formatTemplates.*templateParameterLayout.*inlineTemplateSpacing/u,
-      );
-    } else {
-      expect(deprecationMsg).toMatch(
-        /formatTemplates.*templateParameterLayout.*inlineTemplateSpacing/u,
-      );
-    }
+    const removedSetting = `wikitextFmt.${["formatTemplate", "Parameters"].join("")}`;
+    expect(properties[removedSetting]).toBeUndefined();
 
     const commandIds = packageJson.contributes.commands.map(
       ({ command }) => command,

@@ -21,8 +21,6 @@
   "configuration.formatReferences.description": "启用引用格式化（实验性）。",
   "configuration.formatSectionSpacing.description": "启用章节间距格式化（实验性）。",
   "configuration.formatTables.description": "启用表格格式化（解析器辅助，标准级别）。",
-  "configuration.formatTemplateParameters.deprecationMessage": "统一模板引擎的兼容性入口。请改用 wikitextFmt.formatTemplates、wikitextFmt.templateParameterLayout 和 wikitextFmt.inlineTemplateSpacing。",
-  "configuration.formatTemplateParameters.description": "统一模板引擎的兼容别名（已弃用）。",
   "configuration.formatTemplates.description": "启用统一的模板格式化器（解析器辅助）。",
   "configuration.formatWikilinks.description": "将解析器确认的内部链接目标中的下划线规范化为空格。",
   "configuration.htmlVoidTagStyle.description": "HTML 空元素标签风格。",

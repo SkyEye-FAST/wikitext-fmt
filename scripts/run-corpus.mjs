@@ -314,10 +314,9 @@ async function main() {
     templatesInspected: 0,
     templatesEligible: 0,
     templatesChanged: 0,
-    templatesFormatted: 0,
+    uniqueTemplatesFormatted: 0,
     templatesAlreadyCanonical: 0,
     templatesSkippedAmbiguous: 0,
-    uniqueTemplatesFormatted: 0,
     templateCoveragePercentage: null,
     wikilinksInspected: 0,
     wikilinksEligible: 0,
@@ -452,14 +451,13 @@ async function main() {
       });
     }
 
-    const templates = result.templateParameterDiagnostics;
+    const templates = result.templateDiagnostics;
     report.templatesInspected += templates.templatesInspected;
     report.templatesEligible += templates.templatesEligible;
     report.templatesChanged += templates.templatesChanged;
-    report.templatesFormatted += templates.uniqueTemplatesFormatted;
+    report.uniqueTemplatesFormatted += templates.uniqueTemplatesFormatted;
     report.templatesAlreadyCanonical += templates.templatesAlreadyCanonical;
     report.templatesSkippedAmbiguous += templates.templatesSkippedAmbiguous;
-    report.uniqueTemplatesFormatted += templates.uniqueTemplatesFormatted;
     const wikilinks = result.wikilinkDiagnostics;
     report.wikilinksInspected += wikilinks.wikilinksInspected;
     report.wikilinksEligible += wikilinks.wikilinksEligible;

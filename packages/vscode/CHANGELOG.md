@@ -5,6 +5,12 @@ Core-only changes remain in the root changelog.
 
 ## Unreleased
 
+### Removed
+
+- Removed the deprecated VS Code template-parameter compatibility setting. Use
+  `wikitextFmt.formatTemplates` with the template spacing, layout, and line-width
+  settings instead.
+
 ### Added
 
 - Localized all VS Code UI text to English, Simplified Chinese (zh-cn), and
