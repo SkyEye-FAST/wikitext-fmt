@@ -159,7 +159,7 @@ describe("package.nls localization", () => {
     // Brand stays English.
     expect(zhCn.displayName).toBe("Wikitext Formatter");
     expect(zhCn["command.formatDocument.title"]).toContain("格式化文档");
-    expect(zhCn["command.showResolvedConfiguration.title"]).toContain("解析后的配置");
+    expect(zhCn["command.showResolvedConfiguration.title"]).toContain("最终生效的配置");
     expect(zhCn["configuration.title"]).toBe("Wikitext Formatter");
     expect(zhCn["configuration.lineWidth.description"]).toContain("行宽");
   });
@@ -170,7 +170,7 @@ describe("package.nls localization", () => {
     // Brand stays English.
     expect(zhTw.displayName).toBe("Wikitext Formatter");
     expect(zhTw["command.formatDocument.title"]).toContain("格式化檔案");
-    expect(zhTw["command.showResolvedConfiguration.title"]).toContain("解析後的設定");
+    expect(zhTw["command.showResolvedConfiguration.title"]).toContain("最終生效的設定");
     expect(zhTw["configuration.title"]).toBe("Wikitext Formatter");
     expect(zhTw["configuration.lineWidth.description"]).toContain("行寬");
   });
