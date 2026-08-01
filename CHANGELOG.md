@@ -6,6 +6,8 @@ here. The project follows the pre-1.0 policy in
 
 ## Unreleased
 
+## 0.7.0 - 2026-08-02
+
 ### Fixed
 
 - Normalized parser-confirmed table captions plus opener and row attribute
@@ -17,13 +19,12 @@ here. The project follows the pre-1.0 policy in
 ### Removed
 
 - Removed `formatTemplateParameters`, its template-parameter CLI flags, and the
-  `templateParameters` rule metadata. Template formatting is now controlled only
-  by `formatTemplates`, `inlineTemplateSpacing`, `templateParameterLayout`, and
-  `lineWidth`.
+  `templateParameters` rule metadata. This is a breaking pre-1.0 change;
+  template formatting is now controlled only by `formatTemplates`,
+  `inlineTemplateSpacing`, `templateParameterLayout`, and `lineWidth`.
 - Removed `TemplateParameterDiagnostics`, legacy template counters, and the
   standalone template-parameter compatibility wrapper. Detailed results now use
   `templateDiagnostics` instead of `templateParameterDiagnostics`.
-- Removed the VS Code `wikitextFmt.formatTemplateParameters` setting.
 
 ## 0.6.0 - 2026-08-01
 
