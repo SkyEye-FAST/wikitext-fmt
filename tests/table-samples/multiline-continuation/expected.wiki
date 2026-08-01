@@ -1,5 +1,5 @@
 {| class="wikitable"
-! Item 
+! Item
 ! Notes
 |-
 | Alpha
@@ -7,6 +7,6 @@ First observation line
 
 Second observation line
 |-
-| Beta 
+| Beta
 | Complete
 |}

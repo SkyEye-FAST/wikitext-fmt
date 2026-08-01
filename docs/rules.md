@@ -480,10 +480,63 @@ global spelling replacement. There is no dedicated diagnostic object.
 
 ## Tables
 
-The table engine uses parser table and cell syntax nodes, deepest first, with a
-maximum of 64 passes. A narrow balanced fallback handles parser-confirmed
-tables hidden by template-stage order or parser disagreement around separators
-inside link labels.
+The table engine uses parser-owned table, row, caption, and cell source ranges,
+deepest first, with a maximum of 64 passes. A narrow balanced fallback handles
+parser-confirmed tables hidden by template-stage order or parser disagreement
+around separators inside link labels. If a required range or separator boundary
+is unstable, that table remains original rather than receiving a partial rewrite.
+
+The audited syntax surfaces are:
+
+| Surface | Parser representation | Canonical layout |
+| --- | --- | --- |
+| opener | `table-syntax` `{|` + `table-attrs` | `{|` or `{| attrs` |
+| explicit row | `tr` `table-syntax` `|-` + `table-attrs` | `|-` or `|- attrs` |
+| caption | `td` subtype `caption` | `|+ Caption`, or `|+ attrs | Caption` |
+| standalone data/header cell | `td` subtype `td`/`th` | `| Cell` / `! Header` |
+| inline separator | parser-confirmed `||` / `!!` | split in `auto`/`split`; retained in `preserve` |
+| closer and continuation lines | table syntax / ordinary content | unchanged |
+
+The engine does not invent closer or continuation-line formatting, and it skips
+an outer cell or caption whose content contains a nested table.
+
+Table and row attributes use one ASCII space after the marker when a parser
+confirmed attribute node is present:
+
+```wikitext
+{|class="wikitable"
+|-class="row"
+```
+
+becomes:
+
+```wikitext
+{| class="wikitable"
+|- class="row"
+```
+
+Attribute spelling, quoting, order, values, and any additional whitespace are
+preserved byte-for-byte. Attribute-free or whitespace-only marker regions do
+not gain a space.
+
+Captions use the same parser-confirmed layout model as cells:
+
+```wikitext
+|+Caption
+|+style="text-align:center"|Caption
+```
+
+becomes:
+
+```wikitext
+|+ Caption
+|+ style="text-align:center" | Caption
+```
+
+An empty caption remains `|+`; a lone layout space after it is removed. Caption
+comments, links, templates, HTML, and multiline content are retained exactly
+apart from the one marker-adjacent ASCII space. Non-ASCII whitespace is content
+and is never normalized.
 
 `auto` and `split` split parser-confirmed multi-cell `||`/`!!` rows:
 
@@ -496,6 +549,23 @@ becomes:
 ```wikitext
 | A
 | B
+```
+
+One ASCII space immediately before a confirmed inline separator is separator
+layout and is included in the replacement, so splitting does not create a
+trailing space. One space immediately after the separator becomes the normal
+space after the new marker. Additional whitespace remains content; in the
+following illustration, `·` denotes a literal ASCII space:
+
+```wikitext
+|··A··||··B··
+```
+
+becomes:
+
+```wikitext
+|··A·
+|··B··
 ```
 
 In one-cell-per-line layout, non-empty data and header cells use one layout
@@ -516,18 +586,21 @@ attribute/content separator:
 ```
 
 Quoting, attribute order and values, and cell content are otherwise preserved.
-Only the first parser-confirmed layout space is syntax; additional leading or
-attribute-boundary whitespace remains structurally significant.
+Only the first parser-confirmed ASCII layout space is syntax; additional
+leading, trailing, and attribute-boundary whitespace remains structurally
+significant.
 
-`preserve` leaves inline layout unchanged. Nested tables, tables in template
-text, captions, attributes, continuation lines, comments, links, HTML,
-extensions, refs, templates, parser functions, and multiline cell contents are
-handled as parser-confirmed or protected opaque content.
+`preserve` preserves whether `||` and `!!` are inline; it does not disable safe
+opener, row, caption, or standalone-cell marker layout normalization. Nested
+tables, tables in template text, comments, links, HTML, extensions, refs,
+templates, parser functions, and multiline cell contents are handled as
+parser-confirmed or protected opaque content.
 
-Semantic cell contents and whitespace beyond the single layout space,
-row/cell type, attributes, order, and nesting are fingerprinted. Rows, cells,
-and columns are never reordered or padded for alignment. Unbalanced or
-ambiguous candidates remain original.
+The structural fingerprint ignores only parser-confirmed canonical layout space
+for table/row/caption/cell attribute boundaries, caption/cell marker content,
+and confirmed separator-adjacent space. Semantic content, extra or non-ASCII
+whitespace, row/cell type, attributes, order, and nesting remain fingerprinted.
+Rows, cells, and columns are never reordered or padded for alignment.
 
 Diagnostics provide per-table line, nesting, separator policy and reason,
 changed/ambiguous state, parser fallback, line outcomes, skip reason, and

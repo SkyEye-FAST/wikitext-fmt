@@ -79,7 +79,7 @@ describe("formatter API", () => {
 
   it("enables aggressive tables by default and supports an explicit opt-out", () => {
     const input = '{| class="wikitable"\n! A !! B\n|}\n';
-    expect(formatWikitext(input)).toBe('{| class="wikitable"\n! A \n! B\n|}\n');
+    expect(formatWikitext(input)).toBe('{| class="wikitable"\n! A\n! B\n|}\n');
     expect(formatWikitext(input, { formatTables: false })).toBe(input);
   });
 
@@ -117,7 +117,7 @@ describe("formatter API", () => {
     const input = '  {| class="wikitable"\n| A || B\n|}\n';
     expect(
       formatWikitext(input, { formatTables: true, level: "experimental" }),
-    ).toBe('  {| class="wikitable"\n| A \n| B\n|}\n');
+    ).toBe('  {| class="wikitable"\n| A\n| B\n|}\n');
   });
 
   it("preserves HTML void tag syntax in preserve mode", () => {

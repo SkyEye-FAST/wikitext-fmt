@@ -45,6 +45,25 @@ function expectProductionTable(
   return once;
 }
 
+function expectProductionTableOutput(
+  input: string,
+  expected: string,
+  options: FormatOptions = production,
+): ReturnType<typeof formatWikitextSafeDetailed> {
+  expect(() => parseWikitext(input, config)).not.toThrow();
+  const once = formatWikitextSafeDetailed(input, options);
+  expect(once.warning).toBeUndefined();
+  expect(once.formatted).toBe(expected);
+  expect(() => parseWikitext(once.formatted, config)).not.toThrow();
+  expect(tableStructuralFingerprint(once.formatted, config)).toBe(
+    tableStructuralFingerprint(input, config),
+  );
+  const twice = formatWikitextSafeDetailed(once.formatted, options);
+  expect(twice.warning).toBeUndefined();
+  expect(twice.formatted).toBe(expected);
+  return once;
+}
+
 describe("production parser table formatter", () => {
   it.each([
     ["simple two-column data row", "{|\n| A || B\n|}"],
@@ -117,11 +136,105 @@ describe("production parser table formatter", () => {
     );
   });
 
+  it.each([
+    [
+      "plain caption",
+      "{|\n|+Caption\n| A\n|}\n",
+      "{|\n|+ Caption\n| A\n|}\n",
+    ],
+    [
+      "already canonical caption",
+      "{|\n|+ Caption\n| A\n|}\n",
+      "{|\n|+ Caption\n| A\n|}\n",
+    ],
+    ["empty caption", "{|\n|+\n| A\n|}\n", "{|\n|+\n| A\n|}\n"],
+    [
+      "lone layout space in an empty caption",
+      "{|\n|+ \n| A\n|}\n",
+      "{|\n|+\n| A\n|}\n",
+    ],
+    [
+      "caption attributes and content delimiter",
+      '{|\n|+style="text-align:center"|Caption\n| A\n|}\n',
+      '{|\n|+ style="text-align:center" | Caption\n| A\n|}\n',
+    ],
+    [
+      "caption link content",
+      "{|\n|+ class=\"caption\" | [[Page|Caption]]\n| A\n|}\n",
+      "{|\n|+ class=\"caption\" | [[Page|Caption]]\n| A\n|}\n",
+    ],
+    [
+      "caption template content",
+      "{|\n|+{{Caption|x=1}}\n| A\n|}\n",
+      "{|\n|+ {{Caption|x=1}}\n| A\n|}\n",
+    ],
+    [
+      "caption comment content",
+      "{|\n|+<!--keep-->Caption\n| A\n|}\n",
+      "{|\n|+ <!--keep-->Caption\n| A\n|}\n",
+    ],
+    [
+      "multiline caption content",
+      "{|\n|+Caption\ncontinued\n| A\n|}\n",
+      "{|\n|+ Caption\ncontinued\n| A\n|}\n",
+    ],
+    [
+      "tab-bearing caption content",
+      "{|\n|+\tCaption\n| A\n|}\n",
+      "{|\n|+ \tCaption\n| A\n|}\n",
+    ],
+    [
+      "additional ASCII caption whitespace",
+      "{|\n|+  Caption\n| A\n|}\n",
+      "{|\n|+  Caption\n| A\n|}\n",
+    ],
+    [
+      "non-breaking space caption content",
+      "{|\n|+\u00a0Caption\n| A\n|}\n",
+      "{|\n|+ \u00a0Caption\n| A\n|}\n",
+    ],
+    [
+      "narrow no-break space caption content",
+      "{|\n|+\u202fCaption\n| A\n|}\n",
+      "{|\n|+ \u202fCaption\n| A\n|}\n",
+    ],
+    [
+      "ideographic-space caption content",
+      "{|\n|+\u3000Caption\n| A\n|}\n",
+      "{|\n|+ \u3000Caption\n| A\n|}\n",
+    ],
+  ])("normalizes %s", (_name, input, expected) => {
+    expectProductionTableOutput(input, expected);
+  });
+
+  it("normalizes table opener and explicit-row attribute prefixes", () => {
+    const result = expectProductionTableOutput(
+      '{|class="wikitable"\n|-class="row"\n| A\n|}\n',
+      '{| class="wikitable"\n|- class="row"\n| A\n|}\n',
+    );
+    expect(result.tableDiagnostics).toContainEqual(
+      expect.objectContaining({
+        changed: true,
+        lineDiagnostics: expect.arrayContaining([
+          expect.objectContaining({
+            tableLine: 1,
+            reason: "normalized table opener attribute layout",
+          }),
+          expect.objectContaining({
+            tableLine: 2,
+            reason: "normalized table row attribute layout",
+          }),
+        ]),
+      }),
+    );
+  });
+
   it("adds canonical spacing while splitting inline cells", () => {
     const result = expectProductionTable("{|\n|-\n|A||B\n!C!!D\n|}\n");
     expect(result.formatted).toBe(
       "{|\n|-\n| A\n| B\n! C\n! D\n|}\n",
     );
+    expect(result.formatted).not.toMatch(/[ \t]+$/mu);
   });
 
   it("composes cell layout and separator replacements at their shared boundary", () => {
@@ -169,6 +282,13 @@ describe("production parser table formatter", () => {
     const result = formatWikitextSafeDetailed(input, production);
     expect(result.warning).toBeUndefined();
     expect(result.formatted).toBe(input);
+  });
+
+  it("leaves an outer caption containing a nested table untouched", () => {
+    const result = expectProductionTable(
+      "{|\n|+\n{|\n|+Caption\n|}\n|}\n",
+    );
+    expect(result.formatted).toBe("{|\n|+\n{|\n|+ Caption\n|}\n|}\n");
   });
 
   it("preserves intentional leading whitespace after the layout space", () => {
@@ -241,8 +361,9 @@ describe("production parser table formatter", () => {
       expect.objectContaining({
         changed: true,
         ambiguous: false,
-        reason:
+        reason: expect.stringContaining(
           "parser cell tokenization disagreed with balanced link-aware separators; used documented top-level fallback",
+        ),
       }),
     );
   });
@@ -271,27 +392,33 @@ describe("production parser table formatter", () => {
     });
   });
 
-  it("preserves inline separators when explicitly requested", () => {
-    const input = "{|\n! A !! B\n|-\n| C || D\n|}\n";
-    const result = formatWikitextSafeDetailed(input, {
+  it("preserves inline separators while normalizing other table layout", () => {
+    const input = '{|class="wikitable"\n|-class="row"\n|+Caption\n|A||B\n|}\n';
+    const result = expectProductionTableOutput(input, '{| class="wikitable"\n|- class="row"\n|+ Caption\n| A||B\n|}\n', {
       profile: "production",
       tableCellSeparatorStyle: "preserve",
     });
-    expect(result.warning).toBeUndefined();
-    expect(result.formatted).toBe(input);
+    expect(result.formatted).toContain("| A||B");
     expect(result.tableFormatDiagnostics).toMatchObject({
       tablesInspected: 1,
       tablesEligible: 1,
-      tablesChanged: 0,
-      tablesAlreadyCanonical: 1,
+      tablesChanged: 1,
+      tablesAlreadyCanonical: 0,
       tablesSkippedAmbiguous: 0,
     });
+    expect(result.tableDiagnostics).toContainEqual(
+      expect.objectContaining({
+        separatorStyle: "preserve",
+        separatorStyleReason: "explicit preserve option",
+        reason: expect.stringContaining("normalized table caption layout"),
+      }),
+    );
   });
 
-  it("preserves cell whitespace while replacing only separator syntax", () => {
+  it("removes only separator-adjacent layout whitespace while splitting", () => {
     const input = "{|\n|  A  ||  B  \n|}\n";
     const result = expectProductionTable(input);
-    expect(result.formatted).toContain("|  A  \n|  B  ");
+    expect(result.formatted).toBe("{|\n|  A \n|  B  \n|}\n");
   });
 
   it("keeps inline separators when a split would create row syntax", () => {
@@ -326,7 +453,7 @@ describe("production parser table formatter", () => {
       session.createContext(source),
       resolveOptions({ profile: "production" }),
     );
-    expect(result.formatted).toBe("{|\n| A \n| B\n|}\n");
+    expect(result.formatted).toBe("{|\n| A\n| B\n|}\n");
   });
 
   it("maps production diagnostics across protected blocks", () => {

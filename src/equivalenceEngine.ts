@@ -15,6 +15,7 @@ import { formatReferences } from "./rules/references.js";
 import { formatSectionSpacing } from "./rules/sectionSpacing.js";
 import {
   collectParserTableCandidates,
+  confirmedTableInlineSeparatorLayout,
   type ParserTableNode,
 } from "./rules/tables.js";
 import {
@@ -490,7 +491,32 @@ function removeTableCellLayoutPrefix(
   return normalized ? [normalized, ...rest] : rest;
 }
 
-function removeTableAttributeLayoutSpaces(attributes: string): string {
+function removeTableCellSeparatorLayoutSuffix(
+  content: string | TableContentPart[],
+): string | TableContentPart[] {
+  if (typeof content === "string") {
+    return content.endsWith(" ") ? content.slice(0, -1) : content;
+  }
+  const last = content.at(-1);
+  if (typeof last !== "string" || !last.endsWith(" ")) return content;
+  const normalized = last.slice(0, -1);
+  return normalized
+    ? [...content.slice(0, -1), normalized]
+    : content.slice(0, -1);
+}
+
+function hasParserConfirmedTableAttributes(
+  node: ParserTableNode | undefined,
+): boolean {
+  return (
+    node?.type === "table-attrs" &&
+    node.childNodes.some((child) => child.type === "table-attr")
+  );
+}
+
+function removeTableCellAttributeLayoutSpaces(
+  attributes: string,
+): string {
   const withoutLeading = attributes.startsWith(" ")
     ? attributes.slice(1)
     : attributes;
@@ -499,19 +525,29 @@ function removeTableAttributeLayoutSpaces(attributes: string): string {
     : withoutLeading;
 }
 
+function removeTableLineAttributeLayoutSpace(
+  attributes: string,
+): string {
+  return attributes.startsWith(" ") ? attributes.slice(1) : attributes;
+}
+
 function cellFingerprint(
   cell: ParserTableNode & { subtype?: string },
   owner: ParserTableNode,
+  hasSeparatorLayoutSuffix: boolean,
 ): TableCellFingerprint {
-  const layoutAware = cell.subtype !== "caption";
+  const attributeNode = cell.childNodes[1];
+  let content = semanticTableCellContent(cell, owner);
+  if (hasSeparatorLayoutSuffix) {
+    content = removeTableCellSeparatorLayoutSuffix(content);
+  }
   return {
     subtype: cell.subtype ?? "td",
-    attributes: layoutAware
-      ? removeTableAttributeLayoutSpaces(cell.childNodes[1]?.toString() ?? "")
-      : (cell.childNodes[1]?.toString() ?? ""),
-    content: layoutAware
-      ? removeTableCellLayoutPrefix(semanticTableCellContent(cell, owner))
-      : semanticTableCellContent(cell, owner),
+    attributes:
+      attributeNode && hasParserConfirmedTableAttributes(attributeNode)
+        ? removeTableCellAttributeLayoutSpaces(attributeNode.toString())
+        : (attributeNode?.toString() ?? ""),
+    content: removeTableCellLayoutPrefix(content),
   };
 }
 
@@ -528,28 +564,45 @@ function directCells(
 function tableNodeFingerprint(
   table: ParserTableNode,
 ): Omit<TableFingerprint, "parent"> {
+  const raw = table.toString();
+  const separatorLayout = confirmedTableInlineSeparatorLayout(table);
+  const separatorPositions = new Set(separatorLayout.separatorPositions);
+  const hasSeparatorLayoutSuffix = (cell: ParserTableNode): boolean => {
+    const end = separatorLayout.cellEnds.get(cell);
+    return end !== undefined && separatorPositions.has(end) && raw[end - 1] === " ";
+  };
+  const fingerprintCell = (
+    cell: ParserTableNode & { subtype?: string },
+  ): TableCellFingerprint =>
+    cellFingerprint(cell, table, hasSeparatorLayoutSuffix(cell));
   const direct = directCells(table, table);
   const captions = direct
     .filter((cell) => cell.subtype === "caption")
-    .map((cell) => cellFingerprint(cell, table));
+    .map(fingerprintCell);
   const rows: TableFingerprint["rows"] = [];
   const implicit = direct.filter((cell) => cell.subtype !== "caption");
   if (implicit.length > 0) {
     rows.push({
       attributes: "",
-      cells: implicit.map((cell) => cellFingerprint(cell, table)),
+      cells: implicit.map(fingerprintCell),
     });
   }
   for (const row of table.childNodes.filter((node) => node.type === "tr")) {
+    const attributeNode = row.childNodes[1];
     rows.push({
-      attributes: row.childNodes[1]?.toString() ?? "",
-      cells: directCells(row, table).map((cell) =>
-        cellFingerprint(cell, table),
-      ),
+      attributes:
+        attributeNode && hasParserConfirmedTableAttributes(attributeNode)
+          ? removeTableLineAttributeLayoutSpace(attributeNode.toString())
+          : (attributeNode?.toString() ?? ""),
+      cells: directCells(row, table).map(fingerprintCell),
     });
   }
+  const attributeNode = table.childNodes[1];
   return {
-    attributes: table.childNodes[1]?.toString() ?? "",
+    attributes:
+      attributeNode && hasParserConfirmedTableAttributes(attributeNode)
+        ? removeTableLineAttributeLayoutSpace(attributeNode.toString())
+        : (attributeNode?.toString() ?? ""),
     captions,
     rows,
   };

@@ -64,7 +64,7 @@ preset.
 | `localizedSyntaxStyle` | `preserve` \| `canonical-english` | `preserve` | — | `--localized-syntax-style` | unchanged | Preserve recognized spelling or canonicalize certain keywords |
 | `localizationAliases` | object | `{}` | — | config/API only | unchanged | Custom or preloaded site aliases |
 | `formatTables` | boolean | `true` | normal | `--format-tables`, `--no-format-tables` | production/aggressive: `true` | Run parser-assisted table layout |
-| `tableCellSeparatorStyle` | `auto` \| `split` \| `preserve` | `auto` | — | `--table-cell-separator-style` | production/aggressive: `auto` | Choose inline cell-separator layout |
+| `tableCellSeparatorStyle` | `auto` \| `split` \| `preserve` | `auto` | — | `--table-cell-separator-style` | production/aggressive: `auto` | Split inline `\|\|`/`!!`, or retain only those separators while still normalizing other safe table layout |
 | `normalizeBlankLines` | boolean | `true` | safe | `--no-normalize-blank-lines` | unchanged | Collapse 3+ blank lines to 2 |
 | `level` | `safe` \| `normal` \| `experimental` | `normal` | — | `--level` | production: `normal`; aggressive: `experimental` | Maximum cumulative rule reliability |
 | `htmlVoidTagStyle` | `html5` \| `xhtml` \| `preserve` | `html5` | safe | `--html-void-tag-style` | unchanged | Spell simple `br`/`hr`/`wbr` tags |

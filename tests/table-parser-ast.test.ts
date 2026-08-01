@@ -61,6 +61,50 @@ describe("wikiparser-node table AST capabilities", () => {
     );
   });
 
+  it("distinguishes parser-owned layouts for openers, rows, captions, and cells", () => {
+    const root = Parser.parse(
+      '{|class="wikitable"\n|-class="row"\n|+style="x"|Caption\n|Cell\n!Header\n|}',
+      false,
+      undefined,
+      config,
+    );
+    const table = root.querySelector("table");
+    expect(table).toBeTruthy();
+    const [opener, openerAttributes, row] = [...(table?.childNodes ?? [])];
+    const [, , caption, data, header] = [...(row?.childNodes ?? [])];
+    expect([opener?.type, opener?.toString(), openerAttributes?.type, openerAttributes?.toString()]).toEqual([
+      "table-syntax",
+      "{|",
+      "table-attrs",
+      'class="wikitable"',
+    ]);
+    expect(
+      row?.childNodes
+        .slice(0, 2)
+        .map((node) => [node.type, node.toString()]),
+    ).toEqual([
+      ["table-syntax", "\n|-"],
+      ["table-attrs", 'class="row"'],
+    ]);
+    expect(caption?.subtype).toBe("caption");
+    expect(caption?.childNodes.map((node) => [node.type, node.toString()])).toEqual([
+      ["table-syntax", "\n|+"],
+      ["table-attrs", 'style="x"'],
+      ["td-inner", "Caption"],
+    ]);
+    expect(data?.childNodes.map((node) => [node.type, node.toString()])).toEqual([
+      ["table-syntax", "\n|"],
+      ["table-attrs", ""],
+      ["td-inner", "Cell"],
+    ]);
+    expect(header?.subtype).toBe("th");
+    expect(header?.childNodes.map((node) => [node.type, node.toString()])).toEqual([
+      ["table-syntax", "\n!"],
+      ["table-attrs", ""],
+      ["td-inner", "Header"],
+    ]);
+  });
+
   it("distinguishes outer table separators from balanced template pipes", () => {
     expect(cellTexts("{|\n| {{Template|a=A || B}} || C\n|}")).toEqual([
       "\n| {{Template|a=A || B}} ",

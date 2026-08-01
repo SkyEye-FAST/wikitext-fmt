@@ -112,7 +112,9 @@ export function createDiagnosticsSummary(
     skippedUnsafeLines: result.tableDiagnostics.reduce(
       (count, diagnostic) =>
         count +
-        (diagnostic.lineDiagnostics?.filter((line) => line.reason).length ?? 0),
+        (diagnostic.lineDiagnostics?.filter(
+          (line) => !line.changed && line.reason,
+        ).length ?? 0),
       0,
     ),
     ...result.footerDiagnostics,

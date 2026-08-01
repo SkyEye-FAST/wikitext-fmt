@@ -11,7 +11,16 @@ const parityCases: ReadonlyArray<
   ["headings", "==Title==\n"],
   ["templates", "{{T|a=1|b=2}}\n"],
   ["template parameters", "{{T| a = 1 | b = 2 }}\n", { profile: "aggressive" }],
-  ["tables", '{| class="wikitable"\n|a||b\n|}\n'],
+  ["tables", '{|class="wikitable"\n|-class="row"\n|+Caption\n| A || B\n|}\n'],
+  [
+    "table caption attributes",
+    '{|\n|+style="text-align:center"|Caption\n| A\n|}\n',
+  ],
+  [
+    "table separator preservation",
+    '{|class="wikitable"\n|-class="row"\n|+Caption\n|A||B\n|}\n',
+    { tableCellSeparatorStyle: "preserve" },
+  ],
   ["lists", "*item\n"],
   ["categories", "Text\n[[Category:Example]]\n"],
   ["wikilinks", "[[Main_Page]]\n"],

@@ -79,7 +79,8 @@ Warnings do not make the CLI fail unless `--fail-on-warning` is selected.
 Detailed results expose structured information for rules that need it:
 
 - tables: inspected/eligible/changed/canonical/ambiguous counts, separator
-  policy, fallback and per-line reasons;
+  policy, parser fallback, and per-line reasons for opener, row, caption, cell,
+  and separator-layout changes;
 - templates (`templateDiagnostics`): structural nodes, candidate layouts, skips,
   convergence, and equivalence;
 - footer metadata: moved/formatted/canonicalized categories, defaultsort,

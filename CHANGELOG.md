@@ -6,6 +6,14 @@ here. The project follows the pre-1.0 policy in
 
 ## Unreleased
 
+### Fixed
+
+- Normalized parser-confirmed table captions plus opener and row attribute
+  spacing, and prevented split inline cell separators from creating trailing
+  whitespace.
+- Made `tableCellSeparatorStyle: "preserve"` retain only `||`/`!!` layout while
+  continuing other safe table marker normalization.
+
 ### Removed
 
 - Removed `formatTemplateParameters`, its template-parameter CLI flags, and the

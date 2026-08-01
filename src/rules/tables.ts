@@ -111,6 +111,57 @@ interface TableSourceReplacement {
   start: number;
   end: number;
   value: string;
+  tableLine: number;
+  reason: string;
+}
+
+interface ConfirmedInlineSeparator {
+  position: number;
+  marker: "!" | "|";
+}
+
+interface ConfirmedInlineSeparators {
+  separators: ConfirmedInlineSeparator[];
+  parserBoundariesReliable: boolean;
+  balanced: boolean;
+  unbalancedLines: number[];
+}
+
+export interface ConfirmedTableInlineSeparatorLayout {
+  separatorPositions: number[];
+  cellEnds: ReadonlyMap<ParserTableNode, number>;
+}
+
+interface TableCellLayoutShape {
+  cellRange: SourceRange;
+  attributes?: {
+    range: SourceRange;
+    value: string;
+  };
+  content: {
+    range: SourceRange;
+    value: string;
+  };
+  isCaption: boolean;
+}
+
+interface TableCellSourceRange {
+  cell: ParserTableNode;
+  cellRange: SourceRange;
+  syntax: {
+    range: SourceRange;
+    value: string;
+  };
+  attributes: {
+    node: ParserTableNode;
+    range: SourceRange;
+    value: string;
+  };
+  content: {
+    node: ParserTableNode;
+    range: SourceRange;
+    value: string;
+  };
 }
 
 function emptySummary(): TableFormatDiagnostics {
@@ -312,14 +363,6 @@ function topLevelAttributeDelimiter(
   return delimiter;
 }
 
-function nearestTable(
-  node: ParserTableNode | undefined,
-): ParserTableNode | undefined {
-  let current = node;
-  while (current && current.type !== "table") current = current.parentNode;
-  return current;
-}
-
 function protectedTableRanges(
   table: ParserTableNode,
   raw: string,
@@ -375,28 +418,6 @@ function positionIsProtected(
   return false;
 }
 
-function lineNumbersAtPositions(
-  source: string,
-  positions: readonly number[],
-): number[] {
-  const lines: number[] = [];
-  let line = 1;
-  let cursor = 0;
-  for (const position of positions) {
-    while (cursor < position) {
-      const newline = source.indexOf("\n", cursor);
-      if (newline < 0 || newline >= position) {
-        cursor = position;
-        break;
-      }
-      line++;
-      cursor = newline + 1;
-    }
-    lines.push(line);
-  }
-  return lines;
-}
-
 function lexicalSeparatorPositions(
   raw: string,
   protectedRanges: readonly SourceRange[],
@@ -446,34 +467,103 @@ function lexicalSeparatorPositions(
 }
 
 function parserSeparators(
-  table: ParserTableNode,
-  raw: string,
+  cells: readonly TableCellSourceRange[],
 ): Array<{ position: number; marker: "!" | "|" }> {
-  let cursor = 0;
   const separators: Array<{ position: number; marker: "!" | "|" }> = [];
-  for (const cell of table
-    .querySelectorAll<ParserTableNode>("td")
-    .filter((cell) => nearestTable(cell.parentNode) === table)) {
-    const cellRaw = cell.toString();
-    const cellStart = raw.indexOf(cellRaw, cursor);
-    if (cellStart < 0) continue;
-    const syntaxRaw = cell.firstChild?.toString();
+  for (const cell of cells) {
+    const syntaxRaw = cell.syntax.value;
     if (syntaxRaw === "!!" || syntaxRaw === "||") {
-      const syntaxStart = cellRaw.indexOf(syntaxRaw);
-      if (syntaxStart >= 0) {
-        separators.push({
-          position: cellStart + syntaxStart,
-          marker: cell.subtype === "th" ? "!" : "|",
-        });
-      }
+      separators.push({
+        position: cell.syntax.range.start,
+        marker: syntaxRaw === "!!" ? "!" : "|",
+      });
     }
-    cursor = cellStart + cellRaw.length;
   }
   return separators;
 }
 
 function arraysEqual(a: readonly number[], b: readonly number[]): boolean {
   return a.length === b.length && a.every((value, index) => value === b[index]);
+}
+
+function directTableCells(table: ParserTableNode): ParserTableNode[] {
+  const cells: ParserTableNode[] = [];
+  for (const child of table.childNodes) {
+    if (child.type === "td") {
+      cells.push(child);
+      continue;
+    }
+    if (child.type === "tr") {
+      cells.push(
+        ...child.childNodes.filter((node) => node.type === "td"),
+      );
+    }
+  }
+  return cells;
+}
+
+function tableCellSourceRanges(
+  table: ParserTableNode,
+  raw: string,
+): TableCellSourceRange[] {
+  const ranges: TableCellSourceRange[] = [];
+  let cursor = 0;
+  for (const cell of directTableCells(table)) {
+    const syntax = cell.childNodes[0];
+    const attributes = cell.childNodes[1];
+    const content = cell.childNodes[2];
+    if (
+      !syntax ||
+      !attributes ||
+      !content ||
+      syntax.type !== "table-syntax" ||
+      attributes.type !== "table-attrs" ||
+      content.type !== "td-inner"
+    ) {
+      continue;
+    }
+    const syntaxValue = syntax.toString();
+    const attributesValue = attributes.toString();
+    const contentValue = content.toString();
+    const sourceValue = `${syntaxValue}${attributesValue}${
+      attributesValue ? "|" : ""
+    }${contentValue}`;
+    const start = raw.indexOf(sourceValue, cursor);
+    if (start < 0) continue;
+    const syntaxRange = { start, end: start + syntaxValue.length };
+    const attributesRange = {
+      start: syntaxRange.end,
+      end: syntaxRange.end + attributesValue.length,
+    };
+    const contentRange = {
+      start: start + sourceValue.length - contentValue.length,
+      end: start + sourceValue.length,
+    };
+    ranges.push({
+      cell,
+      cellRange: { start, end: contentRange.end },
+      syntax: { range: syntaxRange, value: syntaxValue },
+      attributes: {
+        node: attributes,
+        range: attributesRange,
+        value: attributesValue,
+      },
+      content: { node: content, range: contentRange, value: contentValue },
+    });
+    cursor = contentRange.end;
+  }
+  return ranges;
+}
+
+function hasParserConfirmedAttributes(node: ParserTableNode | undefined): boolean {
+  return (
+    node?.type === "table-attrs" &&
+    node.childNodes.some((child) => child.type === "table-attr")
+  );
+}
+
+function tableLineAt(raw: string, position: number): number {
+  return lineNumberAt(raw, position);
 }
 
 function removeLeadingLayoutSpace(value: string): string {
@@ -497,130 +587,197 @@ function renderCellAttributes(attributes: string): string {
   return ` ${withoutLayoutSpaces} `;
 }
 
-function standaloneCellLayoutReplacements(
+function renderLineAttributes(attributes: string): string {
+  return ` ${removeLeadingLayoutSpace(attributes)}`;
+}
+
+function attributePrefixReplacement(
+  syntax: ParserTableNode | undefined,
+  attributes: ParserTableNode | undefined,
+  raw: string,
+  searchStart: number,
+  reason: string,
+): { replacement?: TableSourceReplacement; nextSearchStart: number } {
+  if (!syntax || !attributes || !hasParserConfirmedAttributes(attributes)) {
+    return { nextSearchStart: searchStart };
+  }
+  const syntaxValue = syntax.toString();
+  const attributesValue = attributes.toString();
+  const syntaxStart = raw.indexOf(`${syntaxValue}${attributesValue}`, searchStart);
+  if (syntaxStart < 0) return { nextSearchStart: searchStart };
+  const attributesStart = syntaxStart + syntaxValue.length;
+  const value = renderLineAttributes(attributesValue);
+  const nextSearchStart = attributesStart + attributesValue.length;
+  if (value === attributesValue) return { nextSearchStart };
+  return {
+    replacement: {
+      start: attributesStart,
+      end: nextSearchStart,
+      value,
+      tableLine: tableLineAt(raw, attributesStart),
+      reason,
+    },
+    nextSearchStart,
+  };
+}
+
+function tableOpenerLayoutReplacements(
   table: ParserTableNode,
+  raw: string,
 ): TableSourceReplacement[] {
-  const tableStart = table.getAbsoluteIndex();
+  const { replacement } = attributePrefixReplacement(
+    table.childNodes[0],
+    table.childNodes[1],
+    raw,
+    0,
+    "normalized table opener attribute layout",
+  );
+  return replacement ? [replacement] : [];
+}
+
+function rowLayoutReplacements(
+  table: ParserTableNode,
+  raw: string,
+): TableSourceReplacement[] {
   const replacements: TableSourceReplacement[] = [];
-  for (const cell of table
-    .querySelectorAll<ParserTableNode>("td")
-    .filter((candidate) => nearestTable(candidate.parentNode) === table)) {
-    if (cell.subtype === "caption") continue;
-    const syntax = cell.childNodes[0]?.toString() ?? "";
-    if (!/\n[\t ]*[!|]$/u.test(syntax)) continue;
-    const attributes = cell.childNodes[1]?.toString() ?? "";
-    const contentNode = cell.childNodes[2];
-    if (contentNode?.querySelectorAll<ParserTableNode>("table").length) {
-      continue;
-    }
-    const content = contentNode?.toString() ?? "";
-    const rendered =
-      attributes.length > 0
-        ? `${syntax}${renderCellAttributes(attributes)}|${renderCellContent(content)}`
-        : `${syntax}${renderCellContent(content)}`;
-    const raw = cell.toString();
-    if (rendered === raw) continue;
-    const start = cell.getAbsoluteIndex() - tableStart;
-    replacements.push({ start, end: start + raw.length, value: rendered });
+  let cursor = 0;
+  for (const row of table.childNodes.filter((node) => node.type === "tr")) {
+    const { replacement, nextSearchStart } = attributePrefixReplacement(
+      row.childNodes[0],
+      row.childNodes[1],
+      raw,
+      cursor,
+      "normalized table row attribute layout",
+    );
+    cursor = nextSearchStart;
+    if (replacement) replacements.push(replacement);
   }
   return replacements;
 }
 
-function applyTableSourceReplacements(
-  raw: string,
-  replacements: readonly TableSourceReplacement[],
-): string {
-  const parts: string[] = [];
-  let cursor = 0;
-  for (const replacement of [...replacements].sort(
-    (a, b) => a.start - b.start,
-  )) {
-    if (
-      replacement.start < cursor ||
-      replacement.end < replacement.start ||
-      replacement.end > raw.length
-    ) {
-      return raw;
-    }
-    parts.push(raw.slice(cursor, replacement.start), replacement.value);
-    cursor = replacement.end;
+function hasNestedTable(node: ParserTableNode): boolean {
+  const descendants = [...node.childNodes];
+  for (let index = 0; index < descendants.length; index++) {
+    const descendant = descendants[index]!;
+    if (descendant.type === "table") return true;
+    descendants.push(...descendant.childNodes);
   }
-  parts.push(raw.slice(cursor));
-  return parts.join("");
+  return false;
 }
 
-function analyzeParserTable(
-  source: string,
-  table: ParserTableNode,
-  offset: number,
-  options: ResolvedFormatOptions,
-  confirmedStart?: number,
-): ParserTableAnalysis {
-  const start = confirmedStart ?? table.getAbsoluteIndex() + offset;
-  const raw = table.toString();
-  const end = start + raw.length;
-  const line = lineNumberAt(source, start);
-  const style = options.tableCellSeparatorStyle === "preserve" ? "preserve" : "split";
-  const separatorStyleReason =
-    options.tableCellSeparatorStyle === "preserve"
-      ? "explicit preserve option"
-      : options.tableCellSeparatorStyle === "split"
-        ? "explicit split option"
-        : "aggressive auto splits every parser-confirmed multi-cell row";
-
-  if (style === "preserve") {
-    return {
-      start,
-      end,
-      value: raw,
-      changed: false,
-      eligible: true,
-      diagnostic: {
-        start,
-        end,
-        line,
-        changed: false,
-        ambiguous: false,
-        reason: "inline cell separators explicitly preserved",
-        separatorStyle: style,
-        separatorStyleReason,
-      },
+function tableCellLayoutShape(
+  cell: TableCellSourceRange,
+  raw: string,
+): TableCellLayoutShape | undefined {
+  const syntaxValue = cell.syntax.value;
+  const isCaption = /\|\+$/u.test(syntaxValue);
+  if (
+    isCaption
+      ? !/\n[\t ]*\|\+$/u.test(syntaxValue)
+      : !/\n[\t ]*[!|]$/u.test(syntaxValue)
+  ) {
+    return undefined;
+  }
+  if (hasNestedTable(cell.content.node)) {
+    return undefined;
+  }
+  const shape: TableCellLayoutShape = {
+    cellRange: cell.cellRange,
+    content: {
+      range: cell.content.range,
+      value: cell.content.value,
+    },
+    isCaption,
+  };
+  if (hasParserConfirmedAttributes(cell.attributes.node)) {
+    if (
+      raw.slice(cell.attributes.range.end, cell.content.range.start) !== "|"
+    ) {
+      return undefined;
+    }
+    shape.attributes = {
+      range: cell.attributes.range,
+      value: cell.attributes.value,
     };
   }
+  return shape;
+}
 
-  const parserConfirmed = parserSeparators(table, raw);
+function standaloneCellLayoutReplacements(
+  cells: readonly TableCellSourceRange[],
+  raw: string,
+  cellsBeforeSplitSeparators: ReadonlySet<number>,
+): TableSourceReplacement[] {
+  const replacements: TableSourceReplacement[] = [];
+  for (const cell of cells) {
+    const shape = tableCellLayoutShape(cell, raw);
+    if (!shape || cellsBeforeSplitSeparators.has(shape.cellRange.end)) continue;
+    const reason = shape.isCaption
+      ? "normalized table caption layout"
+      : "normalized standalone table cell layout";
+    if (shape.attributes) {
+      const value = `${renderCellAttributes(shape.attributes.value)}|${renderCellContent(
+        shape.content.value,
+      )}`;
+      const start = shape.attributes.range.start;
+      const end = shape.content.range.end;
+      if (raw.slice(start, end) !== value) {
+        replacements.push({
+          start,
+          end,
+          value,
+          tableLine: tableLineAt(raw, start),
+          reason,
+        });
+      }
+      continue;
+    }
+    const value = renderCellContent(shape.content.value);
+    if (value !== shape.content.value) {
+      replacements.push({
+        start: shape.content.range.start,
+        end: shape.content.range.end,
+        value,
+        tableLine: tableLineAt(raw, shape.content.range.start),
+        reason,
+      });
+    }
+  }
+  return replacements;
+}
+
+function confirmedInlineSeparators(
+  table: ParserTableNode,
+  raw: string,
+  cells = tableCellSourceRanges(table, raw),
+): ConfirmedInlineSeparators {
+  const parserConfirmed = parserSeparators(cells);
   const parserPositions = parserConfirmed.map(({ position }) => position);
-  const lexical = lexicalSeparatorPositions(
-    raw,
-    protectedTableRanges(table, raw),
-  );
-  const parserBoundariesReliable = arraysEqual(
+  // Most ordinary tables have no opaque syntax. Avoid repeatedly walking the
+  // parser subtree for protected ranges when the inexpensive lexical pass
+  // already confirms every parser boundary. A disagreement is the only case
+  // that needs the parser-owned opaque ranges for a fail-closed decision.
+  let lexical = lexicalSeparatorPositions(raw, []);
+  let parserBoundariesReliable = arraysEqual(
     parserPositions,
     lexical.positions,
   );
+  if (!parserBoundariesReliable) {
+    lexical = lexicalSeparatorPositions(
+      raw,
+      protectedTableRanges(table, raw),
+    );
+    parserBoundariesReliable = arraysEqual(
+      parserPositions,
+      lexical.positions,
+    );
+  }
   if (!parserBoundariesReliable && !lexical.balanced) {
     return {
-      start,
-      end,
-      value: raw,
-      changed: false,
-      eligible: false,
-      diagnostic: {
-        start,
-        end,
-        line,
-        changed: false,
-        ambiguous: true,
-        reason:
-          "parser cell tokenization disagreed and the balanced top-level separator fallback could not establish boundaries",
-        separatorStyle: style,
-        separatorStyleReason,
-        lineDiagnostics: lexical.unbalancedLines.map((tableLine) => ({
-          tableLine,
-          changed: false,
-          reason: "top-level table cell fallback did not balance this line",
-        })),
-      },
+      separators: [],
+      parserBoundariesReliable,
+      balanced: false,
+      unbalancedLines: lexical.unbalancedLines,
     };
   }
   const confirmedPositions = parserBoundariesReliable
@@ -650,27 +807,220 @@ function analyzeParserTable(
           (raw[position - 1] === "!" || raw[position + 2] === "!")
         ),
     );
-  const positions = separators.map(({ position }) => position);
-  const layoutReplacements = standaloneCellLayoutReplacements(table);
-  const separatorReplacements = separators.map(({ position, marker }) => ({
-    start: position,
-    end: position + 2,
-    value: `\n${marker}`,
-  }));
-  const value = applyTableSourceReplacements(raw, [
-    ...layoutReplacements,
-    ...separatorReplacements,
-  ]);
-  const lineDiagnostics: TableLineDiagnostic[] = [
-    ...new Set(
-      lineNumbersAtPositions(raw, [
-        ...positions,
-        ...layoutReplacements.map(({ start }) => start),
-      ]),
+  return {
+    separators,
+    parserBoundariesReliable,
+    balanced: true,
+    unbalancedLines: lexical.unbalancedLines,
+  };
+}
+
+export function confirmedTableInlineSeparatorLayout(
+  table: ParserTableNode,
+): ConfirmedTableInlineSeparatorLayout {
+  const raw = table.toString();
+  const cells = tableCellSourceRanges(table, raw);
+  const separatorPositions = confirmedInlineSeparators(
+    table,
+    raw,
+    cells,
+  ).separators.map(({ position }) => position);
+  const positions = new Set(separatorPositions);
+  return {
+    separatorPositions,
+    cellEnds: new Map(
+      cells
+        .filter(({ cellRange }) => positions.has(cellRange.end))
+        .map(({ cell, cellRange }) => [cell, cellRange.end]),
     ),
-  ].map((tableLine) => ({ tableLine, changed: true }));
+  };
+}
+
+export function confirmedTableInlineSeparatorPositions(
+  table: ParserTableNode,
+): number[] {
+  return confirmedTableInlineSeparatorLayout(table).separatorPositions;
+}
+
+function tableLayoutReplacements(
+  table: ParserTableNode,
+  raw: string,
+  cells: readonly TableCellSourceRange[],
+  cellsBeforeSplitSeparators: ReadonlySet<number>,
+): TableSourceReplacement[] {
+  return [
+    ...tableOpenerLayoutReplacements(table, raw),
+    ...rowLayoutReplacements(table, raw),
+    ...standaloneCellLayoutReplacements(
+      cells,
+      raw,
+      cellsBeforeSplitSeparators,
+    ),
+  ];
+}
+
+function applyTableSourceReplacements(
+  raw: string,
+  replacements: readonly TableSourceReplacement[],
+): string {
+  const parts: string[] = [];
+  let cursor = 0;
+  for (const replacement of [...replacements].sort(
+    (a, b) => a.start - b.start,
+  )) {
+    if (
+      replacement.start < cursor ||
+      replacement.end < replacement.start ||
+      replacement.end > raw.length
+    ) {
+      return raw;
+    }
+    parts.push(raw.slice(cursor, replacement.start), replacement.value);
+    cursor = replacement.end;
+  }
+  parts.push(raw.slice(cursor));
+  return parts.join("");
+}
+
+function lineDiagnosticsForReplacements(
+  replacements: readonly TableSourceReplacement[],
+): TableLineDiagnostic[] {
+  const reasonsByLine = new Map<number, Set<string>>();
+  for (const replacement of replacements) {
+    const reasons =
+      reasonsByLine.get(replacement.tableLine) ?? new Set<string>();
+    reasons.add(replacement.reason);
+    reasonsByLine.set(replacement.tableLine, reasons);
+  }
+  return [...reasonsByLine.entries()]
+    .sort(([left], [right]) => left - right)
+    .map(([tableLine, reasons]) => ({
+      tableLine,
+      changed: true,
+      reason: [...reasons].join("; "),
+    }));
+}
+
+function tableChangeReason(
+  replacements: readonly TableSourceReplacement[],
+): string {
+  return [...new Set(replacements.map(({ reason }) => reason))].join("; ");
+}
+
+function analyzeParserTable(
+  source: string,
+  table: ParserTableNode,
+  offset: number,
+  options: ResolvedFormatOptions,
+  confirmedStart?: number,
+): ParserTableAnalysis {
+  const start = confirmedStart ?? table.getAbsoluteIndex() + offset;
+  const raw = table.toString();
+  const cells = tableCellSourceRanges(table, raw);
+  const end = start + raw.length;
+  const line = lineNumberAt(source, start);
+  const style =
+    options.tableCellSeparatorStyle === "preserve" ? "preserve" : "split";
+  const separatorStyleReason =
+    options.tableCellSeparatorStyle === "preserve"
+      ? "explicit preserve option"
+      : options.tableCellSeparatorStyle === "split"
+        ? "explicit split option"
+        : "aggressive auto splits every parser-confirmed multi-cell row";
+
+  if (style === "preserve") {
+    const layoutReplacements = tableLayoutReplacements(
+      table,
+      raw,
+      cells,
+      new Set(),
+    );
+    const value = applyTableSourceReplacements(raw, layoutReplacements);
+    const changed = value !== raw;
+    return {
+      start,
+      end,
+      value,
+      changed,
+      eligible: true,
+      diagnostic: {
+        start,
+        end,
+        line,
+        changed,
+        ambiguous: false,
+        reason: changed
+          ? tableChangeReason(layoutReplacements)
+          : "inline cell separators explicitly preserved; no table layout normalization required",
+        separatorStyle: style,
+        separatorStyleReason,
+        ...(changed && layoutReplacements.length > 0
+          ? {
+              lineDiagnostics:
+                lineDiagnosticsForReplacements(layoutReplacements),
+            }
+          : {}),
+      },
+    };
+  }
+
+  const confirmed = confirmedInlineSeparators(table, raw, cells);
+  if (!confirmed.balanced) {
+    return {
+      start,
+      end,
+      value: raw,
+      changed: false,
+      eligible: false,
+      diagnostic: {
+        start,
+        end,
+        line,
+        changed: false,
+        ambiguous: true,
+        reason:
+          "parser cell tokenization disagreed and the balanced top-level separator fallback could not establish boundaries",
+        separatorStyle: style,
+        separatorStyleReason,
+        lineDiagnostics: confirmed.unbalancedLines.map((tableLine) => ({
+          tableLine,
+          changed: false,
+          reason: "top-level table cell fallback did not balance this line",
+        })),
+      },
+    };
+  }
+  const cellsBeforeSplitSeparators = new Set(
+    cells
+      .map(({ cellRange }) => cellRange)
+      .filter((range) =>
+        confirmed.separators.some(({ position }) => position === range.end),
+      )
+      .map(({ end }) => end),
+  );
+  const layoutReplacements = tableLayoutReplacements(
+    table,
+    raw,
+    cells,
+    cellsBeforeSplitSeparators,
+  );
+  const separatorReplacements = confirmed.separators.map(
+    ({ position, marker }) => {
+      const start = raw[position - 1] === " " ? position - 1 : position;
+      return {
+        start,
+        end: position + 2,
+        value: `\n${marker}`,
+        tableLine: tableLineAt(raw, start),
+        reason: "split inline table cell separator",
+      };
+    },
+  );
+  const replacements = [...layoutReplacements, ...separatorReplacements];
+  const value = applyTableSourceReplacements(raw, replacements);
+  const lineDiagnostics = lineDiagnosticsForReplacements(replacements);
   const changed = value !== raw;
-  const fallbackReason = parserBoundariesReliable
+  const fallbackReason = confirmed.parserBoundariesReliable
     ? undefined
     : "parser cell tokenization disagreed with balanced link-aware separators; used documented top-level fallback";
   return {
@@ -685,14 +1035,14 @@ function analyzeParserTable(
       line,
       changed,
       ambiguous: false,
-      ...(!changed
-        ? { reason: "no inline parser-confirmed cell separators" }
-        : fallbackReason
-          ? { reason: fallbackReason }
-          : {}),
+      reason: !changed
+        ? "no table layout or inline parser-confirmed cell separator changes required"
+        : [fallbackReason, tableChangeReason(replacements)]
+            .filter((reason): reason is string => reason !== undefined)
+            .join("; "),
       separatorStyle: style,
       separatorStyleReason,
-      ...(lineDiagnostics.length > 0 ? { lineDiagnostics } : {}),
+      ...(changed && lineDiagnostics.length > 0 ? { lineDiagnostics } : {}),
     },
   };
 }

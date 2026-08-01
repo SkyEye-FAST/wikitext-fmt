@@ -1,16 +1,16 @@
 {| class="wikitable"
-! Name 
+! Name
 ! Value
 |-
-| {{N/a}} 
+| {{N/a}}
 | 1
 |-
-| <span>Beta</span> 
+| <span>Beta</span>
 | 2
 |-
-| data-x="A || B" | Gamma 
+| data-x="A || B" | Gamma
 | 3
 |-
-| Delta 
+| Delta
 | 4
 |}

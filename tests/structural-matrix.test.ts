@@ -321,6 +321,16 @@ describe("structural equivalence rejection", () => {
     ).toMatchObject({ equivalent: false, structure: "tables" });
   });
 
+  it("accepts parser-confirmed table marker layout changes", () => {
+    const compact =
+      '{|class="wikitable"\n|-class="row"\n|+Caption\n| A || B\n|}';
+    const canonical =
+      '{| class="wikitable"\n|- class="row"\n|+ Caption\n| A\n| B\n|}';
+    expect(tableStructuralFingerprint(compact, config)).toBe(
+      tableStructuralFingerprint(canonical, config),
+    );
+  });
+
   it.each([
     ["cell leading whitespace", "{|\n|  A\n|}", "{|\n| A\n|}"],
     ["cell trailing whitespace", "{|\n| A  \n|}", "{|\n| A\n|}"],
@@ -334,6 +344,21 @@ describe("structural equivalence rejection", () => {
     ["row attributes", "{|\n|- class=x\n| A\n|}", "{|\n|-\n| A\n|}"],
     ["cell attributes", "{|\n| class=x | A\n|}", "{|\n| class=y | A\n|}"],
     ["caption", "{|\n|+ First\n| A\n|}", "{|\n|+ Second\n| A\n|}"],
+    [
+      "additional caption leading whitespace",
+      "{|\n|+ Caption\n| A\n|}",
+      "{|\n|+  Caption\n| A\n|}",
+    ],
+    [
+      "additional opener attribute whitespace",
+      '{| class="x"\n| A\n|}',
+      '{|  class="x"\n| A\n|}',
+    ],
+    [
+      "additional row attribute whitespace",
+      "{|\n|- class=x\n| A\n|}",
+      "{|\n|-  class=x\n| A\n|}",
+    ],
     [
       "anonymous template whitespace in a cell",
       "{|\n| {{T| foo }}\n|}",
@@ -390,7 +415,7 @@ describe("structural equivalence rejection", () => {
     [
       "tables",
       "{|\r\n| {{T|a=1}} || B\r\n|}\r\n",
-      "{|\r\n| {{T|a=1}} \r\n| B\r\n|}\r\n",
+      "{|\r\n| {{T|a=1}}\r\n| B\r\n|}\r\n",
     ],
   ] as const)(
     "normalizes nested CRLF %s before structure-specific equivalence",

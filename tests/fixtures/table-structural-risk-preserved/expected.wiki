@@ -3,7 +3,7 @@
 |-
 |
 {| class="wikitable"
-| Nested 
+| Nested
 | Value
 |}
 |}
@@ -11,13 +11,13 @@
 {{Box
 | content =
 {| class="wikitable"
-! Inside 
+! Inside
 ! Template
 |}
 }}
 
   {| class="wikitable"
-| Indented 
+| Indented
 | Table
 |}
 
@@ -25,7 +25,7 @@
 | First line
 continuation line
 |-
-| Next 
+| Next
 | Cell
 |}
 

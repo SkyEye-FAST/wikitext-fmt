@@ -478,14 +478,14 @@ describe("unified parser-assisted template formatting", () => {
   it("formats positional templates inside table cells", () => {
     expectEmbeddedTableLayout(
       "{|\n| {{T|one|two}} || tail\n|}\n",
-      "{|\n| {{T|one|two}} \n| tail\n|}\n",
+      "{|\n| {{T|one|two}}\n| tail\n|}\n",
     );
   });
 
   it("treats a table in a positional parameter as opaque content", () => {
     expectEmbeddedTableLayout(
       "{{T|before|{|\n| A || B\n|}\n|after}}\n",
-      "{{T|before|{|\n| A \n| B\n|}\n|after}}\n",
+      "{{T|before|{|\n| A\n| B\n|}\n|after}}\n",
     );
   });
 
@@ -499,21 +499,21 @@ describe("unified parser-assisted template formatting", () => {
   it("formats surrounding named parameters around nested tables", () => {
     expectEmbeddedTableLayout(
       "{{Box|content={|\n| outer\n{|\n| A || B\n|}\n| tail\n|}|note=value}}\n",
-      "{{Box\n| content = {|\n| outer\n{|\n| A \n| B\n|}\n| tail\n|}\n| note = value\n}}\n",
+      "{{Box\n| content = {|\n| outer\n{|\n| A\n| B\n|}\n| tail\n|}\n| note = value\n}}\n",
     );
   });
 
   it("formats tables inside nested templates independently", () => {
     expectEmbeddedTableLayout(
       "{{Outer|one|nested={{Inner|{|\n| A || B\n|}\n}}|last}}\n",
-      "{{Outer|one|nested={{Inner|{|\n| A \n| B\n|}\n}}|last}}\n",
+      "{{Outer|one|nested={{Inner|{|\n| A\n| B\n|}\n}}|last}}\n",
     );
   });
 
   it("keeps text before and after an embedded table in its named value", () => {
     expectEmbeddedTableLayout(
       "{{Box|content=before\n{|\n| A || B\n|}\nafter|note=value}}\n",
-      "{{Box\n| content = before\n{|\n| A \n| B\n|}\nafter\n| note = value\n}}\n",
+      "{{Box\n| content = before\n{|\n| A\n| B\n|}\nafter\n| note = value\n}}\n",
     );
   });
 
