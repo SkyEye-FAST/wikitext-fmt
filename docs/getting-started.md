@@ -66,6 +66,33 @@ routine automation. This includes parser-confirmed interlanguage-footer layout;
 explicit rule and placement options can override the preset. Warnings still exit
 successfully unless `--fail-on-warning` is present.
 
+For a site-specific project, add a `.wikitext-fmt.json` that identifies the
+MediaWiki API and the matching wikiparser-node configuration:
+
+```json
+{
+  "profile": "production",
+  "site": {
+    "apiUrl": "https://wiki.arcaea.cn/api.php",
+    "parserConfig": "./config/wiki.arcaea.cn.json",
+    "cachePath": ".wikitext-fmt/site-config.json",
+    "cacheMaxAgeSeconds": 86400,
+    "allowStaleCache": true
+  }
+}
+```
+
+Relative paths are resolved from the project configuration file. To make runs
+fully reproducible and offline, replace `apiUrl` and `cachePath` with a committed
+`site.snapshotPath`. Inspect the effective data and its source before formatting:
+
+```sh
+wikitext-fmt --print-site-configuration
+```
+
+See [Configuration](configuration.md) for online, offline snapshot, and temporary
+CLI override examples.
+
 ## First API call
 
 ```ts
@@ -96,8 +123,9 @@ a separate conservative, byte-preserving policy.
 
 The `wikitext-formatter` extension is a separately versioned wrapper that
 bundles this core formatter. It provides Format Document and format on save,
-but does not add syntax highlighting, an LSP server, or automatic siteinfo
-fetching. See the
+but does not add syntax highlighting or an LSP server. It uses the same project
+site configuration resolver as the CLI; network access is limited to trusted
+workspaces, while untrusted workspaces may use a local snapshot. See the
 [extension guide](https://github.com/SkyEye-FAST/wikitext-fmt/blob/master/packages/vscode/README.md).
 
 ## Next steps
@@ -105,4 +133,4 @@ fetching. See the
 - Learn all CLI modes in [CLI reference](cli.md).
 - Select profiles and options in [Configuration](configuration.md).
 - Review exact transformations in [Formatting rules](rules.md).
-- Configure site aliases with [Localization](localization.md).
+- Configure site data and aliases with [Localization](localization.md).
