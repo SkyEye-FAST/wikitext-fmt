@@ -138,9 +138,9 @@ export function resolveOptions(
           formatTemplates: true,
           formatTables: true,
           tableCellSeparatorStyle: "auto",
-          formatReferences: false,
-          formatExternalLinks: false,
-          formatSectionSpacing: false,
+          formatReferences: true,
+          formatExternalLinks: true,
+          formatSectionSpacing: true,
         }
       : profile === "aggressive"
         ? {
@@ -151,6 +151,8 @@ export function resolveOptions(
             formatReferences: true,
             formatExternalLinks: true,
             formatSectionSpacing: true,
+            formatInterlanguageLinks: true,
+            interlanguagePlacement: "footer",
           }
         : {};
   return {

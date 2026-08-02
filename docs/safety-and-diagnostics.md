@@ -1,8 +1,10 @@
 # Safety and diagnostics
 
-The formatter has a fail-closed base pipeline and an optional additional
-idempotency pass. “Safe” and “unsafe” are CLI compatibility names; they are not
-a switch between all safeguards and no safeguards.
+Every profile uses a fail-closed base pipeline, so mature production formatting
+is accepted only after semantic and structural verification. An optional
+additional pass verifies exact idempotency. “Safe” and “unsafe” are CLI
+compatibility names; they are not a switch between all safeguards and no
+safeguards.
 
 ## Base formatter pipeline
 

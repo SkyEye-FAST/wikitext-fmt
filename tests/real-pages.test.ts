@@ -22,46 +22,46 @@ const matrix: Array<{ name: string; options: FormatOptions }> = [
     },
   },
   {
-    name: "experimental section spacing",
+    name: "normal section spacing",
     options: {
-      level: "experimental",
+      level: "normal",
       formatSectionSpacing: true,
     },
   },
   {
-    name: "experimental tables",
+    name: "normal tables",
     options: {
-      level: "experimental",
+      level: "normal",
       formatTables: true,
       tableCellSeparatorStyle: "auto",
     },
   },
   {
-    name: "experimental references",
+    name: "normal references",
     options: {
-      level: "experimental",
+      level: "normal",
       formatReferences: true,
     },
   },
   {
-    name: "experimental external links",
+    name: "normal external links",
     options: {
-      level: "experimental",
+      level: "normal",
       formatExternalLinks: true,
     },
   },
   {
-    name: "experimental references and external links",
+    name: "normal references and external links",
     options: {
-      level: "experimental",
+      level: "normal",
       formatReferences: true,
       formatExternalLinks: true,
     },
   },
   {
-    name: "experimental tables, references, and external links",
+    name: "normal tables, references, and external links",
     options: {
-      level: "experimental",
+      level: "normal",
       formatTables: true,
       tableCellSeparatorStyle: "auto",
       formatReferences: true,
@@ -69,7 +69,7 @@ const matrix: Array<{ name: string; options: FormatOptions }> = [
     },
   },
   {
-    name: "all experimental opt-ins",
+    name: "all formatting opt-ins",
     options: {
       level: "experimental",
       formatSectionSpacing: true,
@@ -82,7 +82,7 @@ const matrix: Array<{ name: string; options: FormatOptions }> = [
     },
   },
   {
-    name: "all experimental opt-ins with canonical footer localization",
+    name: "all formatting opt-ins with canonical footer localization",
     options: {
       level: "experimental",
       formatSectionSpacing: true,

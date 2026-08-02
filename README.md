@@ -6,7 +6,7 @@
 [![Visual Studio Marketplace](https://vsmarketplacebadges.dev/version/skyeyefast.wikitext-formatter.svg)](https://marketplace.visualstudio.com/items?itemName=skyeyefast.wikitext-formatter)
 [![License: GPL-3.0-or-later](https://img.shields.io/badge/license-GPL--3.0--or--later-blue.svg)](LICENSE)
 
-`wikitext-fmt` is a conservative, parser-assisted structural formatter for
+`wikitext-fmt` is a parser-assisted, semantics-preserving formatter for
 MediaWiki wikitext. It is a standalone npm package and CLI, not a MediaWiki
 extension, and it does not require a running wiki for ordinary formatting.
 
@@ -22,10 +22,12 @@ published. See the [versioning policy](docs/versioning.md) for the pre-1.0
 compatibility rules and the distinction between development metadata, release
 preparation, component tags, and verified publication.
 
-The documented CLI streams, configuration validation, public entry points, and
-fail-closed formatter pipeline are tested and usable for controlled automation.
-Before 1.0, defaults, rule eligibility, configuration, diagnostics, and public
-types may still change in an explicitly documented pre-1.0 release.
+The CLI, JavaScript and browser APIs, VS Code extension, configuration
+validation, and fail-closed formatter pipeline are tested for interactive use
+and automation. The `production` profile enables all mature normal rules and
+adds an idempotency pass. Before 1.0, defaults, rule eligibility, configuration,
+diagnostics, and public types may still change in an explicitly documented
+pre-1.0 release.
 
 ## Core principles
 
@@ -152,9 +154,9 @@ Explicit options override profile values.
 
 | Profile | Purpose |
 | --- | --- |
-| `default` | Normal-level defaults for interactive use |
-| `production` | Coordinated normal-level structural rules; CLI uses the idempotency-checking path by default |
-| `aggressive` | Production rules plus selected experimental formatting; CLI also uses the idempotency-checking path by default |
+| `default` | Standard options for interactive use |
+| `production` | All mature, verifiable normal rules for automation; CLI adds the idempotency-checking pass |
+| `aggressive` | Production rules plus experimental interlanguage-footer layout; CLI also adds the idempotency-checking pass |
 
 Use `--fail-on-warning` in automation when a fail-closed fallback should fail
 the command. Profiles, levels, and every option are documented in

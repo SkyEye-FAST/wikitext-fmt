@@ -114,6 +114,11 @@ pnpm corpus:production
 pnpm corpus:aggressive
 ```
 
+The production gate exercises all mature normal rules. The aggressive gate adds
+experimental interlanguage-footer placement, so the two reports measure
+different formatting policies under the same parse, equivalence, convergence,
+and idempotency requirements.
+
 ## Skip reasons and failures
 
 Ambiguous structural skips fail by default. A reviewed exact limitation can be

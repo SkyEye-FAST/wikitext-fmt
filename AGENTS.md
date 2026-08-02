@@ -4,7 +4,7 @@ This file applies to the entire repository unless a more specific `AGENTS.md` is
 
 ## Project purpose
 
-`wikitext-fmt` is a parser-assisted structural formatter for MediaWiki wikitext. The project is intentionally conservative: formatting must not change page semantics, reorder content, translate values, or guess when parser boundaries are ambiguous.
+`wikitext-fmt` is a parser-assisted, semantics-preserving formatter for MediaWiki wikitext. It provides practical formatting while refusing transformations that would change page semantics, reorder content, translate values, or guess when parser boundaries are ambiguous.
 
 The formatter should fail closed. When parsing, exact round-tripping, structural equivalence, convergence, or idempotency cannot be demonstrated, return the original source and expose a structured diagnostic instead of emitting a risky partial rewrite.
 

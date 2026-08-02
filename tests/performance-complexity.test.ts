@@ -93,9 +93,11 @@ describe("parser complexity", () => {
       formatWikitextSafeDetailed(templateSource, { profile: "production" }),
     );
     expect(templates.result.failure).toBeUndefined();
-    expect(templates.metrics.contextsCreated).toBeLessThanOrEqual(25);
+    // The production reference/link/section-spacing pass shares one additional
+    // current parser snapshot per safe formatting pass.
+    expect(templates.metrics.contextsCreated).toBeLessThanOrEqual(26);
     expect(templates.metrics.sourceBytesParsed).toBeLessThanOrEqual(
-      templateSource.length * 30,
+      templateSource.length * 32,
     );
     expect(
       templates.result.templateDiagnostics.formattingPassesUsed,
@@ -113,9 +115,11 @@ describe("parser complexity", () => {
     );
     const candidates = collectWithStats(tableSource);
     expect(tables.result.failure).toBeUndefined();
-    expect(tables.metrics.contextsCreated).toBeLessThanOrEqual(25);
+    // Production now verifies references on table-protected snapshots and
+    // shares current snapshots for external links and section spacing.
+    expect(tables.metrics.contextsCreated).toBeLessThanOrEqual(34);
     expect(tables.metrics.sourceBytesParsed).toBeLessThanOrEqual(
-      tableSource.length * 30,
+      tableSource.length * 38,
     );
     expect(tables.result.tableFormatDiagnostics.formattingPassesUsed).toBeLessThanOrEqual(
       2,

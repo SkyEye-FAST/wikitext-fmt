@@ -174,7 +174,7 @@ describe("CLI configuration", () => {
     });
   });
 
-  it("accepts experimental interlanguage and section spacing configuration", () => {
+  it("accepts interlanguage and section spacing configuration", () => {
     expect(
       validateConfig({
         formatInterlanguageLinks: true,
@@ -218,13 +218,13 @@ describe("CLI configuration", () => {
     ).toThrow(/auto, compact, spaced/u);
   });
 
-  it("accepts experimental reference formatting configuration", () => {
+  it("accepts reference formatting configuration", () => {
     expect(validateConfig({ formatReferences: true })).toEqual({
       formatReferences: true,
     });
   });
 
-  it("accepts experimental external link formatting configuration", () => {
+  it("accepts external link formatting configuration", () => {
     expect(validateConfig({ formatExternalLinks: true })).toEqual({
       formatExternalLinks: true,
     });

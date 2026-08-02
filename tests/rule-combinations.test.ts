@@ -10,7 +10,7 @@ describe("rule interaction hardening", () => {
         level: "experimental",
         formatSectionSpacing: true,
       }),
-    ).toBe("Intro\n\n== Box ==\n{{Infobox\n| name = value\n}}\n");
+    ).toBe("Intro\n\n== Box ==\n\n{{Infobox\n| name = value\n}}\n");
   });
 
   it("combines template formatting with file links", () => {
@@ -88,7 +88,7 @@ describe("rule interaction hardening", () => {
         formatReferences: true,
         formatSectionSpacing: true,
       }),
-    ).toBe("Intro\n\n== Refs ==\n<references />\n");
+    ).toBe("Intro\n\n== Refs ==\n\n<references />\n");
   });
 
   it("combines reference formatting with category footer movement", () => {

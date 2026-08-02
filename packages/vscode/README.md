@@ -1,7 +1,8 @@
 # Wikitext Formatter for VS Code
 
-This extension wraps the `wikitext-fmt` core formatter. It requires VS Code
-1.100 or newer.
+This extension provides parser-assisted, semantics-preserving MediaWiki
+wikitext formatting through the `wikitext-fmt` core. It requires VS Code 1.100
+or newer.
 
 It turns compact or inconsistent wikitext such as:
 
@@ -131,19 +132,19 @@ Core details:
 | `wikitextFmt.formatLists` | `true` | Enable list-marker formatting |
 | `wikitextFmt.formatFileLinks` | `true` | Enable whole-line file-link formatting |
 | `wikitextFmt.formatWikilinks` | `true` | Use spaces instead of underscores in eligible internal page-link targets |
-| `wikitextFmt.formatExternalLinks` | `false` | Enable experimental external-link formatting |
-| `wikitextFmt.formatReferences` | `false` | Enable experimental reference formatting |
+| `wikitextFmt.formatExternalLinks` | `false` | Enable normal whole-line external-link formatting |
+| `wikitextFmt.formatReferences` | `false` | Enable normal standalone self-closing reference formatting |
 | `wikitextFmt.formatInterlanguageLinks` | `false` | Enable experimental interlanguage-link formatting |
 | `wikitextFmt.interlanguagePlacement` | `"preserve"` | Select `preserve` or `footer` placement |
 | `wikitextFmt.interlanguagePrefixes` | built-in prefix list | Set recognized interlanguage prefixes |
-| `wikitextFmt.formatSectionSpacing` | `false` | Enable experimental section spacing |
+| `wikitextFmt.formatSectionSpacing` | `false` | Enable normal spacing between headings and adjacent content blocks |
 | `wikitextFmt.formatBehaviorSwitches` | `true` | Enable recognized behavior-switch formatting |
 | `wikitextFmt.formatRedirects` | `true` | Enable redirect formatting |
 | `wikitextFmt.behaviorSwitchPlacement` | `"preserve"` | Select `preserve` or `footer` placement |
 | `wikitextFmt.localizedSyntaxStyle` | `"preserve"` | Preserve localized syntax or use `canonical-english` |
 | `wikitextFmt.formatTables` | `true` | Enable normal-level table formatting |
 | `wikitextFmt.tableCellSeparatorStyle` | `"auto"` | Select `auto`, `split`, or `preserve` |
-| `wikitextFmt.normalizeBlankLines` | `true` | Enable conservative blank-line normalization |
+| `wikitextFmt.normalizeBlankLines` | `true` | Normalize large blank-line runs |
 | `wikitextFmt.level` | `"normal"` | Select the `safe`, `normal`, or `experimental` ceiling |
 | `wikitextFmt.htmlVoidTagStyle` | `"html5"` | Select `html5`, `xhtml`, or `preserve` |
 | `wikitextFmt.safe` | `true` | Add the second idempotency-checking formatter call |
@@ -152,6 +153,8 @@ Core details:
 
 A profile is a preset; a reliability level is a rule ceiling. Only explicitly
 configured VS Code settings override corresponding config-file values.
+`production` enables all mature normal rules; `aggressive` additionally enables
+experimental interlanguage-link movement with footer placement.
 
 Three advanced core options remain config-file-only:
 

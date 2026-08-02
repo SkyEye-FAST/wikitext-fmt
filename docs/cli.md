@@ -56,6 +56,12 @@ select the additional idempotency pass automatically. The `default` profile
 uses the base pipeline. `--safe` or `--unsafe` explicitly overrides that
 profile-based choice.
 
+`default` provides the standard interactive options. `production` enables all
+mature normal rules and is suitable for routine automation. `aggressive` adds
+the experimental policy that moves eligible whole-line interlanguage links to
+the footer. All three retain the base parse, round-trip, structural-equivalence,
+convergence, and fail-closed checks.
+
 Pure LF and pure CRLF files retain their line-ending style in normal output,
 `--check`, `--diff`, and `--write`; formatter-created line breaks use the same
 style. Mixed LF/CRLF and bare CR produce an `unsupported-line-endings` warning
@@ -104,7 +110,7 @@ validation:
 | `--no-normalize-blank-lines` | `normalizeBlankLines: false` |
 
 The reliability level must also admit a rule. For example,
-`--format-references` does not run at `--level normal`.
+`--format-interlanguage-links` does not run at `--level normal`.
 
 ## Files and globs
 

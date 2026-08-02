@@ -6,6 +6,24 @@ here. The project follows the pre-1.0 policy in
 
 ## Unreleased
 
+### Changed
+
+- Promoted `externalLinks`, `references`, and `sectionSpacing` from
+  experimental to normal reliability. The production profile now enables all
+  three, so production formatting may introduce new semantics-preserving
+  whitespace changes in documents that were previously unchanged.
+- Expanded section spacing to insert missing blank lines between level 2–6
+  headings and adjacent lists, templates, tables, footer metadata, file links,
+  behavior switches, comments, HTML/extensions, redirects, and other protected
+  blocks while keeping consecutive headings together.
+- Defined the aggressive profile as production formatting plus the experimental
+  `interlanguageLinks` rule with footer placement. Interlanguage movement remains
+  experimental because it deliberately changes page layout.
+- Reframed the package and extension as parser-assisted, semantics-preserving
+  MediaWiki wikitext formatters suitable for normal interactive and automated
+  use while retaining fail-closed parsing, equivalence, convergence, and
+  idempotency checks.
+
 ## 0.7.0 - 2026-08-02
 
 ### Fixed

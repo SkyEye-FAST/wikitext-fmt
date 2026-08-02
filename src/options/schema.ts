@@ -97,7 +97,7 @@ export const optionSchema: readonly OptionSchemaEntry[] = [
     positiveFlag: "--format-external-links",
     negativeFlag: "--no-format-external-links",
     ruleName: "externalLinks",
-    ruleLevel: "experimental",
+    ruleLevel: "normal",
   },
   {
     name: "formatReferences",
@@ -106,7 +106,7 @@ export const optionSchema: readonly OptionSchemaEntry[] = [
     positiveFlag: "--format-references",
     negativeFlag: "--no-format-references",
     ruleName: "references",
-    ruleLevel: "experimental",
+    ruleLevel: "normal",
   },
   {
     name: "formatInterlanguageLinks",
@@ -134,7 +134,7 @@ export const optionSchema: readonly OptionSchemaEntry[] = [
     positiveFlag: "--format-section-spacing",
     negativeFlag: "--no-format-section-spacing",
     ruleName: "sectionSpacing",
-    ruleLevel: "experimental",
+    ruleLevel: "normal",
   },
   {
     name: "formatBehaviorSwitches",

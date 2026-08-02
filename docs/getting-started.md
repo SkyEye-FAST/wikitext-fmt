@@ -60,8 +60,10 @@ After reviewing output, write it in place:
 wikitext-fmt --safe --write page.wiki
 ```
 
-The `production` and `aggressive` CLI profiles select the idempotency-checking
-path automatically. Warnings still exit successfully unless
+The `production` profile enables every mature normal rule and selects the
+idempotency-checking path automatically, making it the recommended preset for
+routine automation. `aggressive` adds experimental interlanguage-footer layout
+under the same safeguards. Warnings still exit successfully unless
 `--fail-on-warning` is present.
 
 ## First API call

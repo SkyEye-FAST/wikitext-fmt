@@ -3,13 +3,12 @@ import {
   isNodeWholeLine,
   lineIndexAt,
   lineTextAt,
+  type ParserNodeLike,
   type ParsedDocumentContext,
 } from "../parserContext.js";
 
 const HEADING = /^={2,6}[^=\n].*={2,6}[ \t]*$/u;
 const BLANK = /^[ \t]*$/u;
-const RISKY =
-  /^(?:[ \t]*$|=|\{\||\|\}|[|!]|[*#:;]|<!--|__|＿＿|\[\[(?:Category|File|Image|[A-Za-z-]+):|#\w|<|<\/|\uE000wikitext-fmt:|\{\{)/iu;
 
 export interface SectionSpacingDiagnostics {
   sectionSpacingBeforeHeadingsInserted: number;
@@ -19,6 +18,10 @@ export interface SectionSpacingDiagnostics {
 export interface SectionSpacingResult {
   formatted: string;
   diagnostics: SectionSpacingDiagnostics;
+}
+
+interface HeadingNode extends ParserNodeLike {
+  parentNode?: { type?: string };
 }
 
 function isHeading(line: string): boolean {
@@ -32,33 +35,16 @@ function parserHeadingLineIndexes(
 ): Set<number> | undefined {
   if (context?.source !== source) return undefined;
   const indexes = new Set<number>();
-  for (const node of collectNodes(context, "heading")) {
+  for (const node of collectNodes(context, "heading") as HeadingNode[]) {
+    if (node.parentNode?.type !== "root") continue;
     if (!isNodeWholeLine(context, node)) continue;
     const lineIndex = lineIndexAt(context, node.getAbsoluteIndex());
     const line = lines[lineIndex] ?? lineTextAt(context, lineIndex);
-    // wikiparser-node also exposes level-1 headings. Preserve the formatter's
-    // existing conservative 2-6 level policy for section-spacing changes.
+    // wikiparser-node also exposes level-1 headings. Section spacing is
+    // intentionally limited to complete level 2-6 headings.
     if (isHeading(line)) indexes.add(lineIndex);
   }
   return indexes;
-}
-
-function isOrdinaryParagraph(line: string): boolean {
-  return line.trimStart() === line && !RISKY.test(line);
-}
-
-function previousNonBlank(lines: readonly string[], index: number): number {
-  for (let i = index - 1; i >= 0; i--) {
-    if (!BLANK.test(lines[i]!)) return i;
-  }
-  return -1;
-}
-
-function nextNonBlank(lines: readonly string[], index: number): number {
-  for (let i = index + 1; i < lines.length; i++) {
-    if (!BLANK.test(lines[i]!)) return i;
-  }
-  return -1;
 }
 
 export function formatSectionSpacing(
@@ -82,11 +68,11 @@ export function formatSectionSpacing(
   for (let index = 0; index < lines.length; index++) {
     const line = lines[index]!;
     if (lineIsHeading(index)) {
-      const previous = previousNonBlank(lines, index);
+      const previous = index - 1;
       if (
         previous >= 0 &&
-        previous === index - 1 &&
-        isOrdinaryParagraph(lines[previous]!)
+        !BLANK.test(lines[previous]!) &&
+        !lineIsHeading(previous)
       ) {
         output.push("");
         diagnostics.sectionSpacingBeforeHeadingsInserted++;
@@ -94,11 +80,11 @@ export function formatSectionSpacing(
     }
     output.push(line);
     if (lineIsHeading(index)) {
-      const next = nextNonBlank(lines, index);
+      const next = index + 1;
       if (
-        next >= 0 &&
-        next === index + 1 &&
-        isOrdinaryParagraph(lines[next]!)
+        next < lines.length &&
+        !BLANK.test(lines[next]!) &&
+        !lineIsHeading(next)
       ) {
         output.push("");
         diagnostics.sectionSpacingAfterHeadingsInserted++;

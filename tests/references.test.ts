@@ -5,24 +5,40 @@ import { createNodeParserSession, getParserConfig } from "../src/parser.js";
 import { formatReferences } from "../src/rules/references.js";
 
 const options = {
-  level: "experimental" as const,
+  level: "normal" as const,
   formatReferences: true,
 };
 const config = getParserConfig("mediawiki");
 const session = createNodeParserSession(config);
 
-describe("experimental reference formatting", () => {
+describe("reference formatting", () => {
   it("is disabled by default", () => {
     expect(formatWikitext("<references/>\n")).toBe("<references/>\n");
   });
 
-  it("requires experimental level and explicit option", () => {
+  it("requires normal level and an explicit option outside production", () => {
     expect(formatWikitext("<references/>\n", { formatReferences: true })).toBe(
-      "<references/>\n",
+      "<references />\n",
     );
-    expect(formatWikitext("<references/>\n", { level: "experimental" })).toBe(
-      "<references/>\n",
+    expect(
+      formatWikitext("<references/>\n", {
+        level: "safe",
+        formatReferences: true,
+      }),
+    ).toBe("<references/>\n");
+  });
+
+  it("is enabled by the production profile and can be disabled", () => {
+    const input = "<references/>\n";
+    expect(formatWikitext(input, { profile: "production" })).toBe(
+      "<references />\n",
     );
+    expect(
+      formatWikitext(input, {
+        profile: "production",
+        formatReferences: false,
+      }),
+    ).toBe(input);
   });
 
   it.each([

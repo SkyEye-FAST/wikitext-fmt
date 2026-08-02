@@ -5,30 +5,44 @@ import { createNodeParserSession, getParserConfig } from "../src/parser.js";
 import { formatExternalLinks } from "../src/rules/externalLinks.js";
 
 const options = {
-  level: "experimental" as const,
+  level: "normal" as const,
   formatExternalLinks: true,
 };
 const config = getParserConfig("mediawiki");
 const session = createNodeParserSession(config);
 
-describe("experimental external link formatting", () => {
+describe("external link formatting", () => {
   it("is disabled by default", () => {
     expect(formatWikitext("[https://example.com  Label]\n")).toBe(
       "[https://example.com  Label]\n",
     );
   });
 
-  it("requires experimental level and explicit option", () => {
+  it("requires normal level and an explicit option outside production", () => {
     expect(
       formatWikitext("[https://example.com  Label]\n", {
         formatExternalLinks: true,
       }),
-    ).toBe("[https://example.com  Label]\n");
+    ).toBe("[https://example.com Label]\n");
     expect(
       formatWikitext("[https://example.com  Label]\n", {
-        level: "experimental",
+        level: "safe",
+        formatExternalLinks: true,
       }),
     ).toBe("[https://example.com  Label]\n");
+  });
+
+  it("is enabled by the production profile and can be disabled", () => {
+    const input = "[https://example.com  Label]\n";
+    expect(formatWikitext(input, { profile: "production" })).toBe(
+      "[https://example.com Label]\n",
+    );
+    expect(
+      formatWikitext(input, {
+        profile: "production",
+        formatExternalLinks: false,
+      }),
+    ).toBe(input);
   });
 
   it.each([

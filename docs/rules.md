@@ -14,10 +14,10 @@ level allow them. The default level is `normal`.
 | `lists` | normal | on | `formatLists`; `--no-format-lists` | Parser-confirmed single-line list prefixes | Marker sequence, hierarchy, content nodes, and non-ASCII whitespace |
 | `fileLinks` | normal | on | `formatFileLinks`; `--no-format-file-links` | One whole-line file/image link | Target, caption, values, and option order |
 | `wikilinks` | normal | on | `formatWikilinks`; `--no-format-wikilinks` | Parser-confirmed ordinary internal links and redirect targets | Labels, fragments, file options, category sort keys, and remote targets |
-| `externalLinks` | experimental | off | `formatExternalLinks`; positive/negative flags | Whole-line labelled external links | URL and label text |
-| `references` | experimental | off | `formatReferences`; positive/negative flags | Whole-line self-closing ref tags | Attributes, order, quoting, and values |
+| `externalLinks` | normal | off | `formatExternalLinks`; positive/negative flags | Whole-line labelled external links | URL and label text |
+| `references` | normal | off | `formatReferences`; positive/negative flags | Whole-line self-closing ref tags | Attributes, order, quoting, and values |
 | `interlanguageLinks` | experimental | off | `formatInterlanguageLinks`; positive/negative flags | Configured whole-line language links | Target, prefix spelling, and relative order |
-| `sectionSpacing` | experimental | off | `formatSectionSpacing`; positive/negative flags | Headings beside ordinary prose | Structured adjacent lines and existing content |
+| `sectionSpacing` | normal | off | `formatSectionSpacing`; positive/negative flags | Level 2–6 headings beside content blocks | Consecutive headings and existing blank lines |
 | `redirects` | normal | on | `formatRedirects`; `--no-format-redirects` | First non-empty redirect line | Target and unsupported trailing syntax |
 | `behaviorSwitches` | normal | on | `formatBehaviorSwitches`; `--no-format-behavior-switches` | Standalone recognized switches | Unknown/embedded switches and relative order |
 | `htmlVoidTags` | safe | style `html5` | `htmlVoidTagStyle`; value flag | Attribute-free `br`, `hr`, `wbr` | Attributes and extension tags |
@@ -337,7 +337,7 @@ sort keys, file options, external links, and ordinary text remain strict.
 
 ## External links
 
-This parser-assisted experimental rule handles one labelled external link on a
+This parser-assisted normal rule handles one labelled external link on a
 whole line:
 
 ```wikitext
@@ -358,7 +358,7 @@ context makes the rule a no-op.
 
 ## References
 
-The experimental reference rule normalizes one whole-line self-closing `ref` or
+The normal reference rule normalizes one whole-line self-closing `ref` or
 `references` extension:
 
 ```wikitext
@@ -391,7 +391,8 @@ in `interlanguagePrefixes`, excluding leading-colon, category, and file links:
 
 `interlanguagePlacement: preserve` retains location. `footer` moves recognized
 links after categories while preserving relative order, target, and prefix
-spelling. The aggressive profile does not enable this rule automatically.
+spelling. The aggressive profile enables this rule with `footer` placement;
+the production and default profiles leave it disabled.
 
 Labelled, embedded, multiple, template/table-contained, unknown-prefix, or
 leading-colon links are not moved. Diagnostics report moved and formatted
@@ -399,9 +400,8 @@ counts. The rule never sorts language codes.
 
 ## Section spacing
 
-This parser-assisted rule identifies complete level 2–6 heading lines. It
-inserts one blank line before or after a heading only when the adjacent line is
-ordinary paragraph text:
+This parser-assisted rule identifies complete level 2–6 heading lines. When a
+heading directly touches non-empty content, it inserts one missing blank line:
 
 ```wikitext
 Text
@@ -419,10 +419,12 @@ Text
 More
 ```
 
-It does not remove spacing or act beside templates, tables, lists, comments,
-footer metadata, redirects, file links, HTML/extensions, or other structured
-lines. Heading marker normalization belongs to `headings`. Diagnostics count
-insertions before and after headings.
+Adjacent content may be prose, lists, templates, tables, categories,
+DEFAULTSORT or interlanguage links, file links, behavior switches, comments,
+HTML/extensions, redirects, or protected block placeholders. Consecutive
+level 2–6 headings stay together. Existing blank lines are not removed; larger
+runs remain the responsibility of `blankLines`. Heading marker normalization
+belongs to `headings`. Diagnostics count insertions before and after headings.
 
 ## Redirects
 

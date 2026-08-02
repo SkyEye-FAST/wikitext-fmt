@@ -51,10 +51,10 @@ describe("formatter API", () => {
       lists: "normal",
       fileLinks: "normal",
       wikilinks: "normal",
-      externalLinks: "experimental",
-      references: "experimental",
+      externalLinks: "normal",
+      references: "normal",
       interlanguageLinks: "experimental",
-      sectionSpacing: "experimental",
+      sectionSpacing: "normal",
       redirects: "normal",
       behaviorSwitches: "normal",
       htmlVoidTags: "safe",
@@ -88,9 +88,11 @@ describe("formatter API", () => {
       level: "normal",
       formatTemplates: true,
       formatTables: true,
-      formatReferences: false,
-      formatExternalLinks: false,
-      formatSectionSpacing: false,
+      formatReferences: true,
+      formatExternalLinks: true,
+      formatSectionSpacing: true,
+      formatInterlanguageLinks: false,
+      interlanguagePlacement: "preserve",
     });
     expect(resolveOptions({ profile: "aggressive" })).toMatchObject({
       level: "experimental",
@@ -99,6 +101,8 @@ describe("formatter API", () => {
       formatReferences: true,
       formatExternalLinks: true,
       formatSectionSpacing: true,
+      formatInterlanguageLinks: true,
+      interlanguagePlacement: "footer",
     });
     expect(
       resolveOptions({ profile: "aggressive", formatReferences: false }),
@@ -106,10 +110,18 @@ describe("formatter API", () => {
 
     const input = '<ref name="x"/>\nParagraph\n==Title==\nNext\n';
     expect(formatWikitext(input, { profile: "production" })).toBe(
-      '<ref name="x"/>\nParagraph\n== Title ==\nNext\n',
+      '<ref name="x" />\nParagraph\n\n== Title ==\n\nNext\n',
     );
     expect(formatWikitext(input, { profile: "aggressive" })).toBe(
       '<ref name="x" />\nParagraph\n\n== Title ==\n\nNext\n',
+    );
+
+    const interlanguage = "[[en:Example]]\nBody\n";
+    expect(formatWikitext(interlanguage, { profile: "production" })).toBe(
+      interlanguage,
+    );
+    expect(formatWikitext(interlanguage, { profile: "aggressive" })).toBe(
+      "Body\n\n[[en:Example]]\n",
     );
   });
 

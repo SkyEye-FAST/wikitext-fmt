@@ -51,12 +51,12 @@ preset.
 | `formatLists` | boolean | `true` | normal | `--no-format-lists` | unchanged | Normalize eligible single-line list marker separators to exactly one ASCII space |
 | `formatFileLinks` | boolean | `true` | normal | `--no-format-file-links` | unchanged | Format eligible whole-line file/image links |
 | `formatWikilinks` | boolean | `true` | normal | `--no-format-wikilinks` | unchanged | Replace ASCII underscores with spaces only in eligible parser-confirmed internal page-title components |
-| `formatExternalLinks` | boolean | `false` | experimental | `--format-external-links`, `--no-format-external-links` | production: `false`; aggressive: `true` | Normalize labelled whole-line external-link spacing |
-| `formatReferences` | boolean | `false` | experimental | `--format-references`, `--no-format-references` | production: `false`; aggressive: `true` | Normalize standalone self-closing ref tags |
-| `formatInterlanguageLinks` | boolean | `false` | experimental | `--format-interlanguage-links`, `--no-format-interlanguage-links` | unchanged | Recognize eligible interlanguage footer links |
-| `interlanguagePlacement` | `preserve` \| `footer` | `preserve` | — | `--interlanguage-placement` | unchanged | Preserve or move recognized links |
+| `formatExternalLinks` | boolean | `false` | normal | `--format-external-links`, `--no-format-external-links` | production/aggressive: `true` | Normalize labelled whole-line external-link spacing |
+| `formatReferences` | boolean | `false` | normal | `--format-references`, `--no-format-references` | production/aggressive: `true` | Normalize standalone self-closing ref tags |
+| `formatInterlanguageLinks` | boolean | `false` | experimental | `--format-interlanguage-links`, `--no-format-interlanguage-links` | production: `false`; aggressive: `true` | Recognize eligible interlanguage footer links |
+| `interlanguagePlacement` | `preserve` \| `footer` | `preserve` | — | `--interlanguage-placement` | aggressive: `footer` | Preserve or move recognized links |
 | `interlanguagePrefixes` | non-empty string[] | `ar,de,en,es,fr,it,ja,ko,pl,pt,ru,uk,zh,zh-hans,zh-hant` | — | `--interlanguage-prefixes` | unchanged | Exact recognized prefix list |
-| `formatSectionSpacing` | boolean | `false` | experimental | `--format-section-spacing`, `--no-format-section-spacing` | production: `false`; aggressive: `true` | Insert safe blank lines around headings |
+| `formatSectionSpacing` | boolean | `false` | normal | `--format-section-spacing`, `--no-format-section-spacing` | production/aggressive: `true` | Insert missing blank lines between headings and adjacent content blocks |
 | `formatBehaviorSwitches` | boolean | `true` | normal | `--no-format-behavior-switches` | unchanged | Format eligible standalone behavior switches |
 | `formatRedirects` | boolean | `true` | normal | `--no-format-redirects` | unchanged | Normalize a safe first-line redirect |
 | `behaviorSwitchPlacement` | `preserve` \| `footer` | `preserve` | — | `--behavior-switch-placement` | unchanged | Preserve or move recognized switches |
@@ -84,14 +84,15 @@ its supported layout behavior.
 A profile changes selected options. A level only limits which reliability
 classes may execute. Both the rule's boolean option and its level must allow it.
 
-- `default` applies no preset overrides.
-- `production` explicitly selects normal level, templates and tables, automatic
-  table splitting, and leaves references, external links, and section spacing
-  disabled.
-- `aggressive` selects experimental level and enables references, external
-  links, and section spacing in addition to templates and tables.
-
-The aggressive profile does not enable interlanguage links automatically.
+- `default` applies the standard interactive defaults. Normal rules whose
+  individual switches default to off remain available as explicit opt-ins.
+- `production` selects normal level and enables every mature normal rule,
+  including references, external links, section spacing, templates, and tables
+  with automatic table splitting. It is the preset intended for automation.
+- `aggressive` starts from the production behavior, selects experimental level,
+  and additionally moves eligible whole-line interlanguage links to the footer.
+  This changes page layout more broadly while retaining the same parse,
+  structural-equivalence, convergence, and idempotency safeguards.
 
 ## Localization aliases
 
