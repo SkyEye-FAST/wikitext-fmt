@@ -8,6 +8,13 @@ here. The project follows the pre-1.0 policy in
 
 ### Added
 
+- Added `.wikitext-fmt.json` to shared CLI/VS Code automatic discovery after the
+  established filenames.
+- Added explicit, auditable Node/CLI/VS Code generation and semantic drift
+  checking for MediaWiki CodeMirror parser ConfigData, with validated raw
+  siteinfo, isolated bounded execution, atomic ConfigData/provenance writes, and
+  no remote-code execution during normal formatting or site-data refresh.
+
 - Added strict `ProjectConfig.site` support for MediaWiki API, parser config,
   reproducible snapshot, persistent cache, TTL, and opt-in stale-cache policy,
   with config-relative paths and stable schema-version-1 snapshot JSON.

@@ -103,9 +103,10 @@ for (const doc of requiredDocs) {
   );
 }
 
-const [{ optionSchema }, { ruleLevels }] = await Promise.all([
+const [{ optionSchema }, { ruleLevels }, { CONFIG_FILENAMES }] = await Promise.all([
   import("../dist/options/schema.js"),
   import("../dist/rules/index.js"),
+  import("../dist/config.js"),
 ]);
 const configuration = await readFile(
   resolve(repositoryRoot, "docs/configuration.md"),
@@ -133,6 +134,16 @@ const extensionReadme = await readFile(
   resolve(repositoryRoot, "packages/vscode/README.md"),
   "utf8",
 );
+for (const filename of CONFIG_FILENAMES) {
+  assert(
+    configuration.includes(`\`${filename}\``),
+    `docs/configuration.md is missing discovered config filename ${filename}`,
+  );
+  assert(
+    extensionReadme.includes(`\`${filename}\``),
+    `packages/vscode/README.md is missing discovered config filename ${filename}`,
+  );
+}
 for (const key of Object.keys(
   extensionPackage.contributes.configuration.properties,
 )) {

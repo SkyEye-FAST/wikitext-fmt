@@ -3,6 +3,8 @@
   "command.formatDocument.title": "Wikitext Formatter：格式化檔案",
   "command.openConfiguration.title": "Wikitext Formatter：開啟設定檔",
   "command.refreshSiteConfiguration.title": "Wikitext Formatter：重新整理站點設定",
+  "command.generateSiteParserConfig.title": "Wikitext Formatter：產生站點剖析器設定",
+  "command.checkSiteParserConfig.title": "Wikitext Formatter：檢查站點剖析器設定",
   "command.previewDocument.title": "Wikitext Formatter：預覽檔案",
   "command.showLastReport.title": "Wikitext Formatter：顯示上次報告",
   "command.showResolvedConfiguration.title": "Wikitext Formatter：顯示最終生效的設定",

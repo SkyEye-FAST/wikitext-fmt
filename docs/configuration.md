@@ -14,6 +14,7 @@ this filename order:
 1. `.wikitextfmtrc`
 2. `.wikitextfmtrc.json`
 3. `wikitext-fmt.config.json`
+4. `.wikitext-fmt.json`
 
 The first existing file wins. `--config <path>` selects one file and disables
 discovery; relative explicit paths resolve from the CLI working directory.
@@ -35,7 +36,8 @@ Unknown keys are rejected. Config must be a JSON object; booleans, enumerations,
 positive `lineWidth`, non-empty `parserConfig`, non-empty string arrays, and
 the nested localization alias shape are validated. Unknown behavior-switch IDs
 are rejected. The nested `site` object is also strict. Top-level and site
-`parserConfig` paths plus `site.snapshotPath` and `site.cachePath` resolve from
+`parserConfig` paths plus `site.parserConfigGeneration.outputPath`,
+`site.snapshotPath`, and `site.cachePath` resolve from
 the directory containing the config file. Named parser configs remain names.
 
 Parser selection is `CLI/editor override > top-level parserConfig >
@@ -129,6 +131,7 @@ not injected into the parser session.
 | --- | --- | --- | --- |
 | `apiUrl` | absolute HTTP(S) URL without credentials | — | MediaWiki API endpoint used for normalized formatter data |
 | `parserConfig` | non-empty name or ConfigData JSON path | — | Site parser selection below the top-level/explicit parser option |
+| `parserConfigGeneration` | strict object | — | Explicit CodeMirror parser-config generation policy; never used during ordinary formatting |
 | `snapshotPath` | non-empty path | — | Reproducible schema-versioned site snapshot |
 | `cachePath` | non-empty path | CLI: memory only; VS Code: global storage | Persistent site cache |
 | `cacheMaxAgeSeconds` | finite number >= 0 | `86400` | Persistent-cache freshness lifetime |
@@ -180,8 +183,51 @@ configuration:
 Serialization is stable two-space JSON with a final newline and preserves
 normalized array order. Stored and printed API URLs omit credentials, query,
 and fragment data. Unsupported schema versions and URL mismatches are rejected.
-Siteinfo does not generate a complete parser config: `site.parserConfig` must
-still name or point to a valid `wikiparser-node` `ConfigData` JSON file.
+### Explicit parser-config generation
+
+Site snapshots contain formatter aliases and interlanguage prefixes; they are not
+parser configurations. Generate a parser `ConfigData` file only through the
+explicit Node API, CLI mode, or trusted VS Code command. Normal formatting,
+format-on-save, cache misses, `--write`, `--check`, and
+`--refresh-site-configuration` never download or execute CodeMirror JavaScript.
+
+`site.parserConfigGeneration` accepts only these keys: `method` (`"codemirror"`),
+`scriptPath` (an absolute credential-free HTTP(S) URL), `outputPath`,
+`timeoutMilliseconds` (a positive integer; default `10000`), and
+`maxModuleBytes` (a positive integer; default `5000000`). Unknown keys are
+rejected. When no `scriptPath` is given, it is derived only when `apiUrl` ends
+in `/api.php`; otherwise an explicit script path is required. `outputPath` is
+relative to the project config. If it is omitted, `site.parserConfig` must be an
+explicit JSON path.
+
+```json
+{
+  "profile": "production",
+  "site": {
+    "apiUrl": "https://wiki.arcaea.cn/api.php",
+    "parserConfig": "./config/wiki.arcaea.cn.parser.json",
+    "parserConfigGeneration": {
+      "method": "codemirror",
+      "outputPath": "./config/wiki.arcaea.cn.parser.json",
+      "timeoutMilliseconds": 10000,
+      "maxModuleBytes": 5000000
+    },
+    "snapshotPath": "./config/wiki.arcaea.cn.site.json"
+  }
+}
+```
+
+Generation fetches the site's CodeMirror ResourceLoader module and raw parser
+siteinfo, validates the generated data with the installed `wikiparser-node`, and
+runs parser round-trip smoke tests. The downloaded module runs only in a fresh,
+permission-restricted child process after its full bounded download and SHA-256
+calculation. The child has no network permission and can read only its temporary
+directory; its output, timeout, and cleanup are bounded. The generator writes
+pure two-space `ConfigData` JSON plus `<outputPath>.meta.json`, whose provenance
+records sanitized URLs, timestamp, generator/parser versions, and CodeMirror,
+siteinfo, and config hashes. Commit both files and use the check command in CI.
+The transformation uses the public `@bhsd/cm-util` API (version `2.2.0`, MIT),
+the same compatible algorithm family used by locked `wikiparser-node@1.44.0`.
 
 ## Localization aliases
 

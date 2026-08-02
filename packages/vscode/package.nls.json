@@ -3,6 +3,8 @@
   "command.formatDocument.title": "Wikitext Formatter: Format Document",
   "command.openConfiguration.title": "Wikitext Formatter: Open Configuration",
   "command.refreshSiteConfiguration.title": "Wikitext Formatter: Refresh Site Configuration",
+  "command.generateSiteParserConfig.title": "Wikitext Formatter: Generate Site Parser Configuration",
+  "command.checkSiteParserConfig.title": "Wikitext Formatter: Check Site Parser Configuration",
   "command.previewDocument.title": "Wikitext Formatter: Preview Document",
   "command.showLastReport.title": "Wikitext Formatter: Show Last Report",
   "command.showResolvedConfiguration.title": "Wikitext Formatter: Show Resolved Configuration",

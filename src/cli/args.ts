@@ -23,6 +23,10 @@ export interface CliOptions extends FormatOptions {
   refreshSiteConfiguration: boolean;
   printSiteConfiguration: boolean;
   validateSiteConfiguration: boolean;
+  generateParserConfig: boolean;
+  checkParserConfig: boolean;
+  printParserConfig: boolean;
+  forceParserConfig: boolean;
   printLocalizationAliases: boolean;
   configPath?: string;
   noConfig: boolean;
@@ -197,6 +201,22 @@ const helpSections: readonly [
         syntax: "--print-localization-aliases",
         description: "Print resolved aliases as JSON without formatting input.",
       },
+      {
+        syntax: "--generate-parser-config",
+        description: "Explicitly generate and atomically write the configured site parser ConfigData.",
+      },
+      {
+        syntax: "--check-parser-config",
+        description: "Regenerate in memory and report semantic parser-config drift.",
+      },
+      {
+        syntax: "--print-parser-config",
+        description: "Generate parser ConfigData in memory and write it to stdout.",
+      },
+      {
+        syntax: "--force-parser-config",
+        description: "Allow --generate-parser-config to replace an existing config file.",
+      },
     ],
   ],
 ];
@@ -285,6 +305,10 @@ export function parseArgs(args: string[]): CliOptions {
     refreshSiteConfiguration: false,
     printSiteConfiguration: false,
     validateSiteConfiguration: false,
+    generateParserConfig: false,
+    checkParserConfig: false,
+    printParserConfig: false,
+    forceParserConfig: false,
     noConfig: false,
     files: [],
   };
@@ -335,6 +359,18 @@ export function parseArgs(args: string[]): CliOptions {
         break;
       case "--validate-site-configuration":
         options.validateSiteConfiguration = true;
+        break;
+      case "--generate-parser-config":
+        options.generateParserConfig = true;
+        break;
+      case "--check-parser-config":
+        options.checkParserConfig = true;
+        break;
+      case "--print-parser-config":
+        options.printParserConfig = true;
+        break;
+      case "--force-parser-config":
+        options.forceParserConfig = true;
         break;
       case "--report": {
         const value = args[++index];
@@ -500,14 +536,33 @@ export function parseArgs(args: string[]): CliOptions {
     options.printLocalizationAliases ||
     options.printSiteConfiguration ||
     options.validateSiteConfiguration ||
+    options.generateParserConfig ||
+    options.checkParserConfig ||
+    options.printParserConfig ||
     (options.refreshSiteConfiguration && !options.stdin && options.files.length === 0);
   if (
-    Number(options.printLocalizationAliases) +
+      Number(options.printLocalizationAliases) +
       Number(options.printSiteConfiguration) +
-      Number(options.validateSiteConfiguration) >
+      Number(options.validateSiteConfiguration) +
+      Number(options.generateParserConfig) +
+      Number(options.checkParserConfig) +
+      Number(options.printParserConfig) >
     1
   ) {
-    throw new Error("Configuration print/validate modes are mutually exclusive");
+    throw new Error("Configuration inspection and parser-config generation modes are mutually exclusive");
+  }
+  if (options.forceParserConfig && !options.generateParserConfig) {
+    throw new Error("--force-parser-config can only be used with --generate-parser-config");
+  }
+  if (
+    options.refreshSiteConfiguration &&
+    (options.generateParserConfig ||
+      options.checkParserConfig ||
+      options.printParserConfig)
+  ) {
+    throw new Error(
+      "--refresh-site-configuration cannot be combined with parser-config generation modes",
+    );
   }
   if (
     inspectionMode &&
@@ -516,6 +571,14 @@ export function parseArgs(args: string[]): CliOptions {
     throw new Error(
       "Site/configuration inspection cannot be combined with --write, --check, --diff, or --stdin",
     );
+  }
+  if (
+    (options.generateParserConfig ||
+      options.checkParserConfig ||
+      options.printParserConfig) &&
+    options.files.length > 0
+  ) {
+    throw new Error("Parser-config generation modes cannot be combined with file paths");
   }
   if (
     !inspectionMode &&
@@ -542,6 +605,10 @@ export function formatterOptions(options: CliOptions): FormatOptions {
     refreshSiteConfiguration: _refreshSiteConfiguration,
     printSiteConfiguration: _printSiteConfiguration,
     validateSiteConfiguration: _validateSiteConfiguration,
+    generateParserConfig: _generateParserConfig,
+    checkParserConfig: _checkParserConfig,
+    printParserConfig: _printParserConfig,
+    forceParserConfig: _forceParserConfig,
     reportPath: _reportPath,
     siteApi: _siteApi,
     siteSnapshot: _siteSnapshot,

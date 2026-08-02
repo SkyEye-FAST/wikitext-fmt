@@ -1,12 +1,24 @@
 import * as vscode from "vscode";
 import { TextDecoder } from "node:util";
 import {
+  buildExplicitSiteConfiguration,
   buildEditorConfigLoadOptions,
   getEditorDocumentFormattingResult,
+  loadEditorConfigOptions,
   resolveEditorSettings,
   type EditorDocumentFormattingResult,
   type EditorSettingsResolution,
 } from "./format.js";
+import {
+  clearSiteConfigurationMemoryCache,
+  compareParserConfigs,
+  generateSiteParserConfig,
+  readParserConfigFile,
+  writeGeneratedParserConfig,
+  type ParserConfigComparison,
+  type ProjectConfig,
+  type SiteConfiguration,
+} from "wikitext-fmt";
 import { isSupportedDocument } from "./language.js";
 import {
   renderDocumentReport,
@@ -288,6 +300,193 @@ async function refreshSiteConfiguration(
   );
 }
 
+function isJsonConfigPath(value: string | undefined): value is string {
+  return Boolean(value && (value.includes("/") || value.includes("\\") || value.endsWith(".json")));
+}
+
+interface ParserConfigGenerationResolution {
+  configPath: string;
+  site: SiteConfiguration;
+  outputPath: string;
+  parserConfigPath?: string;
+}
+
+async function resolveParserConfigGeneration(
+  document: vscode.TextDocument,
+): Promise<ParserConfigGenerationResolution> {
+  const config = vscode.workspace.getConfiguration("wikitextFmt", document.uri);
+  const workspaceFolder = vscode.workspace.getWorkspaceFolder(document.uri);
+  const loaded = await loadEditorConfigOptions({
+    ...buildEditorConfigLoadOptions(config),
+    documentPath: document.uri.scheme === "file" ? document.uri.fsPath : undefined,
+    workspaceFolderPath: workspaceFolder?.uri.fsPath,
+  });
+  if (!loaded.path) {
+    throw new Error(
+      "Site parser-config generation requires a discovered or explicitly selected project configuration file.",
+    );
+  }
+  const project = loaded.configOptions as ProjectConfig;
+  const site = {
+    ...project.site,
+    ...buildExplicitSiteConfiguration(config),
+  };
+  const generation = site.parserConfigGeneration;
+  if (!generation) {
+    throw new Error("Site parser-config generation requires site.parserConfigGeneration.");
+  }
+  if (!site.apiUrl) {
+    throw new Error("Site parser-config generation requires site.apiUrl.");
+  }
+  const outputPath = generation.outputPath ??
+    (isJsonConfigPath(site.parserConfig) ? site.parserConfig : undefined);
+  if (!outputPath) {
+    throw new Error(
+      "site.parserConfigGeneration.outputPath is required unless site.parserConfig is a JSON path.",
+    );
+  }
+  return {
+    configPath: loaded.path,
+    site,
+    outputPath,
+    ...(isJsonConfigPath(site.parserConfig)
+      ? { parserConfigPath: site.parserConfig }
+      : {}),
+  };
+}
+
+async function fileExists(path: string): Promise<boolean> {
+  try {
+    await vscode.workspace.fs.stat(vscode.Uri.file(path));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function parserConfigComparisonReport(
+  comparison: ParserConfigComparison,
+  outputPath: string,
+): string {
+  return comparison.equal
+    ? `Parser configuration is current: ${outputPath}`
+    : `Parser configuration drift: ${outputPath}\n${comparison.diff}`;
+}
+
+async function confirmParserConfigGeneration(
+  target: ParserConfigGenerationResolution,
+): Promise<boolean> {
+  const action = vscode.l10n.t("Generate");
+  const selected = await vscode.window.showWarningMessage(
+    vscode.l10n.t(
+      "Wikitext Formatter will download and execute the configured CodeMirror module in an isolated child process. Target: {target}; site: {site}.",
+      { target: target.outputPath, site: target.site.apiUrl ?? "" },
+    ),
+    { modal: true },
+    action,
+  );
+  return selected === action;
+}
+
+async function runSiteParserConfigCommand(
+  document: vscode.TextDocument,
+  checkOnly: boolean,
+): Promise<void> {
+  if (!vscode.workspace.isTrusted) {
+    void vscode.window.showWarningMessage(
+      vscode.l10n.t(
+        "Wikitext Formatter: trust this workspace before generating a site parser configuration.",
+      ),
+    );
+    return;
+  }
+  try {
+    const target = await resolveParserConfigGeneration(document);
+    if (!(await confirmParserConfigGeneration(target))) return;
+    const generation = target.site.parserConfigGeneration!;
+    const generated = await generateSiteParserConfig({
+      apiUrl: target.site.apiUrl!,
+      scriptPath: generation.scriptPath,
+      outputPath: target.outputPath,
+      timeoutMilliseconds: generation.timeoutMilliseconds,
+      maxModuleBytes: generation.maxModuleBytes,
+    });
+    let comparison: ParserConfigComparison | undefined;
+    const comparisonPath = checkOnly
+      ? target.parserConfigPath
+      : target.outputPath;
+    if (checkOnly && !comparisonPath) {
+      throw new Error(
+        "Check Site Parser Configuration requires site.parserConfig to be a JSON path.",
+      );
+    }
+    if (comparisonPath && (await fileExists(comparisonPath))) {
+      comparison = compareParserConfigs(
+        await readParserConfigFile(comparisonPath),
+        generated.configData,
+      );
+    }
+    if (checkOnly) {
+      if (!comparison) {
+        throw new Error(`Parser configuration does not exist at ${comparisonPath}`);
+      }
+      writeOutput(
+        parserConfigComparisonReport(comparison, comparisonPath!),
+        true,
+      );
+      if (comparison.equal) {
+        void vscode.window.showInformationMessage(
+          vscode.l10n.t("Wikitext Formatter: site parser configuration is current."),
+        );
+      } else {
+        void vscode.window.showWarningMessage(
+          vscode.l10n.t("Wikitext Formatter: site parser configuration has drifted."),
+        );
+      }
+      return;
+    }
+    if (comparison) {
+      writeOutput(parserConfigComparisonReport(comparison, target.outputPath), true);
+      const overwrite = vscode.l10n.t("Overwrite");
+      const selected = await vscode.window.showWarningMessage(
+        vscode.l10n.t(
+          "Wikitext Formatter found an existing parser configuration. Review the diff in the output channel before replacing it.",
+        ),
+        { modal: true },
+        overwrite,
+      );
+      if (selected !== overwrite) return;
+    }
+    const paths = await writeGeneratedParserConfig(target.outputPath, generated, {
+      force: Boolean(comparison),
+    });
+    clearSiteConfigurationMemoryCache();
+    const smoke = await getSettings(document);
+    if (smoke.kind === "warning") throw new Error(smoke.warning);
+    const result = getEditorDocumentFormattingResult(
+      await sourceForAnalysis(document),
+      smoke,
+    );
+    const warning = resultWarning(result);
+    if (warning) throw new Error(warning);
+    writeOutput(
+      `Generated parser configuration: ${paths.outputPath}\nProvenance: ${paths.provenancePath}\n${generated.diagnostics.join("\n")}`,
+      true,
+    );
+    void vscode.window.showInformationMessage(
+      vscode.l10n.t("Wikitext Formatter: site parser configuration generated."),
+    );
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    writeOutput(errorMessage, true);
+    void vscode.window.showErrorMessage(
+      vscode.l10n.t("Wikitext Formatter: site parser configuration was not changed: {message}", {
+        message: errorMessage,
+      }),
+    );
+  }
+}
+
 export function activate(
   context: vscode.ExtensionContext,
 ): ExtensionTestApi | undefined {
@@ -365,6 +564,20 @@ export function activate(
       async () => {
         const editor = activeSupportedEditor();
         if (editor) await refreshSiteConfiguration(editor.document);
+      },
+    ),
+    vscode.commands.registerCommand(
+      "wikitext-fmt.generateSiteParserConfig",
+      async () => {
+        const editor = activeSupportedEditor();
+        if (editor) await runSiteParserConfigCommand(editor.document, false);
+      },
+    ),
+    vscode.commands.registerCommand(
+      "wikitext-fmt.checkSiteParserConfig",
+      async () => {
+        const editor = activeSupportedEditor();
+        if (editor) await runSiteParserConfigCommand(editor.document, true);
       },
     ),
   );

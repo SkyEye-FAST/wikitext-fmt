@@ -349,6 +349,20 @@ normalization, serialization, sanitization, and apply helpers. It deliberately
 does not export config discovery/loading, snapshot file loading, or the unified
 Node resolver, so its dependency graph remains free of Node built-ins.
 
+## Explicit parser-config generation (Node only)
+
+The Node entry exports `generateSiteParserConfig`,
+`validateGeneratedParserConfig`, `serializeGeneratedParserConfig`,
+`compareParserConfigs`, and `writeGeneratedParserConfig`. The generator accepts
+an API URL, optional CodeMirror script path, bounded fetch/execute settings, and
+injectable `fetchImplementation` and `ParserConfigModuleExecutor` values for
+offline tests. It returns pure `ConfigData`, diagnostics, and a separate
+`ParserConfigProvenance` record. `writeGeneratedParserConfig` writes ConfigData
+and `<outputPath>.meta.json` atomically only when explicitly called.
+
+This API is intentionally absent from `wikitext-fmt/browser`. Formatter calls do
+not import it, fetch, run a child process, or execute remote JavaScript.
+
 ## Parser-function policy
 
 `classifyParserFunction`, `ParserFunctionFormattingClass`, and

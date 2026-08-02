@@ -92,6 +92,12 @@ reasons, remain in their original text and are not translated.
   MediaWiki site data, updates configured snapshot/cache files atomically, and
   reports the resolved result. It is enabled only in trusted workspaces and
   never edits project configuration.
+- **Wikitext Formatter: Generate Site Parser Configuration** is an explicit,
+  trusted-workspace operation. It confirms the target and security boundary,
+  downloads the configured CodeMirror module, shows an existing-file diff, and
+  writes ConfigData plus provenance only after confirmation.
+- **Wikitext Formatter: Check Site Parser Configuration** regenerates in memory
+  and reports semantic drift without writing files.
 
 Reports include structured failure code/stage data, the active configuration,
 changed/unchanged/failed status, major rule counters, ambiguous/unsafe skip
@@ -187,7 +193,7 @@ Three advanced core options remain config-file-only:
   one config-file value.
 
 They remain fully supported through `.wikitextfmtrc`,
-`.wikitextfmtrc.json`, or `wikitext-fmt.config.json`. Keeping them out of
+`.wikitextfmtrc.json`, `wikitext-fmt.config.json`, or `.wikitext-fmt.json`. Keeping them out of
 ordinary VS Code settings avoids fragmented nested configuration and accidental
 alias-object editing. Site acquisition policy has its own six explicit
 `wikitextFmt.site.*` settings instead.
@@ -199,6 +205,7 @@ The extension recognizes:
 - `.wikitextfmtrc`
 - `.wikitextfmtrc.json`
 - `wikitext-fmt.config.json`
+- `.wikitext-fmt.json`
 
 For file-backed documents, discovery starts at the document directory and walks
 upward. In a multi-root workspace, a relative explicit
@@ -255,11 +262,16 @@ a warning and no edit. The refresh command requires trust. Snapshot, cache, and
 parser paths from the project config resolve from that config's directory;
 explicit VS Code site paths resolve from the document workspace folder.
 
-Siteinfo supplies normalized aliases and interlanguage prefixes, not a generated
-parser config. Use `site.parserConfig` or top-level `parserConfig` for a named
-`wikiparser-node` configuration or ConfigData JSON path. Explicit editor/core
-aliases or prefixes win, and local parser namespaces exclude conflicting
-interlanguage prefixes with a visible diagnostic.
+Siteinfo supplies normalized aliases and interlanguage prefixes, not an automatic
+parser config. Configure `site.parserConfigGeneration` in the project file to
+enable the two explicit parser-config commands. They require a trusted workspace,
+show the target and remote-code safety notice, and run CodeMirror only in an
+isolated child process. Format Document and format-on-save never invoke them.
+Generated ConfigData and its `.meta.json` provenance should be committed. Use
+`site.parserConfig` or top-level `parserConfig` for a named `wikiparser-node`
+configuration or generated ConfigData JSON path. Explicit editor/core aliases or
+prefixes win, and local parser namespaces exclude conflicting interlanguage
+prefixes with a visible diagnostic.
 
 ## Bundled core
 

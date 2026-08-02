@@ -53,6 +53,7 @@ export {
   applySiteFormattingData,
   normalizeSiteConfigurationSnapshot,
   type ProjectConfig,
+  type ParserConfigGenerationOptions,
   type ResolvedSiteConfiguration,
   sanitizedSiteApiUrl,
   serializeSiteConfigurationSnapshot,

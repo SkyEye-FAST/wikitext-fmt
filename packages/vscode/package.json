@@ -44,6 +44,16 @@
         "command": "wikitext-fmt.refreshSiteConfiguration",
         "enablement": "isWorkspaceTrusted && (editorLangId == wikitext || editorLangId == mediawiki)",
         "title": "%command.refreshSiteConfiguration.title%"
+      },
+      {
+        "command": "wikitext-fmt.generateSiteParserConfig",
+        "enablement": "isWorkspaceTrusted && (editorLangId == wikitext || editorLangId == mediawiki)",
+        "title": "%command.generateSiteParserConfig.title%"
+      },
+      {
+        "command": "wikitext-fmt.checkSiteParserConfig",
+        "enablement": "isWorkspaceTrusted && (editorLangId == wikitext || editorLangId == mediawiki)",
+        "title": "%command.checkSiteParserConfig.title%"
       }
     ],
     "configuration": {

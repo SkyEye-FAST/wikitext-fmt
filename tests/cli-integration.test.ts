@@ -95,6 +95,65 @@ async function siteInfoApi(): Promise<string> {
   return `http://127.0.0.1:${address.port}/api.php`;
 }
 
+async function parserConfigApi(): Promise<string> {
+  const codeMirrorConfig = {
+    tags: { ref: true },
+    tagModes: {},
+    urlProtocols: "http://|https://|mailto:",
+    functionSynonyms: [{ "#if": "#if" }, {}],
+    doubleUnderscore: [{}, {}],
+    functionHooks: ["msgnw"],
+    variableIDs: ["pageid"],
+    redirection: ["#redirect"],
+    subst: { subst: "subst" },
+    imageKeywords: { thumb: "thumbnail" },
+  };
+  const payload = {
+    query: {
+      general: { articlepath: "/wiki/$1", server: "http://127.0.0.1" },
+      namespaces: [
+        { id: 0, name: "", canonical: "" },
+        { id: 6, name: "File", canonical: "File" },
+        { id: 14, name: "Category", canonical: "Category" },
+      ],
+      namespacealiases: [],
+      magicwords: [
+        { name: "msgnw", aliases: ["msgnw"], "case-sensitive": false },
+        { name: "msg", aliases: ["msg"], "case-sensitive": false },
+        { name: "raw", aliases: ["raw"], "case-sensitive": false },
+        { name: "subst", aliases: ["subst"], "case-sensitive": false },
+        { name: "safesubst", aliases: ["safesubst"], "case-sensitive": false },
+        { name: "redirect", aliases: ["#REDIRECT"], "case-sensitive": false },
+        { name: "img_thumb", aliases: ["thumb"], "case-sensitive": false },
+      ],
+      interwikimap: [{ prefix: "w" }],
+      languagevariants: [],
+      extensiontags: ["ref"],
+      functionhooks: ["msgnw"],
+      variables: ["pageid"],
+      doubleunderscores: [],
+      protocols: ["http://", "https://", "mailto:"],
+    },
+  };
+  const server = createServer((request, response) => {
+    if (request.url?.startsWith("/load.php")) {
+      response.setHeader("content-type", "application/javascript");
+      response.end(
+        `mw.config.set({ extCodeMirrorConfig: ${JSON.stringify(codeMirrorConfig)} });`,
+      );
+      return;
+    }
+    response.setHeader("content-type", "application/json");
+    response.end(JSON.stringify(payload));
+  });
+  testServers.push(server);
+  await new Promise<void>((resolveListen) => {
+    server.listen(0, "127.0.0.1", resolveListen);
+  });
+  const address = server.address() as AddressInfo;
+  return `http://127.0.0.1:${address.port}/api.php`;
+}
+
 afterEach(async () => {
   await Promise.all(
     [
@@ -434,6 +493,54 @@ describe("CLI production behavior", () => {
       schemaVersion: 1,
       apiUrl: api,
     });
+  });
+
+  it("generates, checks, prints, and protects explicit parser configs", async () => {
+    const root = await temporaryDirectory();
+    const apiUrl = await parserConfigApi();
+    const outputPath = join(root, "config", "site.parser.json");
+    await writeFile(
+      join(root, ".wikitext-fmt.json"),
+      JSON.stringify({
+        site: {
+          apiUrl,
+          parserConfig: "./config/site.parser.json",
+          parserConfigGeneration: { outputPath: "./config/site.parser.json" },
+        },
+      }),
+    );
+
+    const generated = await runCli(["--generate-parser-config"], { cwd: root });
+    expect(generated.code).toBe(0);
+    expect(JSON.parse(generated.stdout)).toMatchObject({ outputPath });
+    expect(JSON.parse(await readFile(outputPath, "utf8"))).toMatchObject({
+      nsid: { "": 0 },
+    });
+    await expect(readFile(`${outputPath}.meta.json`, "utf8")).resolves.toContain(
+      '"schemaVersion": 1',
+    );
+
+    const current = await runCli(["--check-parser-config"], { cwd: root });
+    expect(current).toMatchObject({ code: 0, stdout: "" });
+    const printed = await runCli(["--print-parser-config"], { cwd: root });
+    expect(printed.code).toBe(0);
+    expect(JSON.parse(printed.stdout)).toMatchObject({ nsid: { "": 0 } });
+
+    const stale = JSON.parse(await readFile(outputPath, "utf8")) as {
+      variable: string[];
+    };
+    stale.variable.push("drift");
+    await writeFile(outputPath, `${JSON.stringify(stale, null, 2)}\n`);
+    const drift = await runCli(["--check-parser-config"], { cwd: root });
+    expect(drift.code).toBe(1);
+    expect(drift.stdout).toContain("@@ variable @@");
+    const overwrite = await runCli(["--generate-parser-config"], { cwd: root });
+    expect(overwrite.code).toBe(2);
+    const forced = await runCli(
+      ["--generate-parser-config", "--force-parser-config"],
+      { cwd: root },
+    );
+    expect(forced.code).toBe(0);
   });
 
   it("fails closed when configured site data cannot be loaded", async () => {

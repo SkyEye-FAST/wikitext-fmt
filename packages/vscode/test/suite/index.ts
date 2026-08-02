@@ -12,6 +12,8 @@ const expectedCommands = [
   "wikitext-fmt.showResolvedConfiguration",
   "wikitext-fmt.openConfiguration",
   "wikitext-fmt.refreshSiteConfiguration",
+  "wikitext-fmt.generateSiteParserConfig",
+  "wikitext-fmt.checkSiteParserConfig",
 ] as const;
 
 interface ExtensionTestApi {

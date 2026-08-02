@@ -13,6 +13,7 @@ export const CONFIG_FILENAMES = [
   ".wikitextfmtrc",
   ".wikitextfmtrc.json",
   "wikitext-fmt.config.json",
+  ".wikitext-fmt.json",
 ] as const;
 
 export interface ConfigResolutionOptions {
@@ -84,6 +85,21 @@ function resolveProjectConfigPaths(
                     config.site.parserConfig,
                     baseDirectory,
                   ),
+                }
+              : {}),
+            ...(config.site.parserConfigGeneration
+              ? {
+                  parserConfigGeneration: {
+                    ...config.site.parserConfigGeneration,
+                    ...(config.site.parserConfigGeneration.outputPath
+                      ? {
+                          outputPath: resolve(
+                            baseDirectory,
+                            config.site.parserConfigGeneration.outputPath,
+                          ),
+                        }
+                      : {}),
+                  },
                 }
               : {}),
             ...(config.site.snapshotPath

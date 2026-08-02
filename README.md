@@ -122,7 +122,13 @@ snapshot together in the normal JSON config:
   "profile": "production",
   "site": {
     "apiUrl": "https://wiki.example/w/api.php",
-    "parserConfig": "zhwiki",
+    "parserConfig": "./config/wiki.example.parser.json",
+    "parserConfigGeneration": {
+      "method": "codemirror",
+      "outputPath": "./config/wiki.example.parser.json",
+      "timeoutMilliseconds": 10000,
+      "maxModuleBytes": 5000000
+    },
     "snapshotPath": "config/wiki-site.json",
     "cachePath": ".cache/wikitext-fmt-site.json",
     "cacheMaxAgeSeconds": 86400,
@@ -138,6 +144,19 @@ when explicitly allowed. `--refresh-site-configuration` updates configured
 snapshot/cache files atomically, while `--print-site-configuration` shows the
 sanitized resolved result. The synchronous formatter remains pure and performs
 no I/O. See [Configuration](docs/configuration.md).
+
+`.wikitext-fmt.json` is discovered after the three established config filenames.
+Generate a site's parser `ConfigData` only as an explicit audited operation:
+
+```sh
+wikitext-fmt --generate-parser-config
+wikitext-fmt --check-parser-config
+wikitext-fmt --print-parser-config
+```
+
+Generation writes the pure parser JSON and a separate `.meta.json` provenance
+file. Commit both. Normal formatting, `--refresh-site-configuration`, and VS
+Code format-on-save neither generate parser config nor execute remote JavaScript.
 
 ## JavaScript API quick start
 

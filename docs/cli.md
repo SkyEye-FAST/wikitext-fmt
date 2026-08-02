@@ -24,6 +24,9 @@ contract.
 | `--print-site-configuration` | Sanitized resolved project/site JSON on stdout | No | Returns without formatting input |
 | `--validate-site-configuration` | Sanitized resolved project/site JSON | No | 0 when valid; 2 on failure |
 | standalone `--refresh-site-configuration` | Sanitized resolved project/site JSON after atomic update | No | May also precede normal formatting |
+| `--generate-parser-config` | Sanitized generation summary | ConfigData and `.meta.json` | 0 on explicit atomic write; refuses existing config unless forced |
+| `--check-parser-config` | Stable grouped semantic diff on drift | No | 0 when current, 1 on drift, 2 on generation/config failure |
+| `--print-parser-config` | Generated ConfigData JSON | No | Returns without formatting input |
 
 With multiple file inputs and no write/check/diff mode, formatted documents are
 concatenated on stdout in stable path order.
@@ -52,11 +55,28 @@ concatenated on stdout in stable path order.
 | `--print-site-configuration` | Print sanitized source, paths, freshness, parser, overrides, data, and final options |
 | `--validate-site-configuration` | Resolve site and parser configuration without formatter input |
 | `--print-localization-aliases` | Print the final alias set without formatting input |
+| `--generate-parser-config` | Explicitly download, isolate, validate, and atomically write configured parser ConfigData and provenance |
+| `--check-parser-config` | Regenerate in memory and semantically compare with the configured JSON parser file |
+| `--print-parser-config` | Regenerate in memory and print only ConfigData JSON |
+| `--force-parser-config` | Permit `--generate-parser-config` to replace an existing output file |
 
 `--version` and `-v` are intentionally recognized before normal argument
 parsing. They do not validate other arguments, load config, fetch siteinfo,
 expand paths, or read files/stdin. Tests cover both aliases with otherwise
 invalid and irrelevant arguments.
+
+Parser-config generation modes are mutually exclusive inspection modes. They
+accept `--config`, `--site-api`, and `--parser-config`, but reject formatter
+input, `--stdin`, `--write`, ordinary `--check`, and `--diff`.
+`--force-parser-config` is valid only with `--generate-parser-config`.
+`--refresh-site-configuration` never triggers generation. A typical audited
+workflow is:
+
+```sh
+wikitext-fmt --generate-parser-config
+wikitext-fmt --check-parser-config
+wikitext-fmt --print-parser-config
+```
 
 Without an explicit safety flag, the `production` profile selects the additional
 idempotency pass automatically. The `default` profile uses the base pipeline.

@@ -13,10 +13,19 @@ import {
 export interface SiteConfiguration {
   apiUrl?: string;
   parserConfig?: string;
+  parserConfigGeneration?: ParserConfigGenerationOptions;
   snapshotPath?: string;
   cachePath?: string;
   cacheMaxAgeSeconds?: number;
   allowStaleCache?: boolean;
+}
+
+export interface ParserConfigGenerationOptions {
+  method?: "codemirror";
+  scriptPath?: string;
+  outputPath?: string;
+  timeoutMilliseconds?: number;
+  maxModuleBytes?: number;
 }
 
 export interface ProjectConfig extends FormatOptions {
@@ -59,6 +68,7 @@ export interface ResolvedSiteConfiguration {
 const siteConfigurationKeys = new Set([
   "apiUrl",
   "parserConfig",
+  "parserConfigGeneration",
   "snapshotPath",
   "cachePath",
   "cacheMaxAgeSeconds",
@@ -202,6 +212,49 @@ export function validateSiteApiUrl(value: unknown, key = "site.apiUrl"): string 
   return value;
 }
 
+function validatePositiveInteger(value: unknown, key: string): void {
+  if (
+    typeof value !== "number" ||
+    !Number.isFinite(value) ||
+    !Number.isInteger(value) ||
+    value <= 0
+  ) {
+    throw new Error(`Configuration option ${key} must be a finite positive integer`);
+  }
+}
+
+function validateParserConfigGeneration(value: unknown): void {
+  const key = "site.parserConfigGeneration";
+  assertRecord(value, `Configuration option ${key} must be an object`);
+  const allowed = new Set([
+    "method",
+    "scriptPath",
+    "outputPath",
+    "timeoutMilliseconds",
+    "maxModuleBytes",
+  ]);
+  for (const childKey of Object.keys(value)) {
+    if (!allowed.has(childKey)) {
+      throw new Error(`Unknown configuration option: ${key}.${childKey}`);
+    }
+  }
+  if (value.method !== undefined && value.method !== "codemirror") {
+    throw new Error(`Configuration option ${key}.method must be codemirror`);
+  }
+  if (value.scriptPath !== undefined) {
+    validateSiteApiUrl(value.scriptPath, `${key}.scriptPath`);
+  }
+  if (value.outputPath !== undefined) {
+    assertNonEmptyString(value.outputPath, `${key}.outputPath`);
+  }
+  if (value.timeoutMilliseconds !== undefined) {
+    validatePositiveInteger(value.timeoutMilliseconds, `${key}.timeoutMilliseconds`);
+  }
+  if (value.maxModuleBytes !== undefined) {
+    validatePositiveInteger(value.maxModuleBytes, `${key}.maxModuleBytes`);
+  }
+}
+
 export function sanitizedSiteApiUrl(apiUrl: string): string {
   const url = new URL(apiUrl);
   url.username = "";
@@ -226,6 +279,9 @@ export function validateProjectConfig(value: unknown): ProjectConfig {
       }
     }
     if (value.site.apiUrl !== undefined) validateSiteApiUrl(value.site.apiUrl);
+    if (value.site.parserConfigGeneration !== undefined) {
+      validateParserConfigGeneration(value.site.parserConfigGeneration);
+    }
     for (const key of ["parserConfig", "snapshotPath", "cachePath"] as const) {
       if (value.site[key] !== undefined) {
         assertNonEmptyString(value.site[key], `site.${key}`);

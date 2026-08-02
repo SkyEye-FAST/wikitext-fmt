@@ -12,6 +12,13 @@ required network data stops the CLI/VS Code operation before formatting. The
 original document is not edited and there is no silent fallback to unrelated
 built-in site data.
 
+Parser-config generation is a separate, explicit Node-only operation. It never
+runs as part of `formatWikitext*`, ordinary CLI formatting, refresh, cache
+resolution, or VS Code formatting. Its CodeMirror module download is byte-bounded
+and hashed before a temporary permission-restricted child process executes it;
+the child has no network access, bounded output and time, and is always removed.
+Generation errors fail closed before any requested config replacement.
+
 ## Base formatter pipeline
 
 `formatWikitextDetailedResult` performs these stages:

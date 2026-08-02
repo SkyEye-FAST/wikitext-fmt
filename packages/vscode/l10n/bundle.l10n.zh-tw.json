@@ -1,12 +1,21 @@
 {
   "Show Details": "顯示詳細資料",
+  "Generate": "產生",
+  "Overwrite": "覆寫",
   "Wikitext Formatter Preview: {fileName}": "Wikitext Formatter 預覽：{fileName}",
   "Wikitext Formatter commands only support wikitext and mediawiki documents.": "Wikitext Formatter 命令僅支援 wikitext 和 MediaWiki 檔案。",
   "Wikitext Formatter: no active document.": "Wikitext Formatter：沒有作用中的檔案。",
   "Wikitext Formatter: no report is available yet.": "Wikitext Formatter：尚無可顯示的報告。",
   "Wikitext Formatter: site configuration refreshed.": "Wikitext Formatter：站點設定已重新整理。",
+  "Wikitext Formatter: site parser configuration generated.": "Wikitext Formatter：站點剖析器設定已產生。",
+  "Wikitext Formatter: site parser configuration has drifted.": "Wikitext Formatter：站點剖析器設定已發生漂移。",
+  "Wikitext Formatter: site parser configuration is current.": "Wikitext Formatter：站點剖析器設定是最新的。",
+  "Wikitext Formatter: site parser configuration was not changed: {message}": "Wikitext Formatter：站點剖析器設定未被修改：{message}",
+  "Wikitext Formatter: trust this workspace before generating a site parser configuration.": "Wikitext Formatter：請先信任此工作區，再產生站點剖析器設定。",
   "Wikitext Formatter: trust this workspace before refreshing MediaWiki site configuration.": "Wikitext Formatter：請先信任此工作區，再重新整理 MediaWiki 站點設定。",
   "Wikitext Formatter: the document is already formatted.": "Wikitext Formatter：檔案已經完成格式化。",
   "Wikitext Formatter: this document does not use a configuration file.": "Wikitext Formatter：目前檔案沒有使用設定檔。",
+  "Wikitext Formatter found an existing parser configuration. Review the diff in the output channel before replacing it.": "Wikitext Formatter 發現已有剖析器設定。請先在輸出通道中檢視差異，再確認覆寫。",
+  "Wikitext Formatter will download and execute the configured CodeMirror module in an isolated child process. Target: {target}; site: {site}.": "Wikitext Formatter 將在隔離的子程序中下載並執行設定的 CodeMirror 模組。目標：{target}；站點：{site}。",
   "wikitext-fmt: {message}": "wikitext-fmt：{message}"
 }

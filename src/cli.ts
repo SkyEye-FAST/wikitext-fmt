@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { readFile, writeFile } from "node:fs/promises";
+import { isAbsolute, resolve } from "node:path";
 import { createRequire } from "node:module";
 import { stderr, stdin, stdout } from "node:process";
 
@@ -28,6 +29,14 @@ import {
 } from "./formatter.js";
 import { type FormatOptions, resolveOptions } from "./options.js";
 import type { ResolvedSiteConfiguration } from "./projectConfig.js";
+import type { ProjectConfig, SiteConfiguration } from "./projectConfig.js";
+import {
+  compareParserConfigs,
+  generateSiteParserConfig,
+  readParserConfigFile,
+  serializeGeneratedParserConfig,
+  writeGeneratedParserConfig,
+} from "./parserConfigGeneration.js";
 import {
   resolveProjectConfiguration,
   type ResolvedProjectConfiguration,
@@ -83,6 +92,98 @@ function useSafeFormatting(
   if (options.safe) return true;
   const profile = resolveOptions(formatOptions).profile;
   return profile === "production";
+}
+
+function isJsonConfigPath(value: string | undefined): value is string {
+  return Boolean(value && (isAbsolute(value) || value.includes("/") || value.endsWith(".json")));
+}
+
+function generationConfiguration(
+  projectConfig: ProjectConfig,
+  formatterOverrides: FormatOptions,
+  options: CliOptions,
+): { generation: NonNullable<SiteConfiguration["parserConfigGeneration"]>; apiUrl: string; outputPath: string } {
+  const site = {
+    ...projectConfig.site,
+    ...(options.siteApi ? { apiUrl: options.siteApi } : {}),
+  };
+  const generation = site.parserConfigGeneration;
+  if (!generation) {
+    throw new Error("Parser-config generation requires site.parserConfigGeneration in the project configuration");
+  }
+  if (!site.apiUrl) {
+    throw new Error("Parser-config generation requires site.apiUrl or --site-api");
+  }
+  const parserConfig =
+    formatterOverrides.parserConfig ?? projectConfig.parserConfig ?? site.parserConfig;
+  const outputPath = generation.outputPath ??
+    (isJsonConfigPath(parserConfig) ? parserConfig : undefined);
+  if (!outputPath) {
+    throw new Error(
+      "site.parserConfigGeneration.outputPath is required unless site.parserConfig is an explicit JSON path",
+    );
+  }
+  return {
+    generation,
+    apiUrl: site.apiUrl,
+    outputPath: resolve(outputPath),
+  };
+}
+
+async function runParserConfigGenerationMode(
+  options: CliOptions,
+  projectConfig: ProjectConfig,
+  formatterOverrides: FormatOptions,
+): Promise<void> {
+  const configured = generationConfiguration(projectConfig, formatterOverrides, options);
+  const generated = await generateSiteParserConfig({
+    apiUrl: configured.apiUrl,
+    scriptPath: configured.generation.scriptPath,
+    outputPath: configured.outputPath,
+    timeoutMilliseconds: configured.generation.timeoutMilliseconds,
+    maxModuleBytes: configured.generation.maxModuleBytes,
+  });
+  for (const diagnostic of generated.diagnostics) {
+    stderr.write(`warning: ${diagnostic}\n`);
+  }
+  if (options.printParserConfig) {
+    stdout.write(serializeGeneratedParserConfig(generated.configData));
+    return;
+  }
+  if (options.checkParserConfig) {
+    const parserConfig =
+      formatterOverrides.parserConfig ??
+      projectConfig.parserConfig ??
+      projectConfig.site?.parserConfig;
+    if (!isJsonConfigPath(parserConfig)) {
+      throw new Error(
+        "--check-parser-config requires site.parserConfig or --parser-config to be an explicit JSON path",
+      );
+    }
+    const current = await readParserConfigFile(resolve(parserConfig));
+    const comparison = compareParserConfigs(current, generated.configData);
+    if (!comparison.equal) {
+      stdout.write(`${comparison.diff}\n`);
+      process.exitCode = 1;
+    }
+    return;
+  }
+  const paths = await writeGeneratedParserConfig(configured.outputPath, generated, {
+    force: options.forceParserConfig,
+  });
+  stdout.write(
+    `${JSON.stringify(
+      {
+        outputPath: paths.outputPath,
+        provenancePath: paths.provenancePath,
+        apiUrl: generated.provenance.apiUrl,
+        scriptPath: generated.provenance.scriptPath,
+        configSha256: generated.provenance.configSha256,
+      },
+      null,
+      2,
+    )}\n`,
+  );
 }
 
 function debugResult(
@@ -195,6 +296,18 @@ async function main(): Promise<void> {
       configPath: options.configPath,
       noConfig: options.noConfig,
     });
+    if (
+      options.generateParserConfig ||
+      options.checkParserConfig ||
+      options.printParserConfig
+    ) {
+      await runParserConfigGenerationMode(
+        options,
+        resolved.projectConfig,
+        cliFormatOptions,
+      );
+      return;
+    }
     projectResolution = await resolveProjectConfiguration({
       projectConfig: resolved.projectConfig,
       formatterOverrides: cliFormatOptions,

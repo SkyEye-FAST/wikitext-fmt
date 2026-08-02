@@ -39,6 +39,21 @@ describe("CLI configuration", () => {
     expect(await discoverConfig(nested)).toBe(config);
   });
 
+  it("discovers the documented filename after existing names without changing upward discovery", async () => {
+    const root = await temporaryDirectory();
+    const nested = join(root, "a", "b");
+    await mkdir(nested, { recursive: true });
+    await writeFile(
+      join(root, ".wikitext-fmt.json"),
+      JSON.stringify({ formatHeadings: false }),
+    );
+    expect(await discoverConfig(nested)).toBe(join(root, ".wikitext-fmt.json"));
+    await writeFile(join(root, "wikitext-fmt.config.json"), "{}");
+    await writeFile(join(root, ".wikitextfmtrc.json"), "{}");
+    await writeFile(join(root, ".wikitextfmtrc"), "{}");
+    expect(await discoverConfig(nested)).toBe(join(root, ".wikitextfmtrc"));
+  });
+
   it("applies CLI options over explicit config over discovered config", async () => {
     const root = await temporaryDirectory();
     const nested = join(root, "nested");
@@ -136,6 +151,39 @@ describe("CLI configuration", () => {
     expect(() =>
       validateConfig({ site: { allowStaleCache: "yes" } }),
     ).toThrow(/site\.allowStaleCache.*boolean/u);
+    expect(
+      validateConfig({
+        site: {
+          parserConfigGeneration: {
+            method: "codemirror",
+            scriptPath: "https://wiki.example/w/",
+            outputPath: "config/site.parser.json",
+            timeoutMilliseconds: 10_000,
+            maxModuleBytes: 5_000_000,
+          },
+        },
+      }),
+    ).toMatchObject({
+      site: { parserConfigGeneration: { method: "codemirror" } },
+    });
+    expect(() =>
+      validateConfig({ site: { parserConfigGeneration: { unexpected: true } } }),
+    ).toThrow(/site\.parserConfigGeneration\.unexpected/u);
+    expect(() =>
+      validateConfig({ site: { parserConfigGeneration: { scriptPath: "/relative" } } }),
+    ).toThrow(/site\.parserConfigGeneration\.scriptPath/u);
+    expect(() =>
+      validateConfig({
+        site: {
+          parserConfigGeneration: {
+            scriptPath: "https://user:secret@wiki.example/w/",
+          },
+        },
+      }),
+    ).toThrow(/site\.parserConfigGeneration\.scriptPath/u);
+    expect(() =>
+      validateConfig({ site: { parserConfigGeneration: { timeoutMilliseconds: 1.5 } } }),
+    ).toThrow(/site\.parserConfigGeneration\.timeoutMilliseconds/u);
   });
 
   it("resolves all project file paths from the configuration directory", async () => {
@@ -149,6 +197,7 @@ describe("CLI configuration", () => {
         parserConfig: "parser/top.json",
         site: {
           parserConfig: "./parser/site.json",
+          parserConfigGeneration: { outputPath: "./parser/generated.json" },
           snapshotPath: "snapshots/site.json",
           cachePath: ".cache/site.json",
         },
@@ -159,6 +208,9 @@ describe("CLI configuration", () => {
       parserConfig: join(configDirectory, "parser/top.json"),
       site: {
         parserConfig: join(configDirectory, "parser/site.json"),
+        parserConfigGeneration: {
+          outputPath: join(configDirectory, "parser/generated.json"),
+        },
         snapshotPath: join(configDirectory, "snapshots/site.json"),
         cachePath: join(configDirectory, ".cache/site.json"),
       },

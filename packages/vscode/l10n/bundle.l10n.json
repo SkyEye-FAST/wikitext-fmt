@@ -1,12 +1,21 @@
 {
   "Show Details": "Show Details",
+  "Generate": "Generate",
+  "Overwrite": "Overwrite",
   "Wikitext Formatter Preview: {fileName}": "Wikitext Formatter Preview: {fileName}",
   "Wikitext Formatter commands only support wikitext and mediawiki documents.": "Wikitext Formatter commands only support wikitext and MediaWiki documents.",
   "Wikitext Formatter: no active document.": "Wikitext Formatter: no active document.",
   "Wikitext Formatter: no report is available yet.": "Wikitext Formatter: no report is available yet.",
   "Wikitext Formatter: site configuration refreshed.": "Wikitext Formatter: site configuration refreshed.",
+  "Wikitext Formatter: site parser configuration generated.": "Wikitext Formatter: site parser configuration generated.",
+  "Wikitext Formatter: site parser configuration has drifted.": "Wikitext Formatter: site parser configuration has drifted.",
+  "Wikitext Formatter: site parser configuration is current.": "Wikitext Formatter: site parser configuration is current.",
+  "Wikitext Formatter: site parser configuration was not changed: {message}": "Wikitext Formatter: site parser configuration was not changed: {message}",
+  "Wikitext Formatter: trust this workspace before generating a site parser configuration.": "Wikitext Formatter: trust this workspace before generating a site parser configuration.",
   "Wikitext Formatter: trust this workspace before refreshing MediaWiki site configuration.": "Wikitext Formatter: trust this workspace before refreshing MediaWiki site configuration.",
   "Wikitext Formatter: the document is already formatted.": "Wikitext Formatter: the document is already formatted.",
   "Wikitext Formatter: this document does not use a configuration file.": "Wikitext Formatter: this document does not use a configuration file.",
+  "Wikitext Formatter found an existing parser configuration. Review the diff in the output channel before replacing it.": "Wikitext Formatter found an existing parser configuration. Review the diff in the output channel before replacing it.",
+  "Wikitext Formatter will download and execute the configured CodeMirror module in an isolated child process. Target: {target}; site: {site}.": "Wikitext Formatter will download and execute the configured CodeMirror module in an isolated child process. Target: {target}; site: {site}.",
   "wikitext-fmt: {message}": "wikitext-fmt: {message}"
 }

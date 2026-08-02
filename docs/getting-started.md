@@ -74,7 +74,13 @@ MediaWiki API and the matching wikiparser-node configuration:
   "profile": "production",
   "site": {
     "apiUrl": "https://wiki.arcaea.cn/api.php",
-    "parserConfig": "./config/wiki.arcaea.cn.json",
+    "parserConfig": "./config/wiki.arcaea.cn.parser.json",
+    "parserConfigGeneration": {
+      "method": "codemirror",
+      "outputPath": "./config/wiki.arcaea.cn.parser.json",
+      "timeoutMilliseconds": 10000,
+      "maxModuleBytes": 5000000
+    },
     "cachePath": ".wikitext-fmt/site-config.json",
     "cacheMaxAgeSeconds": 86400,
     "allowStaleCache": true
@@ -92,6 +98,19 @@ wikitext-fmt --print-site-configuration
 
 See [Configuration](configuration.md) for online, offline snapshot, and temporary
 CLI override examples.
+
+Generate parser data deliberately, review and commit it with its provenance, and
+then use the generated JSON for ordinary offline formatting:
+
+```sh
+wikitext-fmt --generate-parser-config
+wikitext-fmt --check-parser-config
+wikitext-fmt --print-parser-config
+```
+
+These commands are the only CLI routes that download and execute the site's
+CodeMirror module. Normal formatting, format-on-save, and site-data refresh do
+not generate parser configuration or run remote JavaScript.
 
 ## First API call
 

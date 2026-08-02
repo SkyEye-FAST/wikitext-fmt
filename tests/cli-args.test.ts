@@ -24,6 +24,9 @@ describe("CLI argument parsing", () => {
       "--refresh-site-configuration",
       "--print-site-configuration",
       "--validate-site-configuration",
+      "--generate-parser-config",
+      "--check-parser-config",
+      "--print-parser-config",
     ]) {
       expect(output).toContain(flag);
     }
@@ -128,5 +131,23 @@ describe("CLI argument parsing", () => {
     expect(() =>
       parseArgs(["--print-site-configuration", "--write"]),
     ).toThrow(/inspection.*--write/u);
+  });
+
+  it("keeps explicit parser-config generation modes isolated from formatting", () => {
+    expect(parseArgs(["--generate-parser-config", "--force-parser-config"])).toMatchObject({
+      generateParserConfig: true,
+      forceParserConfig: true,
+      files: [],
+    });
+    expect(() => parseArgs(["--force-parser-config"])).toThrow(/only be used/u);
+    expect(() =>
+      parseArgs(["--check-parser-config", "--stdin"]),
+    ).toThrow(/inspection.*--stdin/u);
+    expect(() =>
+      parseArgs(["--print-parser-config", "page.wiki"]),
+    ).toThrow(/cannot be combined with file paths/u);
+    expect(() =>
+      parseArgs(["--generate-parser-config", "--refresh-site-configuration"]),
+    ).toThrow(/cannot be combined/u);
   });
 });

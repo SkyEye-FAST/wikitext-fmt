@@ -310,11 +310,17 @@ describe("VS Code formatter option parity", () => {
         "wikitext-fmt.showResolvedConfiguration",
         "wikitext-fmt.openConfiguration",
         "wikitext-fmt.refreshSiteConfiguration",
+        "wikitext-fmt.generateSiteParserConfig",
+        "wikitext-fmt.checkSiteParserConfig",
       ]),
     );
     for (const command of packageJson.contributes.commands) {
       if (command.command === "wikitext-fmt.showLastReport") continue;
-      if (command.command === "wikitext-fmt.refreshSiteConfiguration") {
+      if (
+        command.command === "wikitext-fmt.refreshSiteConfiguration" ||
+        command.command === "wikitext-fmt.generateSiteParserConfig" ||
+        command.command === "wikitext-fmt.checkSiteParserConfig"
+      ) {
         expect(command.enablement).toContain("isWorkspaceTrusted");
         continue;
       }
@@ -622,6 +628,7 @@ describe("VS Code formatter config loading", () => {
     ".wikitextfmtrc",
     ".wikitextfmtrc.json",
     "wikitext-fmt.config.json",
+    ".wikitext-fmt.json",
   ])("uses discovered config options from %s", async (configFilename) => {
     const root = await mkdtemp(join(tmpdir(), "wikitext-formatter-"));
     const nested = join(root, "pages", "nested");

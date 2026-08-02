@@ -183,11 +183,13 @@ authoritative prefix list so acceptance still depends on parser classification;
 prefixes conflicting with local namespaces are excluded. Other site-specific
 syntax may still require an appropriate `parserConfig`.
 
-Siteinfo never synthesizes a complete parser config. Configure a named
-`wikiparser-node` parser or a `ConfigData` JSON path through top-level
-`parserConfig` or `site.parserConfig`. The top-level/explicit parser wins. Local
-namespace names from that parser config win over conflicting interlanguage
-prefixes, and the resolver exposes the exclusions as diagnostics.
+Normal siteinfo resolution never synthesizes a parser config. Configure a named
+`wikiparser-node` parser or a committed `ConfigData` JSON path through top-level
+`parserConfig` or `site.parserConfig`. The separate explicit CodeMirror
+generation workflow can create that JSON and its provenance; it is never part of
+ordinary formatting or siteinfo refresh. The top-level/explicit parser wins.
+Local namespace names from that parser config win over conflicting
+interlanguage prefixes, and the resolver exposes the exclusions as diagnostics.
 
 ## Corpus siteinfo metadata
 
