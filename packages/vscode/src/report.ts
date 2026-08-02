@@ -48,6 +48,11 @@ export function createDiagnosticsReport(
   for (const [reason, count] of Object.entries(lists.skipReasons)) {
     addReason(skipReasons, "lists", reason, count ?? 0);
   }
+  for (const [reason, count] of Object.entries(
+    footer.interlanguageLinkSkipReasons,
+  )) {
+    addReason(skipReasons, "interlanguage links", reason, count ?? 0);
+  }
   for (const diagnostic of details.tableDiagnostics) {
     if (diagnostic.reason) {
       addReason(skipReasons, "tables", diagnostic.reason, 1);
@@ -88,6 +93,7 @@ export function createDiagnosticsReport(
       templatesSkippedAmbiguous: template.templatesSkippedAmbiguous,
       wikilinksSkippedUnsafe:
         details.wikilinkDiagnostics.wikilinksSkippedUnsafe,
+      interlanguageLinksSkipped: footer.interlanguageLinksSkipped,
       externalLinksSkippedUnsafe:
         details.externalLinkDiagnostics.externalLinksSkippedUnsafe,
       referenceLinesSkippedUnsafe:
@@ -106,9 +112,7 @@ export function reportedProfileAndLevel(options: FormatOptions): {
   const profile = options.profile ?? "default";
   return {
     profile,
-    level:
-      options.level ??
-      (profile === "aggressive" ? "experimental" : "normal"),
+    level: options.level ?? "normal",
   };
 }
 

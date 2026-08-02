@@ -75,15 +75,11 @@ function parseArgs(argv) {
   }
   if (!options.directory) {
     throw new Error(
-      "Usage: run-corpus.mjs <directory> [--parser-config name-or-path] [--profile production|aggressive] [--siteinfo normalized-aliases.json] [--no-manifest] [--output report.json] [--min-template-coverage 0..100] [--min-table-coverage 0..100] [--max-p95-diff-ratio 0..1] [--max-single-page-diff-ratio 0..1] [--allow-skip-reason exact-reason]",
+      "Usage: run-corpus.mjs <directory> [--parser-config name-or-path] [--profile production] [--siteinfo normalized-aliases.json] [--no-manifest] [--output report.json] [--min-template-coverage 0..100] [--min-table-coverage 0..100] [--max-p95-diff-ratio 0..1] [--max-single-page-diff-ratio 0..1] [--allow-skip-reason exact-reason]",
     );
   }
-  if (
-    options.profile !== undefined &&
-    options.profile !== "production" &&
-    options.profile !== "aggressive"
-  ) {
-    throw new Error("Corpus profile must be production or aggressive");
+  if (options.profile !== undefined && options.profile !== "production") {
+    throw new Error("Corpus profile must be production");
   }
   if (options.allowedSkipReasons.some((reason) => !reason)) {
     throw new Error("--allow-skip-reason requires a non-empty exact reason");
@@ -325,6 +321,13 @@ async function main() {
     wikilinksWithFragmentsChanged: 0,
     wikilinksSkippedUnsafe: 0,
     wikilinkSkipReasons: {},
+    interlanguageLinksInspected: 0,
+    interlanguageLinksEligible: 0,
+    interlanguageLinksSkipped: 0,
+    interlanguageLinksMoved: 0,
+    interlanguageLinksFormatted: 0,
+    interlanguageLinkSkipReasons: {},
+    interlanguageDiagnosticsFailures: 0,
     tablesInspected: 0,
     tablesEligible: 0,
     tablesChanged: 0,
@@ -469,6 +472,38 @@ async function main() {
     for (const [reason, count] of Object.entries(wikilinks.skipReasons)) {
       increment(report.wikilinkSkipReasons, reason, count);
     }
+    const footer = result.footerDiagnostics;
+    report.interlanguageLinksInspected += footer.interlanguageLinksInspected;
+    report.interlanguageLinksEligible += footer.interlanguageLinksEligible;
+    report.interlanguageLinksSkipped += footer.interlanguageLinksSkipped;
+    report.interlanguageLinksMoved += footer.interlanguageLinksMoved;
+    report.interlanguageLinksFormatted += footer.interlanguageLinksFormatted;
+    let pageInterlanguageSkipReasons = 0;
+    for (const [reason, count] of Object.entries(
+      footer.interlanguageLinkSkipReasons,
+    )) {
+      increment(report.interlanguageLinkSkipReasons, reason, count);
+      pageInterlanguageSkipReasons += count;
+      report.skipDetails.push({
+        ...pageIdentity,
+        kind: "interlanguage",
+        reason,
+        count,
+      });
+    }
+    if (
+      footer.interlanguageLinksInspected !==
+        footer.interlanguageLinksEligible + footer.interlanguageLinksSkipped ||
+      footer.interlanguageLinksSkipped !== pageInterlanguageSkipReasons
+    ) {
+      report.interlanguageDiagnosticsFailures++;
+      report.failures.push({
+        ...pageIdentity,
+        kind: "interlanguage-diagnostics",
+        message:
+          "interlanguage inspected/eligible/skipped counters or skip reasons are inconsistent",
+      });
+    }
     const tables = result.tableFormatDiagnostics;
     report.tablesInspected += tables.tablesInspected;
     report.tablesEligible += tables.tablesEligible;
@@ -517,7 +552,15 @@ async function main() {
     const pageChangedStructurally =
       templates.templatesChanged > 0 ||
       tables.tablesChanged > 0 ||
-      Object.values(result.footerDiagnostics).some((value) => value > 0) ||
+      footer.behaviorSwitchesMoved > 0 ||
+      footer.behaviorSwitchesFormatted > 0 ||
+      footer.defaultsortMoved > 0 ||
+      footer.categoriesMoved > 0 ||
+      footer.localizedCategoryAliasesCanonicalized > 0 ||
+      footer.localizedDefaultsortAliasesCanonicalized > 0 ||
+      footer.localizedBehaviorSwitchesCanonicalized > 0 ||
+      footer.interlanguageLinksMoved > 0 ||
+      footer.interlanguageLinksFormatted > 0 ||
       Object.values(result.redirectDiagnostics).some((value) => value > 0) ||
       Object.values(result.fileLinkDiagnostics).some((value) => value > 0) ||
       result.wikilinkDiagnostics.wikilinksFormatted > 0 ||
@@ -694,6 +737,7 @@ async function main() {
     report.parseFailures > 0 ||
     report.idempotencyFailures > 0 ||
     report.equivalenceFailures > 0 ||
+    report.interlanguageDiagnosticsFailures > 0 ||
     report.warnings > 0 ||
     report.convergenceLimitReached > 0 ||
     Object.keys(report.unexplainedSkipReasons).length > 0 ||

@@ -156,6 +156,12 @@ should branch on `failure` and its stable code rather than parse warning text.
 - unified template diagnostics in `templateDiagnostics`;
 - structural-equivalence diagnostics.
 
+`footerDiagnostics` includes inspected, eligible, skipped, moved, and formatted
+interlanguage-link counters plus `interlanguageLinkSkipReasons`. The exported
+`InterlanguageLinkSkipReason` union covers parser confirmation, root and
+whole-line eligibility, labelled or leading-colon links, generic or
+unconfigured prefixes, unstable targets, and unsafe parents.
+
 The package exports `FormatResult`, `FormatDetailedResult`, `FormatFailure`,
 `FormatFailureCode`, `DiagnosticsSummary`, `TemplateDiagnostics`, and the
 public per-rule diagnostic types.
@@ -222,7 +228,9 @@ import { ruleLevels } from "wikitext-fmt";
 console.log(ruleLevels.tables); // "normal"
 ```
 
-The package does not export the internal `isRuleEnabled` helper.
+The `experimental` ceiling remains part of the public option contract for future
+rules, but no current rule is classified at that level. The package does not
+export the internal `isRuleEnabled` helper.
 
 ## Structural equivalence
 
@@ -266,11 +274,15 @@ The package exports:
 
 - `loadSiteInfoAliases(apiUrl, fetch?)`;
 - `normalizeSiteInfoPayload(payload)`;
-- `ResolvedLocalizationAliases` as a type.
+- `loadSiteInfoFormattingData(apiUrl, fetch?)`;
+- `normalizeSiteInfoFormattingPayload(payload, source?)`;
+- `ResolvedLocalizationAliases` and `SiteInfoFormattingData` as types.
 
-The formatter itself never fetches siteinfo. Load aliases and pass them as
-`localizationAliases`; selecting `siteinfo` without loaded aliases fails
-closed. See [Localization](localization.md).
+The compatibility helpers return aliases only. The formatting-data helpers also
+return interlanguage prefixes derived from language-marked `interwikimap`
+entries. The formatter itself never fetches siteinfo. Load and pass the data;
+selecting `siteinfo` without loaded aliases fails closed. See
+[Localization](localization.md).
 
 ## Configuration helpers
 

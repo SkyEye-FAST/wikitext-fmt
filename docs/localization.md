@@ -52,7 +52,7 @@ It sends a read-only `GET` request for:
 ```text
 action=query
 meta=siteinfo
-siprop=namespaces|namespacealiases|magicwords|doubleunderscores
+siprop=namespaces|namespacealiases|magicwords|doubleunderscores|interwikimap
 format=json
 formatversion=2
 ```
@@ -60,6 +60,9 @@ formatversion=2
 The response is validated and normalized. Namespace IDs 6 and 14 supply file
 and category names/aliases; magic words supply defaultsort, redirect, and image
 options; double-underscore declarations gate behavior-switch extraction.
+`interwikimap` entries marked `language` or `extralanglink` supply the
+authoritative interlanguage-prefix list in API order. Generic `local` or
+`localinterwiki` entries without either language marker are excluded.
 Missing required category namespace data, invalid payloads, network failures,
 or non-success HTTP responses stop the CLI with exit 2. It never silently falls
 back to built-in aliases.
@@ -67,18 +70,24 @@ back to built-in aliases.
 The formatter core does not fetch siteinfo. API consumers call:
 
 ```ts
-import { formatWikitextSafe, loadSiteInfoAliases } from "wikitext-fmt";
+import { formatWikitextSafe, loadSiteInfoFormattingData } from "wikitext-fmt";
 
-const aliases = await loadSiteInfoAliases(
+const siteinfo = await loadSiteInfoFormattingData(
   "https://wiki.example/w/api.php",
 );
 const result = formatWikitextSafe(source, {
   localizationSource: "siteinfo",
-  localizationAliases: aliases,
+  localizationAliases: siteinfo.localizationAliases,
+  interlanguagePrefixes: siteinfo.interlanguagePrefixes,
 });
 ```
 
-Selecting `siteinfo` without supplying aliases fails closed.
+`loadSiteInfoAliases` remains available as an alias-only compatibility helper,
+and `normalizeSiteInfoFormattingPayload` exposes the combined normalizer.
+Selecting `siteinfo` without supplying aliases fails closed. In the CLI,
+explicit `interlanguagePrefixes` from config or `--interlanguage-prefixes` take
+precedence over the siteinfo-derived list, including the decision not to treat
+generic interwiki prefixes as languages.
 
 ## Custom aliases
 
@@ -144,8 +153,11 @@ and, for siteinfo, performs the API request.
 ## Parser configuration is separate
 
 Localization data teaches formatter rules which source spellings are aliases.
-It does not change the parser grammar. Site-specific syntax may also require an
-appropriate `parserConfig`.
+It does not otherwise change the parser grammar. For interlanguage links, the
+formatter creates an invocation-local parser configuration from the
+authoritative prefix list so acceptance still depends on parser classification;
+prefixes conflicting with local namespaces are excluded. Other site-specific
+syntax may still require an appropriate `parserConfig`.
 
 ## Corpus siteinfo metadata
 

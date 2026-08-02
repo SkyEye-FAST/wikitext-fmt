@@ -5,6 +5,8 @@ import {
   isRangeInside,
   isNodeWholeLine,
   lineIndexAt,
+  lineRangeAt,
+  nodeRange,
   type ParsedDocumentContext,
   type SourceRange,
 } from "../parserContext.js";
@@ -14,6 +16,22 @@ import {
   type BehaviorSwitchId,
 } from "../localization/aliases.js";
 import { hasFinalNewline, withFinalNewline } from "../utils/text.js";
+import {
+  findWikilinkAncestorType,
+  wikilinkNodeSourceRanges,
+  type WikilinkParserNode,
+} from "./wikilinks.js";
+
+export type InterlanguageLinkSkipReason =
+  | "not-parser-confirmed"
+  | "not-root-level"
+  | "not-whole-line"
+  | "labelled-link"
+  | "leading-colon"
+  | "generic-interwiki"
+  | "unconfigured-prefix"
+  | "unstable-target"
+  | "unsafe-parent";
 
 export interface FooterDiagnostics {
   behaviorSwitchesMoved: number;
@@ -23,8 +41,14 @@ export interface FooterDiagnostics {
   localizedCategoryAliasesCanonicalized: number;
   localizedDefaultsortAliasesCanonicalized: number;
   localizedBehaviorSwitchesCanonicalized: number;
+  interlanguageLinksInspected: number;
+  interlanguageLinksEligible: number;
+  interlanguageLinksSkipped: number;
   interlanguageLinksMoved: number;
   interlanguageLinksFormatted: number;
+  interlanguageLinkSkipReasons: Partial<
+    Record<InterlanguageLinkSkipReason, number>
+  >;
 }
 
 export interface PageFooterResult {
@@ -46,6 +70,25 @@ interface MetadataCandidate {
   end: number;
   parserConfirmed?: boolean;
 }
+
+interface HtmlParserNode extends WikilinkParserNode {
+  name?: string;
+  closing?: boolean;
+  selfClosing?: boolean;
+}
+
+const interlanguageUnsafeParentTypes = new Set([
+  "template",
+  "magic-word",
+  "table",
+  "ext",
+  "html",
+  "comment",
+  "file",
+  "category",
+  "link",
+  "ext-link",
+]);
 
 function behaviorAliasToken(alias: string): string {
   return /^(?:__.*__|＿＿.*＿＿)$/u.test(alias) ? alias : `__${alias}__`;
@@ -155,18 +198,174 @@ function matchCategory(
   };
 }
 
-function matchInterlanguageLink(
-  line: string,
+function recordInterlanguageSkip(
+  diagnostics: FooterDiagnostics,
+  reason: InterlanguageLinkSkipReason,
+  count = 1,
+): void {
+  diagnostics.interlanguageLinksSkipped += count;
+  diagnostics.interlanguageLinkSkipReasons[reason] =
+    (diagnostics.interlanguageLinkSkipReasons[reason] ?? 0) + count;
+}
+
+function htmlElementRanges(context: ParsedDocumentContext): SourceRange[] {
+  const voidElements = new Set(
+    context.session.config.html[2].map((name) => name.toLocaleLowerCase()),
+  );
+  const stack: Array<{ name: string; start: number }> = [];
+  const ranges: SourceRange[] = [];
+  const nodes = (collectNodes(context, "html") as HtmlParserNode[]).sort(
+    (left, right) => left.getAbsoluteIndex() - right.getAbsoluteIndex(),
+  );
+  for (const node of nodes) {
+    const name = node.name?.toLocaleLowerCase();
+    if (!name || node.selfClosing || voidElements.has(name)) continue;
+    const range = nodeRange(node);
+    if (!node.closing) {
+      stack.push({ name, start: range.start });
+      continue;
+    }
+    let openerIndex = -1;
+    for (let index = stack.length - 1; index >= 0; index--) {
+      if (stack[index]?.name === name) {
+        openerIndex = index;
+        break;
+      }
+    }
+    if (openerIndex < 0) continue;
+    const opener = stack[openerIndex]!;
+    stack.splice(openerIndex);
+    ranges.push({ start: opener.start, end: range.end });
+  }
+  for (const opener of stack) {
+    ranges.push({ start: opener.start, end: context.source.length });
+  }
+  return ranges;
+}
+
+function collectInterlanguageLinks(
+  context: ParsedDocumentContext,
+  source: string,
+  lines: readonly string[],
   prefixes: ReadonlySet<string>,
-): { value: string } | undefined {
-  const trimmed = line.trimEnd();
-  if (line.trimStart() !== line) return undefined;
-  const match = /^\[\[([^:\]\n]+):([^\]\n|]+)\]\]$/u.exec(trimmed);
-  if (!match?.[1] || match[2] === undefined) return undefined;
-  const prefix = match[1].toLocaleLowerCase();
-  if (!prefixes.has(prefix)) return undefined;
-  if (/^(?:category|file|image)$/iu.test(prefix)) return undefined;
-  return { value: `[[${match[1]}:${match[2]}]]` };
+  diagnostics: FooterDiagnostics,
+): FooterEntry[] {
+  const nodes = collectNodes(context, "link") as WikilinkParserNode[];
+  const targetNodes = nodes.flatMap((node) =>
+    node.childNodes.filter((child) => child.type === "link-target"),
+  );
+  const ranges = wikilinkNodeSourceRanges(context, [...nodes, ...targetNodes]);
+  const htmlRanges = htmlElementRanges(context);
+  const entries: FooterEntry[] = [];
+
+  for (const node of nodes) {
+    const targets = node.childNodes.filter(
+      (child) => child.type === "link-target",
+    );
+    const targetNode = targets[0];
+    const raw = node.toString();
+    const looksInterlanguageLike =
+      (node.interwiki?.length ?? 0) > 0 ||
+      targets.some((target) => target.toString().includes(":")) ||
+      /^\[\[:?[^\]\n]+:/u.test(raw);
+    if (!looksInterlanguageLike) continue;
+    diagnostics.interlanguageLinksInspected++;
+
+    const unsafeParent = findWikilinkAncestorType(
+      node,
+      interlanguageUnsafeParentTypes,
+    );
+    if (unsafeParent !== undefined) {
+      recordInterlanguageSkip(diagnostics, "unsafe-parent");
+      continue;
+    }
+    if (node.childNodes.some((child) => child.type === "link-text")) {
+      recordInterlanguageSkip(diagnostics, "labelled-link");
+      continue;
+    }
+    if (
+      targets.length !== 1 ||
+      !targetNode ||
+      targetNode.childNodes.some((child) => child.type !== "text")
+    ) {
+      recordInterlanguageSkip(diagnostics, "unstable-target");
+      continue;
+    }
+    const target = targetNode.toString();
+    if (target.startsWith(":")) {
+      recordInterlanguageSkip(diagnostics, "leading-colon");
+      continue;
+    }
+    const separator = target.indexOf(":");
+    if (separator <= 0 || separator === target.length - 1) {
+      recordInterlanguageSkip(diagnostics, "unstable-target");
+      continue;
+    }
+    const nodeBounds = ranges.get(node);
+    const targetBounds = ranges.get(targetNode);
+    if (
+      !nodeBounds ||
+      !targetBounds ||
+      targetBounds.start < nodeBounds.start ||
+      targetBounds.end > nodeBounds.end ||
+      source.slice(nodeBounds.start, nodeBounds.end) !== raw ||
+      source.slice(targetBounds.start, targetBounds.end) !== target
+    ) {
+      recordInterlanguageSkip(diagnostics, "unstable-target");
+      continue;
+    }
+    if (isRangeInside(nodeBounds.start, nodeBounds.end, htmlRanges)) {
+      recordInterlanguageSkip(diagnostics, "unsafe-parent");
+      continue;
+    }
+    if (node.parentNode?.type !== "root") {
+      recordInterlanguageSkip(diagnostics, "not-root-level");
+      continue;
+    }
+    const lineIndex = lineIndexAt(context, nodeBounds.start);
+    const lineRange = lineRangeAt(context, lineIndex);
+    const leading = source.slice(lineRange.start, nodeBounds.start);
+    const trailing = source.slice(nodeBounds.end, lineRange.end);
+    if (leading !== "" || !/^[ \t]*$/u.test(trailing)) {
+      recordInterlanguageSkip(diagnostics, "not-whole-line");
+      continue;
+    }
+
+    const prefix = target.slice(0, separator).toLocaleLowerCase();
+    if (!prefixes.has(prefix)) {
+      recordInterlanguageSkip(
+        diagnostics,
+        (node.interwiki?.length ?? 0) > 0
+          ? "generic-interwiki"
+          : "unconfigured-prefix",
+      );
+      continue;
+    }
+    if (
+      !node.interwiki ||
+      node.interwiki.toLocaleLowerCase() !== prefix
+    ) {
+      recordInterlanguageSkip(diagnostics, "not-parser-confirmed");
+      continue;
+    }
+
+    diagnostics.interlanguageLinksEligible++;
+    const line = lines[lineIndex];
+    if (line === undefined) {
+      recordInterlanguageSkip(diagnostics, "unstable-target");
+      diagnostics.interlanguageLinksEligible--;
+      continue;
+    }
+    if (line !== raw) diagnostics.interlanguageLinksFormatted++;
+    entries.push({ index: lineIndex, value: raw, originalValue: raw });
+  }
+  return entries.sort((left, right) => left.index - right.index);
+}
+
+function staleInterlanguageCandidates(source: string): number {
+  return source
+    .split("\n")
+    .filter((line) => /^\[\[:?[^\]\n]+:/u.test(line.trimEnd())).length;
 }
 
 function matchDefaultsort(
@@ -220,8 +419,9 @@ export function formatPageFooter(
     | "localizedSyntaxStyle"
     | "localizationAliases"
   >,
+  sourceSnapshot: string = context.source,
 ): PageFooterResult {
-  const source = context.source;
+  const source = sourceSnapshot;
   const diagnostics: FooterDiagnostics = {
     behaviorSwitchesMoved: 0,
     behaviorSwitchesFormatted: 0,
@@ -230,9 +430,21 @@ export function formatPageFooter(
     localizedCategoryAliasesCanonicalized: 0,
     localizedDefaultsortAliasesCanonicalized: 0,
     localizedBehaviorSwitchesCanonicalized: 0,
+    interlanguageLinksInspected: 0,
+    interlanguageLinksEligible: 0,
+    interlanguageLinksSkipped: 0,
     interlanguageLinksMoved: 0,
     interlanguageLinksFormatted: 0,
+    interlanguageLinkSkipReasons: {},
   };
+  if (context.source !== source) {
+    if (options.formatInterlanguageLinks) {
+      const count = staleInterlanguageCandidates(source);
+      diagnostics.interlanguageLinksInspected += count;
+      recordInterlanguageSkip(diagnostics, "not-parser-confirmed", count);
+    }
+    return { formatted: source, diagnostics };
+  }
   const finalNewline = hasFinalNewline(source);
   const lines = source.split("\n");
   if (finalNewline) lines.pop();
@@ -331,20 +543,17 @@ export function formatPageFooter(
   const interlanguageLinks: FooterEntry[] = [];
   const interlanguageIndexes = new Set<number>();
   if (options.formatInterlanguageLinks) {
-    for (const candidate of candidates) {
-      const value = matchInterlanguageLink(
-        candidate.line,
+    interlanguageLinks.push(
+      ...collectInterlanguageLinks(
+        context,
+        source,
+        lines,
         interlanguagePrefixes,
-      );
-      if (!value) continue;
-      if (value.value !== candidate.line)
-        diagnostics.interlanguageLinksFormatted++;
-      interlanguageLinks.push({
-        index: candidate.index,
-        value: value.value,
-        originalValue: candidate.trimmed,
-      });
-      interlanguageIndexes.add(candidate.index);
+        diagnostics,
+      ),
+    );
+    for (const entry of interlanguageLinks) {
+      interlanguageIndexes.add(entry.index);
     }
   }
 

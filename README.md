@@ -158,8 +158,11 @@ Explicit options override profile values.
 | Profile | Purpose |
 | --- | --- |
 | `default` | Standard options for interactive use |
-| `production` | All mature, verifiable normal rules for automation; CLI adds the idempotency-checking pass |
-| `aggressive` | Production rules plus experimental interlanguage-footer layout; CLI also adds the idempotency-checking pass |
+| `production` | All mature, verifiable normal rules for automation, including parser-confirmed interlanguage-footer placement; CLI adds the idempotency-checking pass |
+
+The pre-1.0 `aggressive` profile has been removed. The `experimental`
+reliability ceiling remains available for future rules, although no current
+rule uses it.
 
 Use `--fail-on-warning` in automation when a fail-closed fallback should fail
 the command. Profiles, levels, and every option are documented in

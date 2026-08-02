@@ -214,11 +214,11 @@ describe("VS Code formatter option parity", () => {
   it("does not let unconfigured editor defaults override config or profile", () => {
     expect(
       buildFormatOptions(config({}, true), {
-        profile: "aggressive",
+        profile: "production",
         lineWidth: 88,
       }),
     ).toEqual({
-      profile: "aggressive",
+      profile: "production",
       lineWidth: 88,
     });
   });
@@ -754,6 +754,13 @@ describe("VS Code reports and language guards", () => {
         tablesChanged: 2,
         tablesSkippedAmbiguous: 1,
       },
+      footerDiagnostics: {
+        ...detailedResult("").footerDiagnostics,
+        interlanguageLinksInspected: 2,
+        interlanguageLinksEligible: 1,
+        interlanguageLinksSkipped: 1,
+        interlanguageLinkSkipReasons: { "leading-colon": 1 },
+      },
       wikilinkDiagnostics: {
         ...detailedResult("").wikilinkDiagnostics,
         wikilinksSkippedUnsafe: 3,
@@ -782,8 +789,8 @@ describe("VS Code reports and language guards", () => {
         kind: "settings",
         settings: {
           ...settings(true),
-          options: { profile: "aggressive" },
-          explicitOptions: { profile: "aggressive" },
+          options: { profile: "production" },
+          explicitOptions: { profile: "production" },
         },
         configPath: "/workspace/.wikitextfmtrc",
       },
@@ -798,9 +805,9 @@ describe("VS Code reports and language guards", () => {
       }),
     ).toMatchObject({
       activeConfigPath: "/workspace/.wikitextfmtrc",
-      resolvedProfile: "aggressive",
-      resolvedLevel: "experimental",
-      explicitVscodeOptions: { profile: "aggressive" },
+      resolvedProfile: "production",
+      resolvedLevel: "normal",
+      explicitVscodeOptions: { profile: "production" },
       status: "changed",
       diagnostics: {
         ruleChanges: {
@@ -813,10 +820,12 @@ describe("VS Code reports and language guards", () => {
         skippedOrAmbiguous: {
           tablesSkippedAmbiguous: 1,
           wikilinksSkippedUnsafe: 3,
+          interlanguageLinksSkipped: 1,
           listLinesSkipped: 2,
         },
         skipReasons: {
           "wikilinks: unsafe-parent": 3,
+          "interlanguage links: leading-colon": 1,
           "lists: unicode-separator": 1,
           "lists: protected-block": 1,
         },

@@ -166,7 +166,7 @@ describe("generated graduated table matrix", () => {
 
 describe("structural equivalence rejection", () => {
   const documentOptions = resolveOptions({
-    profile: "aggressive",
+    profile: "production",
     behaviorSwitchPlacement: "footer",
     interlanguagePlacement: "footer",
   });

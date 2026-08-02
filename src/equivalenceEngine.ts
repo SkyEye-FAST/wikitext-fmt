@@ -922,6 +922,7 @@ function canonicalizeDocumentSyntax(
         localizedSyntaxStyle: "canonical-english",
         localizationAliases: options.localizationAliases,
       },
+      output,
     ).formatted;
   }
   return protectedText.restore(output);

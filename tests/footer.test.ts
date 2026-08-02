@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 
 import { formatWikitext } from "../src/index.js";
-import { createNodeParserSession, getParserConfig } from "../src/parser.js";
+import {
+  createNodeParserSession,
+  getParserConfig,
+  nodeParserRuntime,
+} from "../src/parser.js";
 import {
   formatPageFooter,
   isStandaloneBehaviorSwitchLine,
@@ -9,6 +13,9 @@ import {
 
 const config = getParserConfig("mediawiki");
 const session = createNodeParserSession(config);
+const interlanguageSession = nodeParserRuntime.createSession("mediawiki", {
+  interwikiPrefixes: ["en"],
+});
 const localization = {
   localizationSource: "builtin",
   localizedSyntaxStyle: "preserve",
@@ -54,7 +61,7 @@ describe("page footer formatting", () => {
     const source =
       "{{Foo|category=[[Category:Inside]]|sort={{DEFAULTSORT:Inside}}|language=[[en:Inside]]}}\nBody\n[[Category:Outside]]\n";
     expect(
-      formatPageFooter(session.createContext(source), {
+      formatPageFooter(interlanguageSession.createContext(source), {
         formatCategories: true,
         formatBehaviorSwitches: false,
         behaviorSwitchPlacement: "preserve",
@@ -164,7 +171,7 @@ describe("page footer formatting", () => {
   it("does not move inline interlanguage-like links", () => {
     const source = "Body [[en:Inline]]\n[[en:Footer]]\n";
     expect(
-      formatPageFooter(session.createContext(source), {
+      formatPageFooter(interlanguageSession.createContext(source), {
         formatCategories: false,
         formatBehaviorSwitches: false,
         behaviorSwitchPlacement: "preserve",

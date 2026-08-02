@@ -43,7 +43,7 @@ concatenated on stdout in stable path order.
 | `--report <path>` | Write an aggregate JSON batch report after processing |
 | `--config <path>` | Load one explicit validated JSON config |
 | `--no-config` | Disable config discovery and loading |
-| `--site-api <url>` | Fetch aliases when the resolved localization source is `siteinfo` |
+| `--site-api <url>` | Fetch aliases and language interwiki prefixes when the resolved localization source is `siteinfo` |
 | `--print-localization-aliases` | Print the final alias set without formatting input |
 
 `--version` and `-v` are intentionally recognized before normal argument
@@ -51,16 +51,15 @@ parsing. They do not validate other arguments, load config, fetch siteinfo,
 expand paths, or read files/stdin. Tests cover both aliases with otherwise
 invalid and irrelevant arguments.
 
-Without an explicit safety flag, the `production` and `aggressive` profiles
-select the additional idempotency pass automatically. The `default` profile
-uses the base pipeline. `--safe` or `--unsafe` explicitly overrides that
-profile-based choice.
+Without an explicit safety flag, the `production` profile selects the additional
+idempotency pass automatically. The `default` profile uses the base pipeline.
+`--safe` or `--unsafe` explicitly overrides that profile-based choice.
 
 `default` provides the standard interactive options. `production` enables all
-mature normal rules and is suitable for routine automation. `aggressive` adds
-the experimental policy that moves eligible whole-line interlanguage links to
-the footer. All three retain the base parse, round-trip, structural-equivalence,
-convergence, and fail-closed checks.
+mature normal rules, including parser-confirmed interlanguage footer placement,
+and is suitable for routine automation. Both profiles retain the base parse,
+round-trip, structural-equivalence, convergence, and fail-closed checks. The
+pre-1.0 `aggressive` profile has been removed and is rejected explicitly.
 
 Pure LF and pure CRLF files retain their line-ending style in normal output,
 `--check`, `--diff`, and `--write`; formatter-created line breaks use the same
@@ -72,7 +71,7 @@ and remain byte-for-byte unchanged. Warnings keep the normal exit status unless
 
 | Option | Values | Corresponding config key |
 | --- | --- | --- |
-| `--profile <value>` | `default`, `production`, `aggressive` | `profile` |
+| `--profile <value>` | `default`, `production` | `profile` |
 | `--level <value>` | `safe`, `normal`, `experimental` | `level` |
 | `--parser-config <value>` | Bundled parser name or JSON path | `parserConfig` |
 | `--html-void-tag-style <value>` | `html5`, `xhtml`, `preserve` | `htmlVoidTagStyle` |
@@ -109,8 +108,9 @@ validation:
 | `--format-tables`, `--no-format-tables` | `formatTables` |
 | `--no-normalize-blank-lines` | `normalizeBlankLines: false` |
 
-The reliability level must also admit a rule. For example,
-`--format-interlanguage-links` does not run at `--level normal`.
+The reliability level must also admit a rule. Interlanguage links are a normal
+rule, so `--level safe` disables them; movement additionally requires
+`--interlanguage-placement footer`.
 
 ## Files and globs
 
@@ -136,8 +136,11 @@ config. See [Configuration](configuration.md).
 
 If the resolved `localizationSource` is `siteinfo`, `--site-api` is required.
 The CLI performs one read-only MediaWiki siteinfo request, converts the result
-to custom aliases, and passes those aliases to the core. Fetch or validation
-errors exit 2; there is no silent built-in fallback.
+to custom aliases, derives authoritative language prefixes from `interwikimap`
+entries marked `language` or `extralanglink`, and passes both to the core.
+Generic interwiki entries are excluded unless explicitly configured. Explicit
+config or CLI `interlanguagePrefixes` values override the derived list. Fetch or
+validation errors exit 2; there is no silent built-in fallback.
 
 ## Streams
 

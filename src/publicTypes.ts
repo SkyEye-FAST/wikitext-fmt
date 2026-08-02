@@ -3,6 +3,17 @@ import type {
   TableCellSeparatorStyle,
 } from "./options.js";
 
+export type InterlanguageLinkSkipReason =
+  | "not-parser-confirmed"
+  | "not-root-level"
+  | "not-whole-line"
+  | "labelled-link"
+  | "leading-colon"
+  | "generic-interwiki"
+  | "unconfigured-prefix"
+  | "unstable-target"
+  | "unsafe-parent";
+
 export interface FooterDiagnostics {
   behaviorSwitchesMoved: number;
   behaviorSwitchesFormatted: number;
@@ -11,8 +22,14 @@ export interface FooterDiagnostics {
   localizedCategoryAliasesCanonicalized: number;
   localizedDefaultsortAliasesCanonicalized: number;
   localizedBehaviorSwitchesCanonicalized: number;
+  interlanguageLinksInspected: number;
+  interlanguageLinksEligible: number;
+  interlanguageLinksSkipped: number;
   interlanguageLinksMoved: number;
   interlanguageLinksFormatted: number;
+  interlanguageLinkSkipReasons: Partial<
+    Record<InterlanguageLinkSkipReason, number>
+  >;
 }
 
 export interface ExternalLinkDiagnostics {

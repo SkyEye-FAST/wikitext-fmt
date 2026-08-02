@@ -27,7 +27,7 @@ export const ruleLevels = {
   wikilinks: "normal",
   externalLinks: "normal",
   references: "normal",
-  interlanguageLinks: "experimental",
+  interlanguageLinks: "normal",
   sectionSpacing: "normal",
   redirects: "normal",
   behaviorSwitches: "normal",

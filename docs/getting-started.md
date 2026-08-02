@@ -62,9 +62,9 @@ wikitext-fmt --safe --write page.wiki
 
 The `production` profile enables every mature normal rule and selects the
 idempotency-checking path automatically, making it the recommended preset for
-routine automation. `aggressive` adds experimental interlanguage-footer layout
-under the same safeguards. Warnings still exit successfully unless
-`--fail-on-warning` is present.
+routine automation. This includes parser-confirmed interlanguage-footer layout;
+explicit rule and placement options can override the preset. Warnings still exit
+successfully unless `--fail-on-warning` is present.
 
 ## First API call
 

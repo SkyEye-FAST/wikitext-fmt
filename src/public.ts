@@ -6,6 +6,7 @@ export type {
   FormatResult,
   FooterDiagnostics,
   FileLinkDiagnostics,
+  InterlanguageLinkSkipReason,
   ListDiagnostics,
   ListSkipReason,
   RedirectDiagnostics,
@@ -38,7 +39,10 @@ export type { ResolvedLocalizationAliases } from "./localization/aliases.js";
 export type { DiagnosticsSummary } from "./diagnosticsSummary.js";
 export {
   loadSiteInfoAliases,
+  loadSiteInfoFormattingData,
+  normalizeSiteInfoFormattingPayload,
   normalizeSiteInfoPayload,
+  type SiteInfoFormattingData,
 } from "./localization/siteinfo.js";
 export {
   classifyParserFunction,

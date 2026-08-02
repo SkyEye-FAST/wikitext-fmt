@@ -2,8 +2,12 @@ import { describe, expect, it } from "vitest";
 import generatedAliases from "../src/localization/generated/mediawiki-aliases.json" with { type: "json" };
 import {
   loadSiteInfoAliases,
+  loadSiteInfoFormattingData,
+  normalizeSiteInfoFormattingPayload,
   normalizeSiteInfoPayload,
 } from "../src/localization/siteinfo.js";
+import { prepareLocalizationOptions } from "../src/cli/localization.js";
+import { parseArgs } from "../src/cli/args.js";
 import { formatWikitext, formatWikitextSafe } from "../src/index.js";
 import { formatWikitextDetailedResult } from "../src/formatter.js";
 
@@ -34,6 +38,44 @@ describe("MediaWiki localization data", () => {
       imageOptionAliases: { img_alt: ["altx=$1"] },
       behaviorSwitches: { notoc: ["__NOTOCX__"] },
     });
+  });
+
+  it("collects only language interwiki flags in API order", () => {
+    const data = normalizeSiteInfoFormattingPayload({
+      query: {
+        namespaces: [
+          { id: 6, canonical: "File" },
+          { id: 14, canonical: "Category" },
+        ],
+        interwikimap: [
+          { prefix: "en", language: "English" },
+          { prefix: "commons", local: true },
+          { prefix: "ja", extralanglink: "" },
+          { prefix: "mw", localinterwiki: true },
+          { prefix: "EN", extralanglink: true },
+          { prefix: "  zh-hans  ", language: "中文（简体）" },
+          { prefix: "", language: "invalid" },
+          { language: "missing prefix" },
+          null,
+        ],
+      },
+    });
+    expect(data.interlanguagePrefixes).toEqual(["en", "ja", "zh-hans"]);
+    expect(data.localizationAliases.categoryNamespaces).toEqual(["Category"]);
+  });
+
+  it("preserves an authoritative empty interlanguage prefix list", () => {
+    expect(
+      normalizeSiteInfoFormattingPayload({
+        query: {
+          namespaces: [{ id: 14, canonical: "Category" }],
+          interwikimap: [
+            { prefix: "commons", local: true },
+            { prefix: "mw", localinterwiki: true },
+          ],
+        },
+      }).interlanguagePrefixes,
+    ).toEqual([]);
   });
 
   it.each([
@@ -192,7 +234,7 @@ describe("MediaWiki localization data", () => {
 
   it("loads namespace and magic-word aliases from mocked siteinfo", async () => {
     let requestedUrl = "";
-    const aliases = await loadSiteInfoAliases(
+    const siteData = await loadSiteInfoFormattingData(
       "https://wiki.example/api.php",
       async (input) => {
         requestedUrl = String(input);
@@ -221,6 +263,10 @@ describe("MediaWiki localization data", () => {
                 { name: "notoc", aliases: ["__NOTOCX__", "__NOTOC__"] },
               ],
               doubleunderscores: ["notoc"],
+              interwikimap: [
+                { prefix: "de", language: "Deutsch" },
+                { prefix: "commons", local: true },
+              ],
             },
           }),
           { status: 200, headers: { "content-type": "application/json" } },
@@ -229,8 +275,10 @@ describe("MediaWiki localization data", () => {
     );
 
     expect(requestedUrl).toContain(
-      "siprop=namespaces%7Cnamespacealiases%7Cmagicwords%7Cdoubleunderscores",
+      "siprop=namespaces%7Cnamespacealiases%7Cmagicwords%7Cdoubleunderscores%7Cinterwikimap",
     );
+    const aliases = siteData.localizationAliases;
+    expect(siteData.interlanguagePrefixes).toEqual(["de"]);
     expect(aliases).toEqual({
       categoryNamespaces: ["KategorieX", "Category", "CatX"],
       fileNamespaces: ["DateiX", "File", "FileX"],
@@ -257,6 +305,78 @@ describe("MediaWiki localization data", () => {
         localizedSyntaxStyle: "canonical-english",
       }),
     ).toBe("[[File:Example.png|thumb|right]]\n");
+  });
+
+  it("uses siteinfo prefixes only when CLI or config did not set them", async () => {
+    const loader = async () => ({
+      localizationAliases: { categoryNamespaces: ["CatX"] },
+      interlanguagePrefixes: ["de", "ja"],
+    });
+    const baseCli = parseArgs([
+      "--localization-source",
+      "siteinfo",
+      "--site-api",
+      "https://wiki.example/api.php",
+      "page.wiki",
+    ]);
+
+    await expect(
+      prepareLocalizationOptions(
+        baseCli,
+        { localizationSource: "siteinfo" },
+        loader,
+      ),
+    ).resolves.toMatchObject({
+      localizationSource: "custom",
+      localizationAliases: { categoryNamespaces: ["CatX"] },
+      interlanguagePrefixes: ["de", "ja"],
+    });
+    await expect(
+      prepareLocalizationOptions(
+        baseCli,
+        {
+          localizationSource: "siteinfo",
+          interlanguagePrefixes: ["config-prefix"],
+        },
+        loader,
+      ),
+    ).resolves.toMatchObject({
+      interlanguagePrefixes: ["config-prefix"],
+    });
+
+    const cliOverride = parseArgs([
+      "--localization-source",
+      "siteinfo",
+      "--site-api",
+      "https://wiki.example/api.php",
+      "--interlanguage-prefixes",
+      "cli-prefix",
+      "page.wiki",
+    ]);
+    await expect(
+      prepareLocalizationOptions(cliOverride, cliOverride, loader),
+    ).resolves.toMatchObject({
+      interlanguagePrefixes: ["cli-prefix"],
+    });
+  });
+
+  it("does not replace an empty siteinfo prefix list with defaults", async () => {
+    const options = parseArgs([
+      "--localization-source",
+      "siteinfo",
+      "--site-api",
+      "https://wiki.example/api.php",
+      "page.wiki",
+    ]);
+    const prepared = await prepareLocalizationOptions(
+      options,
+      { localizationSource: "siteinfo" },
+      async () => ({
+        localizationAliases: { categoryNamespaces: ["Category"] },
+        interlanguagePrefixes: [],
+      }),
+    );
+    expect(prepared.interlanguagePrefixes).toEqual([]);
   });
 
   it("fails closed when siteinfo aliases were not loaded", () => {

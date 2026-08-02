@@ -1,7 +1,5 @@
 {
-  "level": "experimental",
-  "formatInterlanguageLinks": true,
-  "interlanguagePlacement": "footer",
+  "profile": "production",
   "behaviorSwitchPlacement": "footer",
   "formatSectionSpacing": true
 }

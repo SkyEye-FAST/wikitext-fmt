@@ -1,5 +1,7 @@
 import { spawn } from "node:child_process";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { createServer, type Server } from "node:http";
+import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
@@ -7,6 +9,7 @@ import { afterEach, describe, expect, it } from "vitest";
 
 const cli = resolve("dist/cli.js");
 const temporaryDirectories: string[] = [];
+const testServers: Server[] = [];
 
 interface CliResult {
   code: number;
@@ -47,11 +50,48 @@ async function runCli(
   });
 }
 
+async function siteInfoApi(): Promise<string> {
+  const server = createServer((_request, response) => {
+    response.setHeader("content-type", "application/json");
+    response.end(
+      JSON.stringify({
+        query: {
+          namespaces: [
+            { id: 6, canonical: "File" },
+            { id: 14, canonical: "Category" },
+          ],
+          interwikimap: [
+            { prefix: "de", language: "Deutsch" },
+            { prefix: "en", local: true },
+          ],
+        },
+      }),
+    );
+  });
+  testServers.push(server);
+  await new Promise<void>((resolveListen) => {
+    server.listen(0, "127.0.0.1", resolveListen);
+  });
+  const address = server.address() as AddressInfo;
+  return `http://127.0.0.1:${address.port}/api.php`;
+}
+
 afterEach(async () => {
   await Promise.all(
-    temporaryDirectories
-      .splice(0)
-      .map((directory) => rm(directory, { recursive: true, force: true })),
+    [
+      ...temporaryDirectories
+        .splice(0)
+        .map((directory) => rm(directory, { recursive: true, force: true })),
+      ...testServers.splice(0).map(
+        (server) =>
+          new Promise<void>((resolveClose, reject) => {
+            server.close((error) => {
+              if (error) reject(error);
+              else resolveClose();
+            });
+          }),
+      ),
+    ],
   );
 });
 
@@ -116,12 +156,14 @@ describe("CLI production behavior", () => {
     expect(production.code).toBe(0);
     expect(production.stderr).toContain("mode=safe");
 
-    const aggressive = await runCli(
+    const removedProfile = await runCli(
       ["--profile", "aggressive", "--check", "--debug", file],
       { cwd: root },
     );
-    expect(aggressive.code).toBe(0);
-    expect(aggressive.stderr).toContain("mode=safe");
+    expect(removedProfile.code).toBe(2);
+    expect(removedProfile.stderr).toContain(
+      "--profile must be default or production",
+    );
 
     const unsafe = await runCli(
       ["--profile", "production", "--unsafe", "--check", "--debug", file],
@@ -236,6 +278,48 @@ describe("CLI production behavior", () => {
     expect(defaults).toEqual({
       code: 0,
       stdout: "== Title ==\n",
+      stderr: "",
+    });
+  });
+
+  it("uses siteinfo language prefixes unless the CLI explicitly overrides them", async () => {
+    const api = await siteInfoApi();
+    const input = "[[de:Deutsch]]\n[[en:English]]\nBody\n";
+    const siteinfo = await runCli(
+      [
+        "--stdin",
+        "--profile",
+        "production",
+        "--localization-source",
+        "siteinfo",
+        "--site-api",
+        api,
+      ],
+      { stdin: input },
+    );
+    expect(siteinfo).toEqual({
+      code: 0,
+      stdout: "[[en:English]]\nBody\n\n[[de:Deutsch]]\n",
+      stderr: "",
+    });
+
+    const explicit = await runCli(
+      [
+        "--stdin",
+        "--profile",
+        "production",
+        "--localization-source",
+        "siteinfo",
+        "--site-api",
+        api,
+        "--interlanguage-prefixes",
+        "en",
+      ],
+      { stdin: input },
+    );
+    expect(explicit).toEqual({
+      code: 0,
+      stdout: "[[de:Deutsch]]\nBody\n\n[[en:English]]\n",
       stderr: "",
     });
   });

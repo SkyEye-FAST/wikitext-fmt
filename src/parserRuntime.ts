@@ -17,8 +17,12 @@ export interface ParserSession {
   isRoundTripSafe(source: string): boolean;
 }
 
+export interface ParserSessionOptions {
+  interwikiPrefixes?: readonly string[];
+}
+
 export interface ParserRuntime {
-  createSession(name: string): ParserSession;
+  createSession(name: string, options?: ParserSessionOptions): ParserSession;
 }
 
 export class UnsupportedParserConfigError extends Error {
@@ -36,8 +40,44 @@ export function createParserRuntime(
   resolveConfig: (name: string) => Config,
 ): ParserRuntime {
   return {
-    createSession: (name) => createParserSession(parser, resolveConfig(name)),
+    createSession: (name, options) =>
+      createParserSession(
+        parser,
+        parserConfigWithInterwikiPrefixes(
+          resolveConfig(name),
+          options?.interwikiPrefixes,
+        ),
+      ),
   };
+}
+
+function normalizedParserPrefix(prefix: string): string {
+  return prefix.trim().replaceAll("_", " ").toLocaleLowerCase();
+}
+
+export function parserConfigWithInterwikiPrefixes(
+  config: Config,
+  prefixes?: readonly string[],
+): Config {
+  if (prefixes === undefined) return config;
+  const localNamespaces = new Set(
+    Object.keys(config.nsid).map(normalizedParserPrefix),
+  );
+  const seen = new Set<string>();
+  const interwiki: string[] = [];
+  for (const prefix of [...config.interwiki, ...prefixes]) {
+    const normalized = normalizedParserPrefix(prefix);
+    if (
+      !normalized ||
+      localNamespaces.has(normalized) ||
+      seen.has(normalized)
+    ) {
+      continue;
+    }
+    seen.add(normalized);
+    interwiki.push(prefix.trim());
+  }
+  return { ...config, interwiki };
 }
 
 export function createParserSession(

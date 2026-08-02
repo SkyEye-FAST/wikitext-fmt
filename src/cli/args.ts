@@ -39,7 +39,7 @@ interface FormatterValueHelp {
 const formatterValueHelp: readonly FormatterValueHelp[] = [
   {
     name: "profile",
-    syntax: "--profile <default|production|aggressive>",
+    syntax: "--profile <default|production>",
     description: "Select a coordinated formatter preset.",
   },
   {
@@ -333,14 +333,8 @@ export function parseArgs(args: string[]): CliOptions {
       }
       case "--profile": {
         const value = args[++index];
-        if (
-          value !== "default" &&
-          value !== "production" &&
-          value !== "aggressive"
-        ) {
-          throw new Error(
-            "--profile must be default, production, or aggressive",
-          );
+        if (value !== "default" && value !== "production") {
+          throw new Error("--profile must be default or production");
         }
         options.profile = value;
         break;

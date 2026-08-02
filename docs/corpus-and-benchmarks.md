@@ -99,6 +99,8 @@ Reports separate:
 - eligible, changed, canonical, and ambiguous template/table nodes;
 - inspected, eligible, changed, fragment-containing and excluded wikilinks,
   replaced underscores, and wikilink skip reasons;
+- inspected, eligible, skipped, moved, and formatted interlanguage links plus
+  their skip reasons and inspected = eligible + skipped invariant;
 - page structural coverage;
 - template/table page coverage;
 - eligible-node coverage.
@@ -111,13 +113,12 @@ for the committed corpus:
 
 ```sh
 pnpm corpus:production
-pnpm corpus:aggressive
 ```
 
-The production gate exercises all mature normal rules. The aggressive gate adds
-experimental interlanguage-footer placement, so the two reports measure
-different formatting policies under the same parse, equivalence, convergence,
-and idempotency requirements.
+The production gate exercises all mature normal rules, including
+parser-confirmed interlanguage-footer placement, under the same parse,
+equivalence, convergence, and idempotency requirements. The removed pre-1.0
+`aggressive` corpus policy is no longer accepted.
 
 ## Skip reasons and failures
 

@@ -40,33 +40,33 @@ preset.
 
 | Name | Type / allowed values | Default | Level | CLI equivalent | Profile interaction | Behavior |
 | --- | --- | --- | --- | --- | --- | --- |
-| `profile` | `default` \| `production` \| `aggressive` | `default` | — | `--profile` | Selects preset | Coordinated option preset |
+| `profile` | `default` \| `production` | `default` | — | `--profile` | Selects preset | Coordinated option preset |
 | `parserConfig` | non-empty string | `mediawiki` | — | `--parser-config` | unchanged | Parser config name or JSON path |
 | `lineWidth` | number > 0 | `120` | — | config/API only | unchanged | Maximum normalized single-line named-template candidate length; soft for anonymous parameters |
 | `formatHeadings` | boolean | `true` | safe | `--no-format-headings` | unchanged | Normalize eligible ASCII heading marker spacing while preserving non-ASCII title whitespace |
-| `formatTemplates` | boolean | `true` | normal | `--no-format-templates` | production/aggressive: `true` | Run the unified template engine, including ASCII underscore-to-space normalization in stable ordinary invocation titles |
+| `formatTemplates` | boolean | `true` | normal | `--no-format-templates` | production: `true` | Run the unified template engine, including ASCII underscore-to-space normalization in stable ordinary invocation titles |
 | `inlineTemplateSpacing` | `auto` \| `compact` \| `spaced` | `auto` | — | `--inline-template-spacing` | unchanged | Generate parser-safe single-line named-template candidates; auto filters by `lineWidth` before weighted syntax-whitespace cost and a compact tie-break |
 | `templateParameterLayout` | `compact` \| `flush` \| `indented` | `flush` | — | config/API only | unchanged | Choose spacing and indentation after a named/numbered template must remain or become multiline |
 | `formatCategories` | boolean | `true` | normal | `--no-format-categories` | unchanged | Format eligible footer categories/defaultsort |
 | `formatLists` | boolean | `true` | normal | `--no-format-lists` | unchanged | Normalize eligible single-line list marker separators to exactly one ASCII space |
 | `formatFileLinks` | boolean | `true` | normal | `--no-format-file-links` | unchanged | Format eligible whole-line file/image links |
 | `formatWikilinks` | boolean | `true` | normal | `--no-format-wikilinks` | unchanged | Replace ASCII underscores with spaces only in eligible parser-confirmed internal page-title components |
-| `formatExternalLinks` | boolean | `false` | normal | `--format-external-links`, `--no-format-external-links` | production/aggressive: `true` | Normalize labelled whole-line external-link spacing |
-| `formatReferences` | boolean | `false` | normal | `--format-references`, `--no-format-references` | production/aggressive: `true` | Normalize standalone self-closing ref tags |
-| `formatInterlanguageLinks` | boolean | `false` | experimental | `--format-interlanguage-links`, `--no-format-interlanguage-links` | production: `false`; aggressive: `true` | Recognize eligible interlanguage footer links |
-| `interlanguagePlacement` | `preserve` \| `footer` | `preserve` | — | `--interlanguage-placement` | aggressive: `footer` | Preserve or move recognized links |
-| `interlanguagePrefixes` | non-empty string[] | `ar,de,en,es,fr,it,ja,ko,pl,pt,ru,uk,zh,zh-hans,zh-hant` | — | `--interlanguage-prefixes` | unchanged | Exact recognized prefix list |
-| `formatSectionSpacing` | boolean | `false` | normal | `--format-section-spacing`, `--no-format-section-spacing` | production/aggressive: `true` | Insert missing blank lines between headings and adjacent content blocks |
+| `formatExternalLinks` | boolean | `false` | normal | `--format-external-links`, `--no-format-external-links` | production: `true` | Normalize labelled whole-line external-link spacing |
+| `formatReferences` | boolean | `false` | normal | `--format-references`, `--no-format-references` | production: `true` | Normalize standalone self-closing ref tags |
+| `formatInterlanguageLinks` | boolean | `false` | normal | `--format-interlanguage-links`, `--no-format-interlanguage-links` | production: `true` | Recognize parser-confirmed interlanguage footer links |
+| `interlanguagePlacement` | `preserve` \| `footer` | `preserve` | — | `--interlanguage-placement` | production: `footer` | Preserve or move recognized links |
+| `interlanguagePrefixes` | non-empty string[] | `ar,de,en,es,fr,it,ja,ko,pl,pt,ru,uk,zh,zh-hans,zh-hant` | — | `--interlanguage-prefixes` | unchanged | Authoritative prefix list; siteinfo may supply it in the CLI |
+| `formatSectionSpacing` | boolean | `false` | normal | `--format-section-spacing`, `--no-format-section-spacing` | production: `true` | Insert missing blank lines between headings and adjacent content blocks |
 | `formatBehaviorSwitches` | boolean | `true` | normal | `--no-format-behavior-switches` | unchanged | Format eligible standalone behavior switches |
 | `formatRedirects` | boolean | `true` | normal | `--no-format-redirects` | unchanged | Normalize a safe first-line redirect |
 | `behaviorSwitchPlacement` | `preserve` \| `footer` | `preserve` | — | `--behavior-switch-placement` | unchanged | Preserve or move recognized switches |
 | `localizationSource` | `builtin` \| `siteinfo` \| `custom` | `builtin` | — | `--localization-source` | unchanged | Choose alias data source |
 | `localizedSyntaxStyle` | `preserve` \| `canonical-english` | `preserve` | — | `--localized-syntax-style` | unchanged | Preserve recognized spelling or canonicalize certain keywords |
 | `localizationAliases` | object | `{}` | — | config/API only | unchanged | Custom or preloaded site aliases |
-| `formatTables` | boolean | `true` | normal | `--format-tables`, `--no-format-tables` | production/aggressive: `true` | Run parser-assisted table layout |
-| `tableCellSeparatorStyle` | `auto` \| `split` \| `preserve` | `auto` | — | `--table-cell-separator-style` | production/aggressive: `auto` | Split inline `\|\|`/`!!`, or retain only those separators while still normalizing other safe table layout |
+| `formatTables` | boolean | `true` | normal | `--format-tables`, `--no-format-tables` | production: `true` | Run parser-assisted table layout |
+| `tableCellSeparatorStyle` | `auto` \| `split` \| `preserve` | `auto` | — | `--table-cell-separator-style` | production: `auto` | Split inline `\|\|`/`!!`, or retain only those separators while still normalizing other safe table layout |
 | `normalizeBlankLines` | boolean | `true` | safe | `--no-normalize-blank-lines` | unchanged | Collapse 3+ blank lines to 2 |
-| `level` | `safe` \| `normal` \| `experimental` | `normal` | — | `--level` | production: `normal`; aggressive: `experimental` | Maximum cumulative rule reliability |
+| `level` | `safe` \| `normal` \| `experimental` | `normal` | — | `--level` | production: `normal` | Maximum cumulative rule reliability |
 | `htmlVoidTagStyle` | `html5` \| `xhtml` \| `preserve` | `html5` | safe | `--html-void-tag-style` | unchanged | Spell simple `br`/`hr`/`wbr` tags |
 
 Template-title normalization has no separate option. With the template engine
@@ -95,12 +95,19 @@ classes may execute. Both the rule's boolean option and its level must allow it.
 - `default` applies the standard interactive defaults. Normal rules whose
   individual switches default to off remain available as explicit opt-ins.
 - `production` selects normal level and enables every mature normal rule,
-  including references, external links, section spacing, templates, and tables
-  with automatic table splitting. It is the preset intended for automation.
-- `aggressive` starts from the production behavior, selects experimental level,
-  and additionally moves eligible whole-line interlanguage links to the footer.
-  This changes page layout more broadly while retaining the same parse,
-  structural-equivalence, convergence, and idempotency safeguards.
+  including references, external links, section spacing, templates, tables with
+  automatic table splitting, and parser-confirmed interlanguage links with
+  footer placement. It is the preset intended for automation.
+
+The `experimental` level remains a valid cumulative ceiling for future rules,
+but no current rule uses it. The pre-1.0 `aggressive` profile has been removed
+and is rejected rather than silently mapped to another preset.
+
+`interlanguagePrefixes` is an authorization list, not a textual recognition
+hint. The rule additionally requires the parser to classify the exact link as
+interwiki. The CLI can derive the list from siteinfo; an explicit config or CLI
+value overrides that result. Prefixes that conflict with local namespaces are
+not injected into the parser session.
 
 ## Localization aliases
 

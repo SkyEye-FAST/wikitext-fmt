@@ -11,4 +11,5 @@ export type {
   ParserRoot,
   ParserRuntime,
   ParserSession,
+  ParserSessionOptions,
 } from "./parserRuntime.js";

@@ -125,12 +125,12 @@ describe("CLI configuration", () => {
     expect(validateConfig({ profile: "production" })).toEqual({
       profile: "production",
     });
-    expect(validateConfig({ profile: "aggressive" })).toEqual({
-      profile: "aggressive",
-    });
+    expect(() => validateConfig({ profile: "aggressive" })).toThrow(
+      /profile.*must be one of/u,
+    );
   });
 
-  it("accepts experimental table configuration", () => {
+  it("retains the experimental reliability level for future rules", () => {
     expect(
       validateConfig({
         formatTables: true,

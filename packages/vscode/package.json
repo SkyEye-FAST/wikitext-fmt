@@ -244,13 +244,11 @@
           "description": "%configuration.profile.description%",
           "enum": [
             "default",
-            "production",
-            "aggressive"
+            "production"
           ],
           "enumDescriptions": [
             "%configuration.profile.enumDescriptions.default%",
-            "%configuration.profile.enumDescriptions.production%",
-            "%configuration.profile.enumDescriptions.aggressive%"
+            "%configuration.profile.enumDescriptions.production%"
           ],
           "type": "string"
         },

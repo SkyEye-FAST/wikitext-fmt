@@ -18,6 +18,9 @@ export interface DiagnosticsSummary {
   localizedCategoryAliasesCanonicalized: number;
   localizedDefaultsortAliasesCanonicalized: number;
   localizedBehaviorSwitchesCanonicalized: number;
+  interlanguageLinksInspected: number;
+  interlanguageLinksEligible: number;
+  interlanguageLinksSkipped: number;
   interlanguageLinksMoved: number;
   interlanguageLinksFormatted: number;
   redirectsFormatted: number;

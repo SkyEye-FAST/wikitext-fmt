@@ -85,8 +85,9 @@ Detailed results expose structured information for rules that need it:
   and separator-layout changes;
 - templates (`templateDiagnostics`): structural nodes, candidate layouts, skips,
   convergence, and equivalence;
-- footer metadata: moved/formatted/canonicalized categories, defaultsort,
-  switches, and interlanguage links;
+- footer metadata: moved/formatted/canonicalized categories, defaultsort, and
+  switches; interlanguage links additionally expose inspected, eligible,
+  skipped, moved, formatted, and skip-reason counts;
 - redirect, file-link, wikilink, external-link, reference, and section-spacing
   counters;
 - lists: parser-confirmed inspected/eligible/changed/canonical counts,
@@ -108,6 +109,21 @@ dedicated diagnostic objects.
   "failure": null,
   "warning": null,
   "summary": {},
+  "footerDiagnostics": {
+    "behaviorSwitchesMoved": 0,
+    "behaviorSwitchesFormatted": 0,
+    "defaultsortMoved": 0,
+    "categoriesMoved": 0,
+    "localizedCategoryAliasesCanonicalized": 0,
+    "localizedDefaultsortAliasesCanonicalized": 0,
+    "localizedBehaviorSwitchesCanonicalized": 0,
+    "interlanguageLinksInspected": 0,
+    "interlanguageLinksEligible": 0,
+    "interlanguageLinksSkipped": 0,
+    "interlanguageLinksMoved": 0,
+    "interlanguageLinksFormatted": 0,
+    "interlanguageLinkSkipReasons": {}
+  },
   "tableDiagnostics": [],
   "listDiagnostics": {
     "listLinesInspected": 0,
@@ -125,7 +141,9 @@ dedicated diagnostic objects.
 
 `summary` contains rule counters grouped around files, table lines and nodes,
 templates, footer metadata, redirects, file/internal/external links, references,
-lists, section spacing, and localization canonicalization. `tableDiagnostics`
+lists, section spacing, and localization canonicalization. `footerDiagnostics`
+contains the complete per-input footer counters and interlanguage skip-reason
+histogram. `tableDiagnostics`
 contains the complete per-table records. `listDiagnostics` contains the
 per-input list counters and skip reasons. Current list skip reasons distinguish
 parser confirmation, marker-boundary ambiguity, Unicode separators, multiline
@@ -144,6 +162,10 @@ with `--debug`.
 - a failure-code histogram;
 - aggregate rule and canonicalization counters;
 - aggregate formatted and skipped table-line counts.
+
+The aggregate summary includes interlanguage inspected, eligible, skipped,
+moved, and formatted counts. Per-file `footerDiagnostics` retains the reason
+histogram used to explain conservative skips.
 
 Report writing happens after input processing. A write error uses stderr and
 exit 2. The report schema is pre-1.0 and may change in a documented minor

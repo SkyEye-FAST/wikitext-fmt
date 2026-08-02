@@ -1,12 +1,23 @@
 import type { LocalizationAliases } from "../options.js";
-import { normalizeSiteInfoPayload } from "./siteinfo-normalize.js";
+import {
+  normalizeSiteInfoFormattingPayload,
+  normalizeSiteInfoPayload,
+} from "./siteinfo-normalize.js";
 
-export { normalizeSiteInfoPayload } from "./siteinfo-normalize.js";
+export {
+  normalizeSiteInfoFormattingPayload,
+  normalizeSiteInfoPayload,
+} from "./siteinfo-normalize.js";
 
-export async function loadSiteInfoAliases(
+export interface SiteInfoFormattingData {
+  localizationAliases: LocalizationAliases;
+  interlanguagePrefixes: string[];
+}
+
+export async function loadSiteInfoFormattingData(
   apiUrl: string,
   fetchImplementation: typeof fetch = fetch,
-): Promise<LocalizationAliases> {
+): Promise<SiteInfoFormattingData> {
   let url: URL;
   try {
     url = new URL(apiUrl);
@@ -17,7 +28,7 @@ export async function loadSiteInfoAliases(
   url.searchParams.set("meta", "siteinfo");
   url.searchParams.set(
     "siprop",
-    "namespaces|namespacealiases|magicwords|doubleunderscores",
+    "namespaces|namespacealiases|magicwords|doubleunderscores|interwikimap",
   );
   url.searchParams.set("format", "json");
   url.searchParams.set("formatversion", "2");
@@ -35,8 +46,17 @@ export async function loadSiteInfoAliases(
       `Could not fetch MediaWiki siteinfo from ${apiUrl}: HTTP ${response.status}`,
     );
   }
-  return normalizeSiteInfoPayload(
+  return normalizeSiteInfoFormattingPayload(
     await response.json(),
     `MediaWiki siteinfo response from ${apiUrl}`,
-  ) as LocalizationAliases;
+  ) as SiteInfoFormattingData;
+}
+
+export async function loadSiteInfoAliases(
+  apiUrl: string,
+  fetchImplementation: typeof fetch = fetch,
+): Promise<LocalizationAliases> {
+  return (
+    await loadSiteInfoFormattingData(apiUrl, fetchImplementation)
+  ).localizationAliases;
 }

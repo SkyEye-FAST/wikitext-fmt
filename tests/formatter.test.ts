@@ -53,13 +53,14 @@ describe("formatter API", () => {
       wikilinks: "normal",
       externalLinks: "normal",
       references: "normal",
-      interlanguageLinks: "experimental",
+      interlanguageLinks: "normal",
       sectionSpacing: "normal",
       redirects: "normal",
       behaviorSwitches: "normal",
       htmlVoidTags: "safe",
       tables: "normal",
     });
+    expect(Object.values(ruleLevels)).not.toContain("experimental");
   });
 
   it("exposes only the unified template API", () => {
@@ -80,25 +81,15 @@ describe("formatter API", () => {
     expect(ruleLevels).not.toHaveProperty(removedRule);
   });
 
-  it("enables aggressive tables by default and supports an explicit opt-out", () => {
+  it("enables tables by default and supports an explicit opt-out", () => {
     const input = '{| class="wikitable"\n! A !! B\n|}\n';
     expect(formatWikitext(input)).toBe('{| class="wikitable"\n! A\n! B\n|}\n');
     expect(formatWikitext(input, { formatTables: false })).toBe(input);
   });
 
-  it("keeps production and aggressive profiles distinct with explicit overrides", () => {
+  it("enables every production rule with explicit overrides", () => {
     expect(resolveOptions({ profile: "production" })).toMatchObject({
       level: "normal",
-      formatTemplates: true,
-      formatTables: true,
-      formatReferences: true,
-      formatExternalLinks: true,
-      formatSectionSpacing: true,
-      formatInterlanguageLinks: false,
-      interlanguagePlacement: "preserve",
-    });
-    expect(resolveOptions({ profile: "aggressive" })).toMatchObject({
-      level: "experimental",
       formatTemplates: true,
       formatTables: true,
       formatReferences: true,
@@ -108,22 +99,15 @@ describe("formatter API", () => {
       interlanguagePlacement: "footer",
     });
     expect(
-      resolveOptions({ profile: "aggressive", formatReferences: false }),
-    ).toMatchObject({ profile: "aggressive", formatReferences: false });
+      resolveOptions({ profile: "production", formatReferences: false }),
+    ).toMatchObject({ profile: "production", formatReferences: false });
 
     const input = '<ref name="x"/>\nParagraph\n==Title==\nNext\n';
     expect(formatWikitext(input, { profile: "production" })).toBe(
       '<ref name="x" />\nParagraph\n\n== Title ==\n\nNext\n',
     );
-    expect(formatWikitext(input, { profile: "aggressive" })).toBe(
-      '<ref name="x" />\nParagraph\n\n== Title ==\n\nNext\n',
-    );
-
     const interlanguage = "[[en:Example]]\nBody\n";
     expect(formatWikitext(interlanguage, { profile: "production" })).toBe(
-      interlanguage,
-    );
-    expect(formatWikitext(interlanguage, { profile: "aggressive" })).toBe(
       "Body\n\n[[en:Example]]\n",
     );
   });

@@ -9,6 +9,7 @@ export interface FileDiagnostics {
   failure: FormatFailure | null;
   warning: string | null;
   summary: DiagnosticsSummary;
+  footerDiagnostics: FormatDetailedResult["footerDiagnostics"];
   tableDiagnostics: FormatDetailedResult["tableDiagnostics"];
   listDiagnostics: FormatDetailedResult["listDiagnostics"];
 }
@@ -33,6 +34,9 @@ export function emptyDiagnosticsSummary(): DiagnosticsSummary {
     localizedCategoryAliasesCanonicalized: 0,
     localizedDefaultsortAliasesCanonicalized: 0,
     localizedBehaviorSwitchesCanonicalized: 0,
+    interlanguageLinksInspected: 0,
+    interlanguageLinksEligible: 0,
+    interlanguageLinksSkipped: 0,
     interlanguageLinksMoved: 0,
     interlanguageLinksFormatted: 0,
     redirectsFormatted: 0,
@@ -117,7 +121,27 @@ export function createDiagnosticsSummary(
         ).length ?? 0),
       0,
     ),
-    ...result.footerDiagnostics,
+    behaviorSwitchesMoved: result.footerDiagnostics.behaviorSwitchesMoved,
+    behaviorSwitchesFormatted:
+      result.footerDiagnostics.behaviorSwitchesFormatted,
+    defaultsortMoved: result.footerDiagnostics.defaultsortMoved,
+    categoriesMoved: result.footerDiagnostics.categoriesMoved,
+    localizedCategoryAliasesCanonicalized:
+      result.footerDiagnostics.localizedCategoryAliasesCanonicalized,
+    localizedDefaultsortAliasesCanonicalized:
+      result.footerDiagnostics.localizedDefaultsortAliasesCanonicalized,
+    localizedBehaviorSwitchesCanonicalized:
+      result.footerDiagnostics.localizedBehaviorSwitchesCanonicalized,
+    interlanguageLinksInspected:
+      result.footerDiagnostics.interlanguageLinksInspected,
+    interlanguageLinksEligible:
+      result.footerDiagnostics.interlanguageLinksEligible,
+    interlanguageLinksSkipped:
+      result.footerDiagnostics.interlanguageLinksSkipped,
+    interlanguageLinksMoved:
+      result.footerDiagnostics.interlanguageLinksMoved,
+    interlanguageLinksFormatted:
+      result.footerDiagnostics.interlanguageLinksFormatted,
     ...result.redirectDiagnostics,
     ...result.fileLinkDiagnostics,
     wikilinksInspected: result.wikilinkDiagnostics.wikilinksInspected,
@@ -174,6 +198,7 @@ export function createDiagnosticsRecord(
     failure: result.failure ?? null,
     warning: result.warning ?? null,
     summary,
+    footerDiagnostics: result.footerDiagnostics,
     tableDiagnostics: result.tableDiagnostics,
     listDiagnostics: result.listDiagnostics,
   };

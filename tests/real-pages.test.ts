@@ -69,29 +69,13 @@ const matrix: Array<{ name: string; options: FormatOptions }> = [
     },
   },
   {
-    name: "all formatting opt-ins",
-    options: {
-      level: "experimental",
-      formatSectionSpacing: true,
-      formatReferences: true,
-      formatExternalLinks: true,
-      formatTables: true,
-      tableCellSeparatorStyle: "auto",
-      formatInterlanguageLinks: true,
-      interlanguagePlacement: "footer",
-    },
+    name: "production",
+    options: { profile: "production" },
   },
   {
-    name: "all formatting opt-ins with canonical footer localization",
+    name: "production with canonical footer localization",
     options: {
-      level: "experimental",
-      formatSectionSpacing: true,
-      formatReferences: true,
-      formatExternalLinks: true,
-      formatTables: true,
-      tableCellSeparatorStyle: "auto",
-      formatInterlanguageLinks: true,
-      interlanguagePlacement: "footer",
+      profile: "production",
       localizedSyntaxStyle: "canonical-english",
       behaviorSwitchPlacement: "footer",
     },
@@ -119,10 +103,7 @@ describe("real page regressions", () => {
 
     const structureSummary = createDiagnosticsSummary(
       formatWikitextSafeDetailed(feature, {
-        level: "experimental",
-        formatSectionSpacing: true,
-        formatInterlanguageLinks: true,
-        interlanguagePlacement: "footer",
+        profile: "production",
       }),
     );
     expect(structureSummary.interlanguageLinksMoved).toBeGreaterThan(0);
@@ -157,5 +138,48 @@ describe("real page regressions", () => {
     expect(
       canonicalSummary.localizedFileNamespaceAliasesCanonicalized,
     ).toBeGreaterThan(0);
+  });
+
+  it("formats the mixed interlanguage footer corpus page exactly in production", async () => {
+    const source = await readRealPage("footer-heavy-page.wiki");
+    const expected = [
+      "__NOTOC__",
+      "Lead text for the footer-heavy page.",
+      "[[commons:Generic interwiki stays in the body]]",
+      "[[:en:Leading-colon body link]]",
+      "{{FooterProbe|language=[[en:Template body link]]}}",
+      "<ref>[[ja:Reference body link]]</ref>",
+      "<!-- [[zh:Comment body link]] -->",
+      "<nowiki>[[de:Extension body link]]</nowiki>",
+      "",
+      "== Details ==",
+      "",
+      "The page deliberately mixes footer metadata with article content.",
+      "",
+      "__NOEDITSECTION__",
+      "",
+      "{{DEFAULTSORT:Regression, Footer}}",
+      "[[Category:Initially misplaced]]",
+      "[[Category:Formatter tests|Footer]]",
+      "[[分類:回帰テスト]]",
+      "[[分类:格式化测试]]",
+      "",
+      "[[en:Footer regression page]]",
+      "[[ja:フッター回帰ページ]]",
+      "[[zh-hant:頁尾回歸頁面]]",
+      "",
+    ].join("\n");
+    const result = formatWikitextSafeDetailed(source, {
+      profile: "production",
+    });
+    expect(result.failure).toBeUndefined();
+    expect(result.warning).toBeUndefined();
+    expect(result.formatted).toBe(expected);
+    expect(result.equivalenceDiagnostics.every((entry) => entry.equivalent)).toBe(
+      true,
+    );
+    expect(
+      formatWikitextSafeDetailed(expected, { profile: "production" }).formatted,
+    ).toBe(expected);
   });
 });

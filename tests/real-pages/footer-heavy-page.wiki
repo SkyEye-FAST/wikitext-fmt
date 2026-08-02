@@ -2,6 +2,12 @@ __NOTOC__
 [[Category:Initially misplaced]]
 [[en:Footer regression page]]
 Lead text for the footer-heavy page.
+[[commons:Generic interwiki stays in the body]]
+[[:en:Leading-colon body link]]
+{{FooterProbe|language=[[en:Template body link]]}}
+<ref>[[ja:Reference body link]]</ref>
+<!-- [[zh:Comment body link]] -->
+<nowiki>[[de:Extension body link]]</nowiki>
 
 ==Details==
 The page deliberately mixes footer metadata with article content.

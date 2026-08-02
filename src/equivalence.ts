@@ -14,6 +14,7 @@ import {
 } from "./equivalenceEngine.js";
 import type { ResolvedFormatOptions } from "./options.js";
 import { createNodeParserSession } from "./parser.node.js";
+import { parserConfigWithInterwikiPrefixes } from "./parserRuntime.js";
 
 export type {
   StructuralEquivalenceKind,
@@ -50,7 +51,12 @@ export function documentStructuralFingerprint(
   return documentStructuralFingerprintWithRuntime(
     source,
     options,
-    createNodeParserSession(config),
+    createNodeParserSession(
+      parserConfigWithInterwikiPrefixes(
+        config,
+        options.interlanguagePrefixes,
+      ),
+    ),
   );
 }
 
@@ -65,7 +71,12 @@ export function verifyStructuralEquivalence(
     before,
     after,
     structure,
-    createNodeParserSession(config),
+    createNodeParserSession(
+      parserConfigWithInterwikiPrefixes(
+        config,
+        options?.interlanguagePrefixes,
+      ),
+    ),
     options,
   );
 }

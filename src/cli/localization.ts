@@ -2,13 +2,18 @@ import {
   overrideLocalizationAliases,
   resolveLocalizationAliases,
 } from "../localization/aliases.js";
-import { loadSiteInfoAliases } from "../localization/siteinfo.js";
+import {
+  loadSiteInfoFormattingData,
+  type SiteInfoFormattingData,
+} from "../localization/siteinfo.js";
 import type { FormatOptions } from "../options.js";
 import type { CliOptions } from "./args.js";
 
 export async function prepareLocalizationOptions(
   options: CliOptions,
   formatOptions: FormatOptions,
+  loadSiteData: (apiUrl: string) => Promise<SiteInfoFormattingData> =
+    loadSiteInfoFormattingData,
 ): Promise<FormatOptions> {
   if (formatOptions.localizationSource !== "siteinfo") return formatOptions;
   if (!options.siteApi) {
@@ -16,14 +21,16 @@ export async function prepareLocalizationOptions(
       "--site-api is required when --localization-source is siteinfo",
     );
   }
-  const siteAliases = await loadSiteInfoAliases(options.siteApi);
+  const siteData = await loadSiteData(options.siteApi);
   return {
     ...formatOptions,
     localizationSource: "custom",
     localizationAliases: overrideLocalizationAliases(
-      siteAliases,
+      siteData.localizationAliases,
       formatOptions.localizationAliases,
     ),
+    interlanguagePrefixes:
+      formatOptions.interlanguagePrefixes ?? siteData.interlanguagePrefixes,
   };
 }
 

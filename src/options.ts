@@ -7,7 +7,7 @@ export type BehaviorSwitchPlacement = "preserve" | "footer";
 export type InterlanguagePlacement = "preserve" | "footer";
 export type LocalizationSource = "builtin" | "siteinfo" | "custom";
 export type LocalizedSyntaxStyle = "preserve" | "canonical-english";
-export type FormatProfile = "default" | "production" | "aggressive";
+export type FormatProfile = "default" | "production";
 
 export interface LocalizationAliases {
   categoryNamespaces?: string[];
@@ -141,20 +141,10 @@ export function resolveOptions(
           formatReferences: true,
           formatExternalLinks: true,
           formatSectionSpacing: true,
+          formatInterlanguageLinks: true,
+          interlanguagePlacement: "footer",
         }
-      : profile === "aggressive"
-        ? {
-            level: "experimental",
-            formatTemplates: true,
-            formatTables: true,
-            tableCellSeparatorStyle: "auto",
-            formatReferences: true,
-            formatExternalLinks: true,
-            formatSectionSpacing: true,
-            formatInterlanguageLinks: true,
-            interlanguagePlacement: "footer",
-          }
-        : {};
+      : {};
   return {
     ...defaultOptions,
     ...profileOptions,

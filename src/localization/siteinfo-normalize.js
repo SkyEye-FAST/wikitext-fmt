@@ -58,7 +58,7 @@ function isRecord(value) {
  *   behaviorSwitches: Record<string, string[]>;
  * }}
  */
-export function normalizeSiteInfoPayload(
+function normalizeLocalizationAliasesPayload(
   payload,
   source = "MediaWiki siteinfo",
 ) {
@@ -148,4 +148,61 @@ export function normalizeSiteInfoPayload(
     imageOptionAliases,
     behaviorSwitches,
   };
+}
+
+/**
+ * Convert a raw action=query&meta=siteinfo response into all formatter-owned
+ * site data. Interlanguage prefixes come only from entries explicitly marked
+ * as language links by MediaWiki.
+ *
+ * @param {unknown} payload
+ * @param {string} [source]
+ * @returns {{
+ *   localizationAliases: ReturnType<typeof normalizeLocalizationAliasesPayload>;
+ *   interlanguagePrefixes: string[];
+ * }}
+ */
+export function normalizeSiteInfoFormattingPayload(
+  payload,
+  source = "MediaWiki siteinfo",
+) {
+  const localizationAliases = normalizeLocalizationAliasesPayload(
+    payload,
+    source,
+  );
+  const interwikiMap = Array.isArray(payload.query.interwikimap)
+    ? payload.query.interwikimap
+    : [];
+  const interlanguagePrefixes = [];
+  const seenPrefixes = new Set();
+  for (const entry of interwikiMap) {
+    if (
+      !isRecord(entry) ||
+      !("language" in entry || "extralanglink" in entry) ||
+      typeof entry.prefix !== "string"
+    ) {
+      continue;
+    }
+    const prefix = entry.prefix.trim();
+    const normalized = prefix.toLocaleLowerCase();
+    if (!prefix || seenPrefixes.has(normalized)) continue;
+    seenPrefixes.add(normalized);
+    interlanguagePrefixes.push(prefix);
+  }
+  return { localizationAliases, interlanguagePrefixes };
+}
+
+/**
+ * Backwards-compatible alias-only siteinfo normalizer.
+ *
+ * @param {unknown} payload
+ * @param {string} [source]
+ * @returns {ReturnType<typeof normalizeLocalizationAliasesPayload>}
+ */
+export function normalizeSiteInfoPayload(
+  payload,
+  source = "MediaWiki siteinfo",
+) {
+  return normalizeSiteInfoFormattingPayload(payload, source)
+    .localizationAliases;
 }

@@ -26,7 +26,7 @@ export const optionSchema: readonly OptionSchemaEntry[] = [
     name: "profile",
     type: "enum",
     defaultValue: "default",
-    enumValues: ["default", "production", "aggressive"],
+    enumValues: ["default", "production"],
   },
   { name: "parserConfig", type: "string", defaultValue: "mediawiki" },
   { name: "lineWidth", type: "number", defaultValue: 120 },
@@ -115,7 +115,7 @@ export const optionSchema: readonly OptionSchemaEntry[] = [
     positiveFlag: "--format-interlanguage-links",
     negativeFlag: "--no-format-interlanguage-links",
     ruleName: "interlanguageLinks",
-    ruleLevel: "experimental",
+    ruleLevel: "normal",
   },
   {
     name: "interlanguagePlacement",

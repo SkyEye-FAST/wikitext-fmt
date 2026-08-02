@@ -10,7 +10,7 @@ const parityCases: ReadonlyArray<
   ["canonical input", "== Title ==\n"],
   ["headings", "==Title==\n"],
   ["templates", "{{T|a=1|b=2}}\n"],
-  ["template parameters", "{{T| a = 1 | b = 2 }}\n", { profile: "aggressive" }],
+  ["template parameters", "{{T| a = 1 | b = 2 }}\n", { profile: "production" }],
   ["tables", '{|class="wikitable"\n|-class="row"\n|+Caption\n| A || B\n|}\n'],
   [
     "table caption attributes",
@@ -31,7 +31,7 @@ const parityCases: ReadonlyArray<
   [
     "references and extension tags",
     'Text<ref name="source"> citation </ref>\n',
-    { profile: "aggressive" },
+    { profile: "production" },
   ],
   ["malformed source", "{{unclosed\n"],
   ["CRLF input", "==Title==\r\n"],

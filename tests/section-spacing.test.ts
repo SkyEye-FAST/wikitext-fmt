@@ -34,11 +34,10 @@ describe("section spacing", () => {
     ).toBe("Intro\n== Title ==\nText\n");
   });
 
-  it("is enabled by production and aggressive profiles", () => {
+  it("is enabled by the production profile", () => {
     const input = "Intro\n==Title==\nText\n";
     const expected = "Intro\n\n== Title ==\n\nText\n";
     expect(formatWikitext(input, { profile: "production" })).toBe(expected);
-    expect(formatWikitext(input, { profile: "aggressive" })).toBe(expected);
   });
 
   it("adds spacing on both sides of a heading next to paragraphs", () => {

@@ -55,8 +55,12 @@ export function emptyDetailedDiagnostics(): DetailedDiagnostics {
       localizedCategoryAliasesCanonicalized: 0,
       localizedDefaultsortAliasesCanonicalized: 0,
       localizedBehaviorSwitchesCanonicalized: 0,
+      interlanguageLinksInspected: 0,
+      interlanguageLinksEligible: 0,
+      interlanguageLinksSkipped: 0,
       interlanguageLinksMoved: 0,
       interlanguageLinksFormatted: 0,
+      interlanguageLinkSkipReasons: {},
     },
     redirectDiagnostics: {
       redirectsFormatted: 0,

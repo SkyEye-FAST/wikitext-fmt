@@ -77,12 +77,11 @@ describe("CLI argument parsing", () => {
       profile: "production",
       files: ["page.wiki"],
     });
-    expect(parseArgs(["--profile", "aggressive", "page.wiki"])).toMatchObject({
-      profile: "aggressive",
-      files: ["page.wiki"],
-    });
+    expect(() =>
+      parseArgs(["--profile", "aggressive", "page.wiki"]),
+    ).toThrow(/default or production/u);
     expect(() => parseArgs(["--profile", "unsafe", "page.wiki"])).toThrow(
-      /default, production, or aggressive/u,
+      /default or production/u,
     );
   });
 

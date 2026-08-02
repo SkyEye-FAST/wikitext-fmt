@@ -122,7 +122,7 @@ Core details:
 
 | Setting | Default | Purpose |
 | --- | --- | --- |
-| `wikitextFmt.profile` | `"default"` | Select `default`, `production`, or `aggressive` |
+| `wikitextFmt.profile` | `"default"` | Select `default` or `production` |
 | `wikitextFmt.lineWidth` | `120` | Set the maximum normalized single-line named-template candidate length; soft for anonymous parameters |
 | `wikitextFmt.formatHeadings` | `true` | Enable heading formatting |
 | `wikitextFmt.formatTemplates` | `true` | Enable the unified template engine |
@@ -134,7 +134,7 @@ Core details:
 | `wikitextFmt.formatWikilinks` | `true` | Use spaces instead of underscores in eligible internal page-link targets |
 | `wikitextFmt.formatExternalLinks` | `false` | Enable normal whole-line external-link formatting |
 | `wikitextFmt.formatReferences` | `false` | Enable normal standalone self-closing reference formatting |
-| `wikitextFmt.formatInterlanguageLinks` | `false` | Enable experimental interlanguage-link formatting |
+| `wikitextFmt.formatInterlanguageLinks` | `false` | Enable normal parser-confirmed interlanguage-link formatting |
 | `wikitextFmt.interlanguagePlacement` | `"preserve"` | Select `preserve` or `footer` placement |
 | `wikitextFmt.interlanguagePrefixes` | built-in prefix list | Set recognized interlanguage prefixes |
 | `wikitextFmt.formatSectionSpacing` | `false` | Enable normal spacing between headings and adjacent content blocks |
@@ -160,8 +160,10 @@ parameters keep their separate conservative policy.
 
 A profile is a preset; a reliability level is a rule ceiling. Only explicitly
 configured VS Code settings override corresponding config-file values.
-`production` enables all mature normal rules; `aggressive` additionally enables
-experimental interlanguage-link movement with footer placement.
+`production` enables all mature normal rules, including parser-confirmed
+interlanguage-link movement with footer placement. The `experimental` ceiling
+remains selectable for future rules, but no current rule uses it. The pre-1.0
+`aggressive` profile has been removed.
 
 Three advanced core options remain config-file-only:
 

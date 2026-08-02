@@ -227,6 +227,13 @@ describe("read-only target corpus builder", () => {
         wikilinksWithFragmentsChanged: number;
         wikilinksSkippedUnsafe: number;
         wikilinkSkipReasons: Record<string, number>;
+        interlanguageLinksInspected: number;
+        interlanguageLinksEligible: number;
+        interlanguageLinksSkipped: number;
+        interlanguageLinksMoved: number;
+        interlanguageLinksFormatted: number;
+        interlanguageLinkSkipReasons: Record<string, number>;
+        interlanguageDiagnosticsFailures: number;
         totalBytes: number;
         totalBytesBefore: number;
         totalBytesAfter: number;
@@ -262,6 +269,18 @@ describe("read-only target corpus builder", () => {
       );
       expect(report.wikilinksSkippedUnsafe).toBeGreaterThanOrEqual(0);
       expect(report.wikilinkSkipReasons).toBeTypeOf("object");
+      expect(report.interlanguageLinksInspected).toBe(1);
+      expect(report.interlanguageLinksEligible).toBe(0);
+      expect(report.interlanguageLinksSkipped).toBe(1);
+      expect(report.interlanguageLinksMoved).toBe(0);
+      expect(report.interlanguageLinksFormatted).toBe(0);
+      expect(report.interlanguageLinkSkipReasons).toEqual({
+        "unconfigured-prefix": 1,
+      });
+      expect(report.interlanguageDiagnosticsFailures).toBe(0);
+      expect(report.interlanguageLinksInspected).toBe(
+        report.interlanguageLinksEligible + report.interlanguageLinksSkipped,
+      );
       expect(report.totalBytesBefore).toBe(report.totalBytes);
       expect(report.totalBytesAfter).toBeGreaterThan(0);
       expect(report.pageDiffs).toHaveLength(report.pagesProcessed);

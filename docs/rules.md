@@ -16,7 +16,7 @@ level allow them. The default level is `normal`.
 | `wikilinks` | normal | on | `formatWikilinks`; `--no-format-wikilinks` | Parser-confirmed ordinary internal links and redirect targets | Labels, fragments, file options, category sort keys, and remote targets |
 | `externalLinks` | normal | off | `formatExternalLinks`; positive/negative flags | Whole-line labelled external links | URL and label text |
 | `references` | normal | off | `formatReferences`; positive/negative flags | Whole-line self-closing ref tags | Attributes, order, quoting, and values |
-| `interlanguageLinks` | experimental | off | `formatInterlanguageLinks`; positive/negative flags | Configured whole-line language links | Target, prefix spelling, and relative order |
+| `interlanguageLinks` | normal | off | `formatInterlanguageLinks`; positive/negative flags | Parser-confirmed configured whole-line language links | Target, prefix spelling, duplicates, and relative order |
 | `sectionSpacing` | normal | off | `formatSectionSpacing`; positive/negative flags | Level 2–6 headings beside content blocks | Consecutive headings and existing blank lines |
 | `redirects` | normal | on | `formatRedirects`; `--no-format-redirects` | First non-empty redirect line | Target and unsupported trailing syntax |
 | `behaviorSwitches` | normal | on | `formatBehaviorSwitches`; `--no-format-behavior-switches` | Standalone recognized switches | Unknown/embedded switches and relative order |
@@ -396,8 +396,10 @@ or merge references.
 
 ## Interlanguage links
 
-The footer engine recognizes only a standalone unlabelled link whose prefix is
-in `interlanguagePrefixes`, excluding leading-colon, category, and file links:
+The footer engine recognizes only a direct root-level parser link that occupies
+an entire physical line, has one stable plain-text target, has no label or
+leading colon, is classified as interwiki by the active parser session, and has
+a prefix authorized by `interlanguagePrefixes`:
 
 ```wikitext
 [[ja:Target]]
@@ -405,12 +407,22 @@ in `interlanguagePrefixes`, excluding leading-colon, category, and file links:
 
 `interlanguagePlacement: preserve` retains location. `footer` moves recognized
 links after categories while preserving relative order, target, and prefix
-spelling. The aggressive profile enables this rule with `footer` placement;
-the production and default profiles leave it disabled.
+spelling. Duplicate links remain duplicate. The production profile enables this
+normal rule with `footer` placement; the default profile leaves it disabled.
 
-Labelled, embedded, multiple, template/table-contained, unknown-prefix, or
-leading-colon links are not moved. Diagnostics report moved and formatted
-counts. The rule never sorts language codes.
+The prefix list is authoritative. With CLI siteinfo localization it is derived
+only from `interwikimap` entries marked `language` or `extralanglink`; generic
+interwiki prefixes such as `commons`, `mw`, or `wikipedia` stay in the body
+unless explicitly configured. Local namespace names take precedence over an
+otherwise matching requested prefix.
+
+Labelled, embedded, indented, multiple, malformed, template/table/HTML/ref/
+comment/extension-contained, unknown-prefix, generic-interwiki, or leading-colon
+links are not moved. Missing or stale parser context also makes the rule a
+no-op. Diagnostics report inspected, eligible, skipped, moved, and trailing-ASCII
+formatted counts plus skip reasons including parser confirmation, root/whole-line
+eligibility, labels, leading colons, generic or unconfigured prefixes, unstable
+targets, and unsafe parents. The rule never sorts or deduplicates language links.
 
 ## Section spacing
 

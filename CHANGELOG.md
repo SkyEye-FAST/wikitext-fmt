@@ -21,13 +21,29 @@ here. The project follows the pre-1.0 policy in
   headings and adjacent lists, templates, tables, footer metadata, file links,
   behavior switches, comments, HTML/extensions, redirects, and other protected
   blocks while keeping consecutive headings together.
-- Defined the aggressive profile as production formatting plus the experimental
-  `interlanguageLinks` rule with footer placement. Interlanguage movement remains
-  experimental because it deliberately changes page layout.
+- Promoted `interlanguageLinks` to normal reliability and enabled its
+  parser-confirmed footer placement in the production profile. Eligible links
+  must be root-level, whole-line, unlabelled links classified as interwiki by the
+  active parser session and authorized by `interlanguagePrefixes`; source order,
+  duplicates, target bytes, and prefix spelling are preserved.
+- Extended siteinfo loading to derive authoritative interlanguage prefixes from
+  `interwikimap` entries marked `language` or `extralanglink`. Generic interwiki
+  entries remain in the page body unless explicitly configured, and explicit
+  CLI/config prefixes retain precedence.
+- Added inspected, eligible, skipped, moved, and formatted interlanguage-link
+  counters plus structured skip-reason histograms to detailed, CLI, batch, and
+  VS Code diagnostics.
 - Reframed the package and extension as parser-assisted, semantics-preserving
   MediaWiki wikitext formatters suitable for normal interactive and automated
   use while retaining fail-closed parsing, equivalence, convergence, and
   idempotency checks.
+
+### Removed
+
+- Removed the pre-1.0 `aggressive` profile from the core, CLI, corpus scripts,
+  and VS Code settings. Its mature behavior is now represented by `production`;
+  the `experimental` reliability level remains available for future rules, but
+  no current rule is classified at that level.
 
 ## 0.7.0 - 2026-08-02
 

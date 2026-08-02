@@ -78,7 +78,7 @@ function useSafeFormatting(
   if (options.unsafe) return false;
   if (options.safe) return true;
   const profile = resolveOptions(formatOptions).profile;
-  return profile === "production" || profile === "aggressive";
+  return profile === "production";
 }
 
 function debugResult(

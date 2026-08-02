@@ -82,15 +82,25 @@ function emptyWikilinkDiagnostics(): WikilinkDiagnostics {
   };
 }
 
-function skipReasonForParent(node: WikilinkParserNode): WikilinkSkipReason | undefined {
+export function findWikilinkAncestorType(
+  node: WikilinkParserNode,
+  excludedTypes: ReadonlySet<string>,
+): string | undefined {
   let parent = node.parentNode;
   while (parent) {
-    if (parent.type === "file") return "file-link";
-    if (parent.type === "category") return "category-assignment";
-    if (excludedParentTypes.has(parent.type)) return "unsafe-parent";
+    if (excludedTypes.has(parent.type)) return parent.type;
     parent = parent.parentNode;
   }
   return undefined;
+}
+
+function skipReasonForParent(
+  node: WikilinkParserNode,
+): WikilinkSkipReason | undefined {
+  const parentType = findWikilinkAncestorType(node, excludedParentTypes);
+  if (parentType === "file") return "file-link";
+  if (parentType === "category") return "category-assignment";
+  return parentType === undefined ? undefined : "unsafe-parent";
 }
 
 function explicitInterlanguagePrefix(
@@ -173,7 +183,7 @@ function recordSkip(
   diagnostics.skipReasons[reason] = (diagnostics.skipReasons[reason] ?? 0) + 1;
 }
 
-function parserNodeSourceRanges(
+export function wikilinkNodeSourceRanges(
   context: ParsedDocumentContext,
   requestedNodes: readonly WikilinkParserNode[],
 ): ReadonlyMap<WikilinkParserNode, SourceRange> {
@@ -255,7 +265,7 @@ export function formatWikilinks(
     node,
     classification: classifyWikilinkNode(node, options),
   }));
-  const ranges = parserNodeSourceRanges(
+  const ranges = wikilinkNodeSourceRanges(
     context,
     classified.flatMap(({ node, classification }) =>
       classification.eligible

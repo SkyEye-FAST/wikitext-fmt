@@ -406,6 +406,7 @@ function formatNormalizedWikitextDetailedResult(
           localizedSyntaxStyle: resolved.localizedSyntaxStyle,
           localizationAliases: resolved.localizationAliases,
         },
+        output,
       );
       output = footer.formatted;
       diagnostics.footerDiagnostics = footer.diagnostics;
@@ -554,7 +555,9 @@ function formatWikitextDetailedResult(
 
   try {
     const resolved = resolveOptions(options);
-    const session = runtime.createSession(resolved.parserConfig);
+    const session = runtime.createSession(resolved.parserConfig, {
+      interwikiPrefixes: resolved.interlanguagePrefixes,
+    });
     return restoreDetailedResult(
       formatNormalizedWikitextDetailedResult(
         session,
@@ -610,7 +613,9 @@ function formatWikitextSafeDetailed(
   let diagnostics = emptyDetailedDiagnostics();
   try {
     const resolved = resolveOptions(options);
-    const session = runtime.createSession(resolved.parserConfig);
+    const session = runtime.createSession(resolved.parserConfig, {
+      interwikiPrefixes: resolved.interlanguagePrefixes,
+    });
     const first = formatWikitextDetailedResultWithSession(
       session,
       source,
