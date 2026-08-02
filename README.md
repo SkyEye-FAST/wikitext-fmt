@@ -202,6 +202,12 @@ assets are fetched from a CDN at runtime.
 Profiles are presets; reliability levels are cumulative rule ceilings.
 Explicit options override profile values.
 
+Settings UIs and other integrations can import `formatProfiles`,
+`getFormatProfileOverrides`, or `resolveFormatProfile` from either
+`wikitext-fmt` or `wikitext-fmt/browser`. These browser-safe helpers share the
+formatter's profile definitions, so consumers do not need to reproduce preset
+fields locally.
+
 | Profile | Purpose |
 | --- | --- |
 | `default` | Standard options for interactive use |

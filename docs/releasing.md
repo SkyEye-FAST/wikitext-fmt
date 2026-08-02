@@ -16,6 +16,8 @@ Run from a clean worktree unless a step explicitly inspects release edits.
 - Confirm which components are being released.
 - Confirm a bundled core change with editor-visible behavior is reflected in
   the extension version and changelog.
+- When profile semantics change, verify browser and external settings UIs use
+  the public profile resolver and record any migration in release notes.
 
 ## 2. Runtime and dependency baseline
 

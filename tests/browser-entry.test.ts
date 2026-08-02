@@ -96,6 +96,9 @@ describe("browser entry", () => {
 
   it("exports browser-safe formatter metadata and helpers", () => {
     expect(browser.defaultOptions.parserConfig).toBe("mediawiki");
+    expect(browser.resolveFormatProfile("production")).toEqual(
+      node.resolveFormatProfile("production"),
+    );
     expect(browser.ruleLevels.tables).toBe("normal");
     expect(browser.classifyParserFunction("#if").classification).toBe(
       "opaque-preserve",
@@ -115,6 +118,9 @@ describe("browser entry", () => {
       "formatWikitextSafe",
       "formatWikitextSafeDetailed",
       "defaultOptions",
+      "formatProfiles",
+      "getFormatProfileOverrides",
+      "resolveFormatProfile",
       "ruleLevels",
       "classifyParserFunction",
       "loadSiteInfoAliases",

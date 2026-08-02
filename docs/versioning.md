@@ -46,7 +46,10 @@ Examples:
 - removing or renaming a public option before 1.0 selects a minor and must be
   labelled breaking.
 
-Breaking changes are explicit even before 1.0.
+Breaking changes are explicit even before 1.0. When a profile is removed or its
+controlled fields change, document the migration for external settings UIs.
+Integrations should consume the public browser-safe profile helpers instead of
+maintaining a copied preset.
 
 ## Compatibility categories
 
@@ -55,6 +58,7 @@ Review each surface:
 - public JavaScript exports, types, result objects, and failure codes;
 - CLI arguments, streams, exit statuses, config discovery, and JSON reports;
 - config keys, values, defaults, profiles, and validation;
+- browser and external settings integrations that consume profile presets;
 - formatted output, rule eligibility, localization, and fail-closed behavior;
 - npm package contents and supported Node.js versions;
 - extension commands, settings, language support, VS Code compatibility,

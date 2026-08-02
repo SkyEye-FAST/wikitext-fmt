@@ -30,7 +30,8 @@ Its runtime exports are:
 
 - `formatWikitext`, `formatWikitextResult`, `formatWikitextDetailedResult`,
   `formatWikitextSafe`, and `formatWikitextSafeDetailed`;
-- `defaultOptions` and `ruleLevels`;
+- `defaultOptions`, `formatProfiles`, `getFormatProfileOverrides`,
+  `resolveFormatProfile`, and `ruleLevels`;
 - `loadSiteInfoAliases`, `normalizeSiteInfoPayload`, and
   `classifyParserFunction`;
 - `validateProjectConfig`, `normalizeSiteConfigurationSnapshot`,
@@ -205,8 +206,15 @@ The package exports:
 - `LocalizationSource`, `LocalizedSyntaxStyle`, and `LocalizationAliases`;
 - read-only `defaultOptions`.
 
-`ResolvedFormatOptions` and `resolveOptions` are internal. See
-[Configuration](configuration.md) for the complete option contract.
+`ResolvedFormatOptions` is public for integrations that consume the resolved
+profile helpers. `resolveOptions` remains internal; use
+`resolveFormatProfile(profile)` for the complete browser-safe preset, or
+`getFormatProfileOverrides(profile)` when a settings UI needs only fields the
+profile controls. Both functions are available from the package root and
+`wikitext-fmt/browser`, do not access Node APIs, and return fresh values so a
+caller cannot alter later resolutions. `formatProfiles` lists the currently
+supported profile names. See [Configuration](configuration.md) for the complete
+option contract.
 
 `inlineTemplateSpacing` accepts `auto`, `compact`, or `spaced` and defaults to
 `auto`. It controls only single-line named and explicitly numbered templates;

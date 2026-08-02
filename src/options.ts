@@ -127,27 +127,78 @@ export const defaultOptions: Readonly<ResolvedFormatOptions> = {
   htmlVoidTagStyle: "html5",
 };
 
+const formatProfileOverrides: Readonly<
+  Record<FormatProfile, Readonly<Partial<ResolvedFormatOptions>>>
+> = {
+  default: {},
+  production: {
+    level: "normal",
+    formatTemplates: true,
+    formatTables: true,
+    tableCellSeparatorStyle: "auto",
+    formatReferences: true,
+    formatExternalLinks: true,
+    formatSectionSpacing: true,
+    formatInterlanguageLinks: true,
+    interlanguagePlacement: "footer",
+  },
+};
+
+export const formatProfiles: readonly FormatProfile[] = Object.freeze([
+  "default",
+  "production",
+]);
+
+function cloneOptionValue<Value>(value: Value): Value {
+  if (Array.isArray(value)) {
+    return [...value] as Value;
+  }
+  if (value !== null && typeof value === "object") {
+    return { ...value } as Value;
+  }
+  return value;
+}
+
+function cloneResolvedOptions<
+  Options extends Readonly<Partial<ResolvedFormatOptions>>,
+>(options: Options): Options {
+  return Object.fromEntries(
+    Object.entries(options).map(([key, value]) => [key, cloneOptionValue(value)]),
+  ) as Options;
+}
+
+/**
+ * Returns a fresh copy of the options controlled by a formatter profile.
+ *
+ * Settings UIs can use this browser-safe helper to stay aligned with profile
+ * semantics without duplicating the core preset definitions.
+ */
+export function getFormatProfileOverrides(
+  profile: FormatProfile,
+): Readonly<Partial<ResolvedFormatOptions>> {
+  return cloneResolvedOptions(formatProfileOverrides[profile]);
+}
+
+/**
+ * Resolves a formatter profile without reading the filesystem, network, or
+ * Node APIs. The returned options are independent from future calls.
+ */
+export function resolveFormatProfile(
+  profile: FormatProfile,
+): ResolvedFormatOptions {
+  return {
+    ...cloneResolvedOptions(defaultOptions),
+    ...getFormatProfileOverrides(profile),
+    profile,
+  };
+}
+
 export function resolveOptions(
   options: FormatOptions = {},
 ): ResolvedFormatOptions {
   const profile = options.profile ?? "default";
-  const profileOptions: FormatOptions =
-    profile === "production"
-      ? {
-          level: "normal",
-          formatTemplates: true,
-          formatTables: true,
-          tableCellSeparatorStyle: "auto",
-          formatReferences: true,
-          formatExternalLinks: true,
-          formatSectionSpacing: true,
-          formatInterlanguageLinks: true,
-          interlanguagePlacement: "footer",
-        }
-      : {};
   return {
-    ...defaultOptions,
-    ...profileOptions,
+    ...resolveFormatProfile(profile),
     ...options,
     parserConfig: options.parserConfig ?? defaultOptions.parserConfig,
     profile,

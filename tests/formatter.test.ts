@@ -4,6 +4,9 @@ import {
   formatWikitext,
   formatWikitextDetailedResult,
   formatWikitextSafe,
+  formatProfiles,
+  getFormatProfileOverrides,
+  resolveFormatProfile,
   ruleLevels,
 } from "../src/index.js";
 import type { FormatOptions } from "../src/index.js";
@@ -110,6 +113,27 @@ describe("formatter API", () => {
     expect(formatWikitext(interlanguage, { profile: "production" })).toBe(
       "Body\n\n[[en:Example]]\n",
     );
+  });
+
+  it("publishes isolated profile presets that match option resolution", () => {
+    expect(formatProfiles).toEqual(["default", "production"]);
+    expect(resolveFormatProfile("default")).toEqual(resolveOptions());
+    expect(resolveFormatProfile("production")).toEqual(
+      resolveOptions({ profile: "production" }),
+    );
+    expect(getFormatProfileOverrides("production")).toMatchObject({
+      formatReferences: true,
+      formatExternalLinks: true,
+      formatSectionSpacing: true,
+      formatInterlanguageLinks: true,
+      interlanguagePlacement: "footer",
+    });
+
+    const mutated = getFormatProfileOverrides("production") as {
+      formatReferences?: boolean;
+    };
+    mutated.formatReferences = false;
+    expect(getFormatProfileOverrides("production").formatReferences).toBe(true);
   });
 
   it("formats parser-confirmed indented tables", () => {
