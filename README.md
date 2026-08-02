@@ -112,6 +112,33 @@ Use `wikitext-fmt --help` for structured option help and
 [the CLI reference](docs/cli.md) for modes, conflicts, streams, reports,
 siteinfo, and exit statuses.
 
+### Reproducible site configuration
+
+Projects can keep parser selection, a MediaWiki API, and a versioned site-data
+snapshot together in the normal JSON config:
+
+```json
+{
+  "profile": "production",
+  "site": {
+    "apiUrl": "https://wiki.example/w/api.php",
+    "parserConfig": "zhwiki",
+    "snapshotPath": "config/wiki-site.json",
+    "cachePath": ".cache/wikitext-fmt-site.json",
+    "cacheMaxAgeSeconds": 86400,
+    "allowStaleCache": true
+  }
+}
+```
+
+Snapshots are schema-versioned, deterministic JSON suitable for review and
+CI. The resolver prefers an explicit snapshot, then a fresh cache, then the
+network; an expired valid cache is used only after a network failure and only
+when explicitly allowed. `--refresh-site-configuration` updates configured
+snapshot/cache files atomically, while `--print-site-configuration` shows the
+sanitized resolved result. The synchronous formatter remains pure and performs
+no I/O. See [Configuration](docs/configuration.md).
+
 ## JavaScript API quick start
 
 ```ts
@@ -126,7 +153,8 @@ if (result.failure) {
 ```
 
 The package also exposes compact string output, detailed rule diagnostics,
-structural-equivalence helpers, localization helpers, and config loading.
+structural-equivalence helpers, localization helpers, project/site config
+loading, and a Node-only unified site resolver.
 See the [API reference](docs/api.md).
 
 ### Browser API

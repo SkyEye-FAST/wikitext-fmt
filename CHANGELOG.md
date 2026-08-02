@@ -6,6 +6,23 @@ here. The project follows the pre-1.0 policy in
 
 ## Unreleased
 
+### Added
+
+- Added strict `ProjectConfig.site` support for MediaWiki API, parser config,
+  reproducible snapshot, persistent cache, TTL, and opt-in stale-cache policy,
+  with config-relative paths and stable schema-version-1 snapshot JSON.
+- Added one Node project resolver shared by the CLI and VS Code wrapper. It
+  implements snapshot/fresh-cache/network/stale-cache ordering, same-API request
+  deduplication, in-process caching, parser ConfigData validation, atomic writes,
+  sanitized source reporting, and local-namespace/interlanguage conflict
+  diagnostics while keeping formatter calls synchronous and I/O-free.
+- Added CLI `--site-snapshot`, `--refresh-site-configuration`,
+  `--print-site-configuration`, and `--validate-site-configuration` modes plus
+  site-resolution details in debug, JSON diagnostics, and batch reports.
+- Added browser-safe project/snapshot validation, normalization, stable
+  serialization, sanitization, and site-data apply helpers; Node-only loading
+  and resolution remain excluded from the browser dependency graph.
+
 ### Changed
 
 - Named and explicitly numbered templates that start on one line now prefer a

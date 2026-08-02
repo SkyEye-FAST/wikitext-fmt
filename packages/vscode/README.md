@@ -88,11 +88,17 @@ reasons, remain in their original text and are not translated.
 - **Wikitext Formatter: Open Configuration** opens the config file actually
   used by the active document. It reports when no file is active and does not
   create one.
+- **Wikitext Formatter: Refresh Site Configuration** fetches the configured
+  MediaWiki site data, updates configured snapshot/cache files atomically, and
+  reports the resolved result. It is enabled only in trusted workspaces and
+  never edits project configuration.
 
 Reports include structured failure code/stage data, the active configuration,
 changed/unchanged/failed status, major rule counters, ambiguous/unsafe skip
 counts, and available skip-reason summaries. Ordinary formatter skips are not
-published to the Problems panel.
+published to the Problems panel. Reports also include site source, sanitized API
+and parser precedence, paths, timestamp, stale state, applied data, and excluded
+namespace-conflicting prefixes.
 
 ## Safety behavior
 
@@ -150,6 +156,12 @@ Core details:
 | `wikitextFmt.safe` | `true` | Add the second idempotency-checking formatter call |
 | `wikitextFmt.config.enabled` | `true` | Discover or load core JSON config |
 | `wikitextFmt.config.path` | `null` | Select one explicit config path |
+| `wikitextFmt.site.apiUrl` | `null` | Override the project MediaWiki API URL |
+| `wikitextFmt.site.parserConfig` | `null` | Override the project site parser name or ConfigData JSON path |
+| `wikitextFmt.site.snapshotPath` | `null` | Override the reproducible site snapshot path |
+| `wikitextFmt.site.cachePath` | `null` | Override the persistent site cache path; otherwise use extension global storage |
+| `wikitextFmt.site.cacheMaxAgeSeconds` | `null` | Override the project cache lifetime; zero revalidates once per extension process/refresh |
+| `wikitextFmt.site.allowStaleCache` | `null` | Allow a valid expired cache only after network failure |
 
 For named and explicitly numbered templates that start on one line, the
 extension measures the final parser-safe candidate after applying
@@ -169,15 +181,16 @@ Three advanced core options remain config-file-only:
 
 - `parserConfig`, because named parser configurations and file paths have
   different resolution semantics;
-- `localizationSource`, because `siteinfo` data must be supplied rather than
-  fetched by the formatter;
+- `localizationSource`, because it describes how already-resolved data is
+  applied by the formatter;
 - `localizationAliases`, because its nested object is more safely validated as
   one config-file value.
 
 They remain fully supported through `.wikitextfmtrc`,
 `.wikitextfmtrc.json`, or `wikitext-fmt.config.json`. Keeping them out of
 ordinary VS Code settings avoids fragmented nested configuration and accidental
-network expectations.
+alias-object editing. Site acquisition policy has its own six explicit
+`wikitextFmt.site.*` settings instead.
 
 ## Workspace configuration
 
@@ -201,12 +214,13 @@ from the extension host's process working directory.
 Precedence is:
 
 ```text
-explicit VS Code setting > selected config option > profile preset > core default
+explicit VS Code formatter/site setting > top-level project formatter option >
+project site option > snapshot/siteinfo data > profile preset > core default
 ```
 
 The 25 core settings listed above can override matching config values.
-`wikitextFmt.safe`, `wikitextFmt.config.enabled`, and
-`wikitextFmt.config.path` are editor-only and are not core `FormatOptions`
+`wikitextFmt.safe`, `wikitextFmt.config.enabled`, `wikitextFmt.config.path`, and
+the six site settings are wrapper/project controls, not core `FormatOptions`
 keys. Package and unit checks fail when a future core option is neither exposed
 nor explicitly classified as config-file-only.
 
@@ -226,8 +240,26 @@ Select a workspace-relative file:
 }
 ```
 
-The extension does not fetch MediaWiki siteinfo. Use built-in or custom aliases;
-a config that requests siteinfo without supplied aliases fails closed.
+### Site configuration and workspace trust
+
+The extension uses the same project resolver as the CLI. It prefers a configured
+snapshot, then fresh cache, network, and an explicitly allowed valid stale cache
+after network failure. Persistent cache defaults to a hashed JSON file under the
+extension's `globalStorageUri`, avoiding writes to the repository. Concurrent
+format/check/preview resolutions for the same API share one request, and the
+process memory cache prevents one request per document when TTL is zero.
+
+In an untrusted workspace, the extension permits snapshot-only resolution but
+disables network and persistent cache access. API-only projects fail closed with
+a warning and no edit. The refresh command requires trust. Snapshot, cache, and
+parser paths from the project config resolve from that config's directory;
+explicit VS Code site paths resolve from the document workspace folder.
+
+Siteinfo supplies normalized aliases and interlanguage prefixes, not a generated
+parser config. Use `site.parserConfig` or top-level `parserConfig` for a named
+`wikiparser-node` configuration or ConfigData JSON path. Explicit editor/core
+aliases or prefixes win, and local parser namespaces exclude conflicting
+interlanguage prefixes with a visible diagnostic.
 
 ## Bundled core
 
@@ -243,7 +275,7 @@ changes. See the
 ## Limitations and troubleshooting
 
 - Whole-document formatting only; no range formatting or format on type.
-- No syntax highlighting, LSP server, code actions, or siteinfo fetching.
+- No syntax highlighting, LSP server, or code actions.
 - No workspace batch formatting or batch writes.
 - `mediawiki` support depends on another extension contributing that language.
 - Preview and check are read-only and always use the same configuration and

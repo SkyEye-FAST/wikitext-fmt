@@ -1,5 +1,6 @@
 import type { FormatDetailedResult, FormatFailure } from "../formatter.js";
 import type { DiagnosticsSummary } from "../diagnosticsSummary.js";
+import type { ResolvedSiteConfiguration } from "../projectConfig.js";
 
 export type { DiagnosticsSummary } from "../diagnosticsSummary.js";
 
@@ -12,6 +13,7 @@ export interface FileDiagnostics {
   footerDiagnostics: FormatDetailedResult["footerDiagnostics"];
   tableDiagnostics: FormatDetailedResult["tableDiagnostics"];
   listDiagnostics: FormatDetailedResult["listDiagnostics"];
+  siteConfiguration?: ResolvedSiteConfiguration;
 }
 
 export function emptyDiagnosticsSummary(): DiagnosticsSummary {
@@ -190,6 +192,7 @@ export function createDiagnosticsRecord(
   file: string,
   source: string,
   result: FormatDetailedResult,
+  siteConfiguration?: ResolvedSiteConfiguration,
 ): FileDiagnostics {
   const summary = createDiagnosticsSummary(result);
   return {
@@ -201,6 +204,7 @@ export function createDiagnosticsRecord(
     footerDiagnostics: result.footerDiagnostics,
     tableDiagnostics: result.tableDiagnostics,
     listDiagnostics: result.listDiagnostics,
+    ...(siteConfiguration ? { siteConfiguration } : {}),
   };
 }
 
@@ -208,6 +212,9 @@ export function serializeDiagnostics(
   file: string,
   source: string,
   result: FormatDetailedResult,
+  siteConfiguration?: ResolvedSiteConfiguration,
 ): string {
-  return JSON.stringify(createDiagnosticsRecord(file, source, result));
+  return JSON.stringify(
+    createDiagnosticsRecord(file, source, result, siteConfiguration),
+  );
 }

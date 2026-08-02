@@ -102,6 +102,9 @@ describe("browser entry", () => {
     );
     expect(browser.loadSiteInfoAliases).toBeTypeOf("function");
     expect(browser.normalizeSiteInfoPayload).toBeTypeOf("function");
+    expect(browser.validateProjectConfig).toBeTypeOf("function");
+    expect(browser.normalizeSiteConfigurationSnapshot).toBeTypeOf("function");
+    expect(browser.serializeSiteConfigurationSnapshot).toBeTypeOf("function");
   });
 
   it("keeps shared Node and browser public exports available", () => {
@@ -122,7 +125,11 @@ describe("browser entry", () => {
     }
     expect(node.verifyStructuralEquivalence).toBeTypeOf("function");
     expect(node.loadConfig).toBeTypeOf("function");
+    expect(node.loadProjectConfig).toBeTypeOf("function");
+    expect(node.resolveProjectConfiguration).toBeTypeOf("function");
     expect("verifyStructuralEquivalence" in browser).toBe(false);
     expect("loadConfig" in browser).toBe(false);
+    expect("loadProjectConfig" in browser).toBe(false);
+    expect("resolveProjectConfiguration" in browser).toBe(false);
   });
 });

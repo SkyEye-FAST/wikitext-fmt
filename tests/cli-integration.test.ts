@@ -11,6 +11,25 @@ const cli = resolve("dist/cli.js");
 const temporaryDirectories: string[] = [];
 const testServers: Server[] = [];
 
+function siteSnapshot(apiUrl = "https://wiki.example/api.php"): string {
+  return `${JSON.stringify(
+    {
+      schemaVersion: 1,
+      apiUrl,
+      fetchedAt: "2026-08-02T00:00:00.000Z",
+      formatterData: {
+        localizationAliases: {
+          categoryNamespaces: ["Category", "Kategorie"],
+          fileNamespaces: ["File"],
+        },
+        interlanguagePrefixes: ["de"],
+      },
+    },
+    null,
+    2,
+  )}\n`;
+}
+
 interface CliResult {
   code: number;
   stdout: string;
@@ -322,6 +341,110 @@ describe("CLI production behavior", () => {
       stdout: "[[de:Deutsch]]\nBody\n\n[[en:English]]\n",
       stderr: "",
     });
+  });
+
+  it("loads a relative project snapshot without network", async () => {
+    const root = await temporaryDirectory();
+    await writeFile(join(root, "site.json"), siteSnapshot());
+    await writeFile(
+      join(root, ".wikitextfmtrc"),
+      JSON.stringify({
+        profile: "production",
+        site: { snapshotPath: "site.json" },
+      }),
+    );
+
+    const result = await runCli(["--stdin"], {
+      cwd: root,
+      stdin: "[[de:Deutsch]]\nBody\n",
+    });
+    expect(result).toEqual({
+      code: 0,
+      stdout: "Body\n\n[[de:Deutsch]]\n",
+      stderr: "",
+    });
+  });
+
+  it("prints sanitized resolved site configuration", async () => {
+    const root = await temporaryDirectory();
+    const path = join(root, "site.json");
+    await writeFile(
+      path,
+      siteSnapshot("https://wiki.example/api.php?token=secret"),
+    );
+
+    const result = await runCli([
+      "--site-snapshot",
+      path,
+      "--print-site-configuration",
+    ]);
+    expect(result.code).toBe(0);
+    expect(result.stderr).toBe("");
+    expect(result.stdout).not.toContain("secret");
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      siteConfiguration: {
+        source: "snapshot",
+        apiUrl: "https://wiki.example/api.php",
+        snapshotPath: path,
+        stale: false,
+      },
+    });
+  });
+
+  it("keeps resolver diagnostics inside JSON diagnostic records", async () => {
+    const root = await temporaryDirectory();
+    const path = join(root, "site.json");
+    const conflicting = JSON.parse(siteSnapshot()) as {
+      formatterData: { interlanguagePrefixes: string[] };
+    };
+    conflicting.formatterData.interlanguagePrefixes.push("file");
+    await writeFile(path, `${JSON.stringify(conflicting, null, 2)}\n`);
+
+    const result = await runCli(
+      ["--stdin", "--diagnostics-json", "--site-snapshot", path],
+      { stdin: "==Title==\n" },
+    );
+    expect(result.code).toBe(0);
+    const lines = result.stderr.trim().split("\n");
+    expect(lines).toHaveLength(1);
+    expect(JSON.parse(lines[0]!)).toMatchObject({
+      siteConfiguration: {
+        source: "snapshot",
+        excludedInterlanguagePrefixes: ["file"],
+      },
+    });
+  });
+
+  it("refreshes and atomically writes an explicit site snapshot", async () => {
+    const root = await temporaryDirectory();
+    const path = join(root, "site.json");
+    const api = await siteInfoApi();
+    const result = await runCli([
+      "--site-api",
+      api,
+      "--site-snapshot",
+      path,
+      "--refresh-site-configuration",
+    ]);
+    expect(result.code).toBe(0);
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      siteConfiguration: { source: "network", snapshotPath: path },
+    });
+    expect(JSON.parse(await readFile(path, "utf8"))).toMatchObject({
+      schemaVersion: 1,
+      apiUrl: api,
+    });
+  });
+
+  it("fails closed when configured site data cannot be loaded", async () => {
+    const result = await runCli([
+      "--site-api",
+      "http://127.0.0.1:1/api.php",
+      "--print-site-configuration",
+    ]);
+    expect(result.code).toBe(2);
+    expect(result.stdout).toBe("");
+    expect(result.stderr).toMatch(/Could not fetch MediaWiki siteinfo/u);
   });
 
   it("emits one diagnostics JSON object per input on stderr", async () => {

@@ -49,3 +49,16 @@ export {
   type ParserFunctionFormattingClass,
   type ParserFunctionPolicy,
 } from "./parserFunctionPolicy.js";
+export {
+  applySiteFormattingData,
+  normalizeSiteConfigurationSnapshot,
+  type ProjectConfig,
+  type ResolvedSiteConfiguration,
+  sanitizedSiteApiUrl,
+  serializeSiteConfigurationSnapshot,
+  type SiteConfiguration,
+  type SiteConfigurationSnapshot,
+  type SiteConfigurationSource,
+  validateProjectConfig,
+  validateSiteApiUrl,
+} from "./projectConfig.js";

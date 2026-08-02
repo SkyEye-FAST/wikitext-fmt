@@ -1,8 +1,10 @@
 # Configuration
 
-The CLI and VS Code wrapper load validated JSON into `FormatOptions`. The
-formatter core accepts an options object but does not discover files or inspect
-the working directory.
+The CLI and VS Code wrapper load validated JSON into `ProjectConfig`, which
+extends the pure formatter `FormatOptions` shape with an optional `site`
+object. The synchronous formatter accepts only `FormatOptions`; it does not
+discover files, inspect the working directory, read snapshots, or use the
+network.
 
 ## Discovery and precedence
 
@@ -17,13 +19,14 @@ The first existing file wins. `--config <path>` selects one file and disables
 discovery; relative explicit paths resolve from the CLI working directory.
 `--no-config` bypasses both discovery and loading.
 
-Resolution has two stages:
+Resolution combines project, site, and formatter layers in this order (highest
+priority first):
 
-1. the selected config is merged with explicitly supplied CLI option keys, with
-   CLI values winning the same key;
-2. the selected profile supplies preset values, then explicitly supplied
-   option keys from config/CLI override that preset, then ordinary defaults
-   fill the remainder.
+1. explicit CLI formatter/site values, or explicit VS Code settings;
+2. top-level formatter options in the selected project config;
+3. the project `site` object;
+4. validated snapshot/siteinfo formatting data;
+5. profile presets and ordinary defaults.
 
 Thus an individual config value can intentionally override its config profile,
 and an individual CLI value overrides the same config key.
@@ -31,7 +34,16 @@ and an individual CLI value overrides the same config key.
 Unknown keys are rejected. Config must be a JSON object; booleans, enumerations,
 positive `lineWidth`, non-empty `parserConfig`, non-empty string arrays, and
 the nested localization alias shape are validated. Unknown behavior-switch IDs
-are rejected.
+are rejected. The nested `site` object is also strict. Top-level and site
+`parserConfig` paths plus `site.snapshotPath` and `site.cachePath` resolve from
+the directory containing the config file. Named parser configs remain names.
+
+Parser selection is `CLI/editor override > top-level parserConfig >
+site.parserConfig > mediawiki`. API selection is `--site-api` or explicit
+editor setting, then `site.apiUrl`. Explicit localization aliases and
+interlanguage prefixes override site data. If site data is configured and
+`localizationSource` is omitted, site aliases are used; an explicit `builtin`
+keeps built-in aliases but may still use site-derived interlanguage prefixes.
 
 ## Option reference
 
@@ -109,6 +121,68 @@ interwiki. The CLI can derive the list from siteinfo; an explicit config or CLI
 value overrides that result. Prefixes that conflict with local namespaces are
 not injected into the parser session.
 
+## Site configuration
+
+`ProjectConfig.site` accepts exactly these keys:
+
+| Key | Type | Default | Meaning |
+| --- | --- | --- | --- |
+| `apiUrl` | absolute HTTP(S) URL without credentials | — | MediaWiki API endpoint used for normalized formatter data |
+| `parserConfig` | non-empty name or ConfigData JSON path | — | Site parser selection below the top-level/explicit parser option |
+| `snapshotPath` | non-empty path | — | Reproducible schema-versioned site snapshot |
+| `cachePath` | non-empty path | CLI: memory only; VS Code: global storage | Persistent site cache |
+| `cacheMaxAgeSeconds` | finite number >= 0 | `86400` | Persistent-cache freshness lifetime |
+| `allowStaleCache` | boolean | `false` | Permit a valid expired cache only after network failure |
+
+```json
+{
+  "profile": "production",
+  "site": {
+    "apiUrl": "https://wiki.example/w/api.php",
+    "parserConfig": "zhwiki",
+    "snapshotPath": "site/wiki.example.json",
+    "cachePath": ".cache/wiki.example.json",
+    "cacheMaxAgeSeconds": 86400,
+    "allowStaleCache": true
+  }
+}
+```
+
+Resolution order is deterministic: explicit snapshot, fresh process/disk cache,
+network, then an allowed valid stale cache after network failure. A corrupt,
+unsupported-version, or API-mismatched cache is never used. Network failure
+without an eligible stale cache is an error; it never silently falls back to
+built-in aliases. Cache writes use a temporary file and atomic rename. Without
+an explicit CLI cache path, only the in-process cache is used. VS Code derives a
+hashed default cache filename under `ExtensionContext.globalStorageUri`.
+
+`cacheMaxAgeSeconds: 0` revalidates once in each new process and on explicit
+refresh, while the process memory cache prevents one request per formatted
+file/document. Concurrent resolutions of the same API share one request.
+
+### Snapshot schema
+
+Snapshots contain only normalized formatter data, never raw siteinfo or parser
+configuration:
+
+```json
+{
+  "schemaVersion": 1,
+  "apiUrl": "https://wiki.example/w/api.php",
+  "fetchedAt": "2026-08-02T00:00:00.000Z",
+  "formatterData": {
+    "localizationAliases": {},
+    "interlanguagePrefixes": ["de", "en"]
+  }
+}
+```
+
+Serialization is stable two-space JSON with a final newline and preserves
+normalized array order. Stored and printed API URLs omit credentials, query,
+and fragment data. Unsupported schema versions and URL mismatches are rejected.
+Siteinfo does not generate a complete parser config: `site.parserConfig` must
+still name or point to a valid `wikiparser-node` `ConfigData` JSON file.
+
 ## Localization aliases
 
 `localizationAliases` accepts:
@@ -135,7 +209,9 @@ IDs; behavior-switch maps use supported switch IDs. See
 ## Core versus wrappers
 
 `formatWikitext*` functions resolve an options object only. They do not read
-JSON, discover a working directory, or fetch siteinfo. `discoverConfig`,
-`loadConfig`, and `validateConfig` are public helpers, but callers choose
-whether to invoke them. The CLI and VS Code wrapper own filesystem discovery;
-only the CLI has built-in siteinfo fetching.
+JSON, discover a working directory, or fetch siteinfo. `validateProjectConfig`
+and the snapshot normalization/serialization helpers are browser-safe.
+`discoverConfig`, `loadProjectConfig`, `loadSiteConfigurationSnapshot`, and
+`resolveProjectConfiguration` are Node-only helpers. The CLI and VS Code wrapper
+both use that same resolver; the VS Code wrapper additionally enforces workspace
+trust before network or persistent-cache access.

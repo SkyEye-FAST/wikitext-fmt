@@ -19,6 +19,10 @@ export interface CliOptions extends FormatOptions {
   failOnWarning: boolean;
   reportPath?: string;
   siteApi?: string;
+  siteSnapshot?: string;
+  refreshSiteConfiguration: boolean;
+  printSiteConfiguration: boolean;
+  validateSiteConfiguration: boolean;
   printLocalizationAliases: boolean;
   configPath?: string;
   noConfig: boolean;
@@ -171,7 +175,23 @@ const helpSections: readonly [
       },
       {
         syntax: "--site-api <url>",
-        description: "Load siteinfo aliases from a MediaWiki API.",
+        description: "Override the MediaWiki API used for site configuration.",
+      },
+      {
+        syntax: "--site-snapshot <path>",
+        description: "Override the reproducible site snapshot path.",
+      },
+      {
+        syntax: "--refresh-site-configuration",
+        description: "Fetch and atomically update configured site data.",
+      },
+      {
+        syntax: "--print-site-configuration",
+        description: "Print the resolved sanitized site configuration as JSON.",
+      },
+      {
+        syntax: "--validate-site-configuration",
+        description: "Resolve and validate site configuration without formatting.",
       },
       {
         syntax: "--print-localization-aliases",
@@ -262,6 +282,9 @@ export function parseArgs(args: string[]): CliOptions {
     diagnosticsJson: false,
     failOnWarning: false,
     printLocalizationAliases: false,
+    refreshSiteConfiguration: false,
+    printSiteConfiguration: false,
+    validateSiteConfiguration: false,
     noConfig: false,
     files: [],
   };
@@ -303,6 +326,15 @@ export function parseArgs(args: string[]): CliOptions {
         break;
       case "--print-localization-aliases":
         options.printLocalizationAliases = true;
+        break;
+      case "--refresh-site-configuration":
+        options.refreshSiteConfiguration = true;
+        break;
+      case "--print-site-configuration":
+        options.printSiteConfiguration = true;
+        break;
+      case "--validate-site-configuration":
+        options.validateSiteConfiguration = true;
         break;
       case "--report": {
         const value = args[++index];
@@ -369,6 +401,12 @@ export function parseArgs(args: string[]): CliOptions {
         const value = args[++index];
         if (!value) throw new Error("--site-api requires a URL");
         options.siteApi = value;
+        break;
+      }
+      case "--site-snapshot": {
+        const value = args[++index];
+        if (!value) throw new Error("--site-snapshot requires a path");
+        options.siteSnapshot = value;
         break;
       }
       case "--localized-syntax-style": {
@@ -458,16 +496,29 @@ export function parseArgs(args: string[]): CliOptions {
     throw new Error("--stdin cannot be combined with file paths");
   if (options.stdin && options.write)
     throw new Error("--write cannot be used with --stdin");
+  const inspectionMode =
+    options.printLocalizationAliases ||
+    options.printSiteConfiguration ||
+    options.validateSiteConfiguration ||
+    (options.refreshSiteConfiguration && !options.stdin && options.files.length === 0);
   if (
-    options.printLocalizationAliases &&
+    Number(options.printLocalizationAliases) +
+      Number(options.printSiteConfiguration) +
+      Number(options.validateSiteConfiguration) >
+    1
+  ) {
+    throw new Error("Configuration print/validate modes are mutually exclusive");
+  }
+  if (
+    inspectionMode &&
     (options.write || options.check || options.diff || options.stdin)
   ) {
     throw new Error(
-      "--print-localization-aliases cannot be combined with --write, --check, --diff, or --stdin",
+      "Site/configuration inspection cannot be combined with --write, --check, --diff, or --stdin",
     );
   }
   if (
-    !options.printLocalizationAliases &&
+    !inspectionMode &&
     !options.stdin &&
     options.files.length === 0
   ) {
@@ -488,8 +539,12 @@ export function formatterOptions(options: CliOptions): FormatOptions {
     diagnosticsJson: _diagnosticsJson,
     failOnWarning: _failOnWarning,
     printLocalizationAliases: _printLocalizationAliases,
+    refreshSiteConfiguration: _refreshSiteConfiguration,
+    printSiteConfiguration: _printSiteConfiguration,
+    validateSiteConfiguration: _validateSiteConfiguration,
     reportPath: _reportPath,
     siteApi: _siteApi,
+    siteSnapshot: _siteSnapshot,
     configPath: _configPath,
     noConfig: _noConfig,
     files: _files,

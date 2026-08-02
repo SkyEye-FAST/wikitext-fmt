@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import {
   discoverConfig,
+  loadProjectConfig,
   resolveCliConfig,
   validateConfig,
 } from "../src/cli/config.js";
@@ -91,6 +92,7 @@ describe("CLI configuration", () => {
       ),
     ).toEqual({
       options: { formatTemplates: false },
+      projectConfig: {},
     });
   });
 
@@ -119,6 +121,48 @@ describe("CLI configuration", () => {
     expect(() => validateConfig({ profile: "unsafe" })).toThrow(
       /must be one of/u,
     );
+  });
+
+  it("validates site configuration with fully qualified errors", () => {
+    expect(() => validateConfig({ site: { unknown: true } })).toThrow(
+      /site\.unknown/u,
+    );
+    expect(() => validateConfig({ site: { cachePath: "" } })).toThrow(
+      /site\.cachePath.*non-empty/u,
+    );
+    expect(() =>
+      validateConfig({ site: { cacheMaxAgeSeconds: Number.POSITIVE_INFINITY } }),
+    ).toThrow(/site\.cacheMaxAgeSeconds.*finite/u);
+    expect(() =>
+      validateConfig({ site: { allowStaleCache: "yes" } }),
+    ).toThrow(/site\.allowStaleCache.*boolean/u);
+  });
+
+  it("resolves all project file paths from the configuration directory", async () => {
+    const root = await temporaryDirectory();
+    const configDirectory = join(root, "config");
+    await mkdir(configDirectory);
+    const path = join(configDirectory, "formatter.json");
+    await writeFile(
+      path,
+      JSON.stringify({
+        parserConfig: "parser/top.json",
+        site: {
+          parserConfig: "./parser/site.json",
+          snapshotPath: "snapshots/site.json",
+          cachePath: ".cache/site.json",
+        },
+      }),
+    );
+
+    await expect(loadProjectConfig(path)).resolves.toEqual({
+      parserConfig: join(configDirectory, "parser/top.json"),
+      site: {
+        parserConfig: join(configDirectory, "parser/site.json"),
+        snapshotPath: join(configDirectory, "snapshots/site.json"),
+        cachePath: join(configDirectory, ".cache/site.json"),
+      },
+    });
   });
 
   it("accepts production formatter profiles", () => {

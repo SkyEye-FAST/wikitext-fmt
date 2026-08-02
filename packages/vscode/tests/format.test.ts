@@ -1,16 +1,19 @@
 import { describe, expect, it, vi } from "vitest";
-import { mkdtemp, mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import { isAbsolute, join, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import {
   defaultOptions,
+  clearSiteConfigurationMemoryCache,
   type FormatDetailedResult,
   type FormatFailure,
   type FormatOptions,
+  serializeSiteConfigurationSnapshot,
 } from "wikitext-fmt";
 import { optionSchema } from "../../../src/options/schema.js";
 import {
   buildEditorSettings,
+  buildExplicitSiteConfiguration,
   buildFormatOptions,
   formatTextForEditor,
   getEditorDocumentFormattingResult,
@@ -47,6 +50,17 @@ function config(
     };
   }
   return result;
+}
+
+async function writeValidParserConfig(path: string): Promise<void> {
+  const contents = await readFile(
+    new URL(
+      "../../../node_modules/wikiparser-node/config/default.json",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+  await writeFile(path, contents);
 }
 
 function settings(safe: boolean): EditorFormatSettings {
@@ -269,6 +283,18 @@ describe("VS Code formatter option parity", () => {
     for (const name of configFileOnlyOptionNames) {
       expect(properties[`wikitextFmt.${name}`]).toBeUndefined();
     }
+    for (const name of [
+      "apiUrl",
+      "parserConfig",
+      "snapshotPath",
+      "cachePath",
+      "cacheMaxAgeSeconds",
+      "allowStaleCache",
+    ]) {
+      const property = properties[`wikitextFmt.site.${name}`];
+      expect(property, `wikitextFmt.site.${name}`).toBeDefined();
+      expect(property.default).toBeNull();
+    }
     const removedSetting = `wikitextFmt.${["formatTemplate", "Parameters"].join("")}`;
     expect(properties[removedSetting]).toBeUndefined();
 
@@ -283,10 +309,15 @@ describe("VS Code formatter option parity", () => {
         "wikitext-fmt.showLastReport",
         "wikitext-fmt.showResolvedConfiguration",
         "wikitext-fmt.openConfiguration",
+        "wikitext-fmt.refreshSiteConfiguration",
       ]),
     );
     for (const command of packageJson.contributes.commands) {
       if (command.command === "wikitext-fmt.showLastReport") continue;
+      if (command.command === "wikitext-fmt.refreshSiteConfiguration") {
+        expect(command.enablement).toContain("isWorkspaceTrusted");
+        continue;
+      }
       expect(command.enablement, command.command).toBe(
         "editorLangId == wikitext || editorLangId == mediawiki",
       );
@@ -426,6 +457,149 @@ describe("VS Code formatter detailed behavior", () => {
 });
 
 describe("VS Code formatter config loading", () => {
+  it("reads only explicitly configured VS Code site settings", () => {
+    expect(buildExplicitSiteConfiguration(config({}, true))).toBeUndefined();
+    expect(
+      buildExplicitSiteConfiguration(
+        config(
+          {
+            "site.apiUrl": "https://wiki.example/api.php",
+            "site.cacheMaxAgeSeconds": 0,
+            "site.allowStaleCache": false,
+          },
+          true,
+        ),
+      ),
+    ).toEqual({
+      apiUrl: "https://wiki.example/api.php",
+      cacheMaxAgeSeconds: 0,
+      allowStaleCache: false,
+    });
+  });
+
+  it("uses a project snapshot without network in an untrusted workspace", async () => {
+    const root = await mkdtemp(join(tmpdir(), "wikitext-formatter-site-"));
+    const snapshotPath = join(root, "site.json");
+    await writeFile(
+      snapshotPath,
+      serializeSiteConfigurationSnapshot({
+        schemaVersion: 1,
+        apiUrl: "https://wiki.example/api.php",
+        fetchedAt: "2026-08-02T00:00:00.000Z",
+        formatterData: {
+          localizationAliases: { categoryNamespaces: ["Kategorie"] },
+          interlanguagePrefixes: ["de"],
+        },
+      }),
+    );
+    await writeFile(
+      join(root, ".wikitextfmtrc"),
+      JSON.stringify({ site: { snapshotPath: "site.json" } }),
+    );
+
+    const result = await resolveEditorSettings(config({}, true), {
+      enabled: true,
+      documentPath: join(root, "page.wiki"),
+      trusted: false,
+    });
+
+    expect(result).toMatchObject({
+      kind: "settings",
+      settings: {
+        options: {
+          localizationSource: "custom",
+          interlanguagePrefixes: ["de"],
+        },
+        siteConfiguration: {
+          source: "snapshot",
+          snapshotPath,
+        },
+      },
+    });
+  });
+
+  it("fails closed instead of fetching an API in an untrusted workspace", async () => {
+    const root = await mkdtemp(join(tmpdir(), "wikitext-formatter-site-"));
+    await writeFile(
+      join(root, ".wikitextfmtrc"),
+      JSON.stringify({ site: { apiUrl: "https://wiki.example/api.php" } }),
+    );
+
+    await expect(
+      resolveEditorSettings(config({}, true), {
+        enabled: true,
+        documentPath: join(root, "page.wiki"),
+        trusted: false,
+      }),
+    ).resolves.toMatchObject({
+      kind: "warning",
+      warning: expect.stringContaining("network access is disabled"),
+    });
+  });
+
+  it("uses global storage cache, process TTL-zero reuse, and explicit refresh", async () => {
+    const root = await mkdtemp(join(tmpdir(), "wikitext-formatter-site-"));
+    const storage = join(root, "global-storage");
+    const configPath = join(root, ".wikitextfmtrc");
+    const configContents = JSON.stringify({
+      site: {
+        apiUrl: "https://cache-test.example/api.php",
+        cacheMaxAgeSeconds: 0,
+      },
+    });
+    await writeFile(configPath, configContents);
+    const fetchMock = vi.fn(async () =>
+      new Response(
+        JSON.stringify({
+          query: {
+            namespaces: [
+              { id: 6, canonical: "File" },
+              { id: 14, canonical: "Category" },
+            ],
+            interwikimap: [{ prefix: "de", language: "Deutsch" }],
+          },
+        }),
+        { status: 200 },
+      ),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    clearSiteConfigurationMemoryCache();
+    try {
+      const loadOptions = {
+        enabled: true,
+        documentPath: join(root, "page.wiki"),
+        globalStoragePath: storage,
+        trusted: true,
+      } as const;
+      const first = await resolveEditorSettings(config({}, true), loadOptions);
+      const second = await resolveEditorSettings(config({}, true), loadOptions);
+      expect(first).toMatchObject({
+        kind: "settings",
+        settings: { siteConfiguration: { source: "network" } },
+      });
+      expect(second).toMatchObject({
+        kind: "settings",
+        settings: { siteConfiguration: { source: "fresh-cache" } },
+      });
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(await readdir(storage)).toHaveLength(1);
+
+      const refreshed = await resolveEditorSettings(config({}, true), {
+        ...loadOptions,
+        refreshSiteConfiguration: true,
+      });
+      expect(refreshed).toMatchObject({
+        kind: "settings",
+        settings: { siteConfiguration: { source: "network" } },
+      });
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+      expect(await readFile(configPath, "utf8")).toBe(configContents);
+    } finally {
+      clearSiteConfigurationMemoryCache();
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("uses VS Code settings only when no config is found", async () => {
     const root = await mkdtemp(join(tmpdir(), "wikitext-formatter-"));
     const result = await resolveEditorSettings(config({}, true), {
@@ -566,6 +740,8 @@ describe("VS Code formatter config loading", () => {
     const root = await mkdtemp(join(tmpdir(), "wikitext-formatter-"));
     const nested = join(root, "pages");
     await mkdir(nested);
+    await mkdir(join(root, "parser"));
+    await writeValidParserConfig(join(root, "parser", "custom.json"));
     await writeFile(
       join(root, ".wikitextfmtrc"),
       JSON.stringify({ parserConfig: "parser/custom.json" }),
@@ -580,7 +756,7 @@ describe("VS Code formatter config loading", () => {
       kind: "settings",
       settings: {
         configOptions: {
-          parserConfig: "parser/custom.json",
+          parserConfig: resolve(root, "parser/custom.json"),
         },
         options: {
           parserConfig: resolve(root, "parser/custom.json"),
@@ -593,6 +769,7 @@ describe("VS Code formatter config loading", () => {
     const root = await mkdtemp(join(tmpdir(), "wikitext-formatter-"));
     const configDirectory = join(root, "config");
     await mkdir(configDirectory);
+    await writeValidParserConfig(join(configDirectory, "parser.json"));
     await writeFile(
       join(configDirectory, "formatter.json"),
       JSON.stringify({ parserConfig: "./parser.json" }),
@@ -620,6 +797,7 @@ describe("VS Code formatter config loading", () => {
     const secondRoot = await mkdtemp(join(tmpdir(), "wikitext-root-b-"));
     const configDirectory = join(firstRoot, "config");
     await mkdir(configDirectory);
+    await writeValidParserConfig(join(firstRoot, "parser.json"));
     await writeFile(
       join(configDirectory, "formatter.json"),
       JSON.stringify({ parserConfig: "../parser.json" }),
@@ -643,7 +821,7 @@ describe("VS Code formatter config loading", () => {
     });
   });
 
-  it.each(["mediawiki", "custom-parser"])(
+  it.each(["mediawiki"])(
     "does not rewrite named parser config %s",
     async (parserConfig) => {
       const root = await mkdtemp(join(tmpdir(), "wikitext-formatter-"));
@@ -667,9 +845,30 @@ describe("VS Code formatter config loading", () => {
     },
   );
 
+  it("fails closed for an unavailable named parser config", async () => {
+    const root = await mkdtemp(join(tmpdir(), "wikitext-formatter-"));
+    const configPath = join(root, ".wikitextfmtrc");
+    await writeFile(
+      configPath,
+      JSON.stringify({ parserConfig: "custom-parser" }),
+    );
+
+    await expect(
+      resolveEditorSettings(config({}, true), {
+        enabled: true,
+        documentPath: join(root, "page.wiki"),
+      }),
+    ).resolves.toMatchObject({
+      kind: "warning",
+      configPath,
+      warning: expect.stringContaining("custom-parser"),
+    });
+  });
+
   it("does not rewrite an absolute parser config path", async () => {
     const root = await mkdtemp(join(tmpdir(), "wikitext-formatter-"));
     const parserConfig = join(root, "parser.json");
+    await writeValidParserConfig(parserConfig);
     await writeFile(
       join(root, ".wikitextfmtrc"),
       JSON.stringify({ parserConfig }),

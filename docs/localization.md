@@ -37,7 +37,7 @@ behavior switches, and image options, then writes deterministic normalized JSON
 with provenance fields. Review generated changes; do not edit the generated
 alias JSON by hand.
 
-## Siteinfo aliases
+## Site configuration and siteinfo aliases
 
 The CLI supports:
 
@@ -46,6 +46,25 @@ wikitext-fmt page.wiki \
   --localization-source siteinfo \
   --site-api https://wiki.example/w/api.php
 ```
+
+The preferred reproducible project form keeps API and snapshot policy in
+configuration:
+
+```json
+{
+  "site": {
+    "apiUrl": "https://wiki.example/w/api.php",
+    "snapshotPath": "site/wiki.example.json",
+    "cacheMaxAgeSeconds": 86400
+  }
+}
+```
+
+Use `wikitext-fmt --refresh-site-configuration` to update the snapshot
+atomically and commit it when reproducible CI is required. Normal resolution
+prefers the explicit snapshot, then fresh cache, network, and finally an
+explicitly allowed valid stale cache after network failure. Snapshot and cache
+failures do not silently select built-in data.
 
 It sends a read-only `GET` request for:
 
@@ -84,9 +103,12 @@ const result = formatWikitextSafe(source, {
 
 `loadSiteInfoAliases` remains available as an alias-only compatibility helper,
 and `normalizeSiteInfoFormattingPayload` exposes the combined normalizer.
-Selecting `siteinfo` without supplying aliases fails closed. In the CLI,
-explicit `interlanguagePrefixes` from config or `--interlanguage-prefixes` take
-precedence over the siteinfo-derived list, including the decision not to treat
+Selecting `siteinfo` without supplying aliases fails closed. In the unified
+project resolver, configuring site data while omitting `localizationSource`
+selects the normalized site aliases automatically. Explicit `builtin` retains
+built-in aliases, but the API/snapshot may still provide interlanguage prefixes.
+Explicit `localizationAliases` and `interlanguagePrefixes` from config, CLI, or
+VS Code take precedence over site data, including the decision not to treat
 generic interwiki prefixes as languages.
 
 ## Custom aliases
@@ -148,7 +170,9 @@ wikitext-fmt --print-localization-aliases \
 ```
 
 This mode prints JSON without reading formatter input. It still resolves config
-and, for siteinfo, performs the API request.
+and, when needed, resolves the project snapshot/cache/API. Use
+`--print-site-configuration` to inspect source, freshness, paths, parser choice,
+overrides, and normalized formatter data without exposing API query secrets.
 
 ## Parser configuration is separate
 
@@ -158,6 +182,12 @@ formatter creates an invocation-local parser configuration from the
 authoritative prefix list so acceptance still depends on parser classification;
 prefixes conflicting with local namespaces are excluded. Other site-specific
 syntax may still require an appropriate `parserConfig`.
+
+Siteinfo never synthesizes a complete parser config. Configure a named
+`wikiparser-node` parser or a `ConfigData` JSON path through top-level
+`parserConfig` or `site.parserConfig`. The top-level/explicit parser wins. Local
+namespace names from that parser config win over conflicting interlanguage
+prefixes, and the resolver exposes the exclusions as diagnostics.
 
 ## Corpus siteinfo metadata
 

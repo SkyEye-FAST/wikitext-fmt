@@ -39,6 +39,11 @@
         "command": "wikitext-fmt.openConfiguration",
         "enablement": "editorLangId == wikitext || editorLangId == mediawiki",
         "title": "%command.openConfiguration.title%"
+      },
+      {
+        "command": "wikitext-fmt.refreshSiteConfiguration",
+        "enablement": "isWorkspaceTrusted && (editorLangId == wikitext || editorLangId == mediawiki)",
+        "title": "%command.refreshSiteConfiguration.title%"
       }
     ],
     "configuration": {
@@ -256,6 +261,55 @@
           "default": true,
           "description": "%configuration.safe.description%",
           "type": "boolean"
+        },
+        "wikitextFmt.site.allowStaleCache": {
+          "default": null,
+          "description": "%configuration.site.allowStaleCache.description%",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "wikitextFmt.site.apiUrl": {
+          "default": null,
+          "description": "%configuration.site.apiUrl.description%",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "wikitextFmt.site.cacheMaxAgeSeconds": {
+          "default": null,
+          "description": "%configuration.site.cacheMaxAgeSeconds.description%",
+          "minimum": 0,
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "wikitextFmt.site.cachePath": {
+          "default": null,
+          "description": "%configuration.site.cachePath.description%",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "wikitextFmt.site.parserConfig": {
+          "default": null,
+          "description": "%configuration.site.parserConfig.description%",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "wikitextFmt.site.snapshotPath": {
+          "default": null,
+          "description": "%configuration.site.snapshotPath.description%",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "wikitextFmt.tableCellSeparatorStyle": {
           "default": "auto",

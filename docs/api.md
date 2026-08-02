@@ -32,13 +32,17 @@ Its runtime exports are:
   `formatWikitextSafe`, and `formatWikitextSafeDetailed`;
 - `defaultOptions` and `ruleLevels`;
 - `loadSiteInfoAliases`, `normalizeSiteInfoPayload`, and
-  `classifyParserFunction`.
+  `classifyParserFunction`;
+- `validateProjectConfig`, `normalizeSiteConfigurationSnapshot`,
+  `serializeSiteConfigurationSnapshot`, `sanitizedSiteApiUrl`, and
+  `applySiteFormattingData`.
 
 It also exports `FormatResult`, `FormatDetailedResult`, `FormatFailure`,
 `FormatFailureCode`, all public rule diagnostic types, `DiagnosticsSummary`,
 `FormatOptions`, `FormatProfile`, `FormatLevel`, every public option union,
 `LocalizationAliases`, `ResolvedLocalizationAliases`, `RuleName`, structural
-equivalence result types, and parser-function policy types as TypeScript types.
+equivalence result types, `ProjectConfig`, `SiteConfiguration`, snapshot and
+resolved-site types, and parser-function policy types as TypeScript types.
 It does not export filesystem configuration helpers or standalone structural
 equivalence functions.
 
@@ -291,10 +295,59 @@ Public config exports are:
 - `CONFIG_FILENAMES`;
 - `discoverConfig(startDirectory?)`;
 - `loadConfig(path)`;
-- `validateConfig(value)`.
+- `validateConfig(value)`;
+- `loadProjectConfig(path)`;
+- `validateProjectConfig(value)`.
 
 These helpers perform filesystem discovery or validation only when the caller
 invokes them. Formatter functions do not call them.
+
+`loadConfig` and `validateConfig` remain compatible names and accept the
+extended `ProjectConfig` shape. Relative top-level/site parser paths and site
+snapshot/cache paths are resolved by `loadProjectConfig` from the config file
+directory.
+
+## Unified project/site resolver
+
+The Node entry additionally exports:
+
+- `resolveProjectConfiguration(options?)`;
+- `loadSiteConfigurationSnapshot(path, options?)`;
+- `clearSiteConfigurationMemoryCache()`;
+- `ResolvedProjectConfiguration`, `ResolveProjectConfigurationOptions`, and
+  `SiteConfigurationStorage` types.
+
+```ts
+import {
+  formatWikitextSafe,
+  loadProjectConfig,
+  resolveProjectConfiguration,
+} from "wikitext-fmt";
+
+const projectConfig = await loadProjectConfig(".wikitextfmtrc");
+const resolved = await resolveProjectConfiguration({ projectConfig });
+const result = formatWikitextSafe(source, resolved.options);
+
+console.log(resolved.siteConfiguration.source); // snapshot, fresh-cache, ...
+```
+
+The resolver owns Node filesystem access, parser `ConfigData` validation,
+siteinfo fetching, per-process cache and same-API request deduplication, TTL and
+stale-cache decisions, atomic writes, source reporting, and local-namespace
+conflict filtering. `formatterOverrides` and `siteOverrides` represent explicit
+CLI/editor values and take priority over the project config. Callers can inject
+`fetchImplementation`, `storage`, `now`, network/cache permissions, and a
+default cache directory for deterministic tests or host policy.
+
+`ResolvedSiteConfiguration.source` is `none`, `snapshot`, `fresh-cache`,
+`network`, or `stale-cache`; it also reports sanitized API and parser sources,
+resolved paths, `fetchedAt`, stale state, whether aliases/prefixes were applied,
+excluded namespace-conflicting prefixes, and diagnostics.
+
+The browser entry exports only the pure project/snapshot validation,
+normalization, serialization, sanitization, and apply helpers. It deliberately
+does not export config discovery/loading, snapshot file loading, or the unified
+Node resolver, so its dependency graph remains free of Node built-ins.
 
 ## Parser-function policy
 

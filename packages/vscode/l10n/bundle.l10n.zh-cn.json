@@ -4,6 +4,8 @@
   "Wikitext Formatter commands only support wikitext and mediawiki documents.": "Wikitext Formatter 命令仅支持 wikitext 和 MediaWiki 文档。",
   "Wikitext Formatter: no active document.": "Wikitext Formatter：没有活动文档。",
   "Wikitext Formatter: no report is available yet.": "Wikitext Formatter：尚无可显示的报告。",
+  "Wikitext Formatter: site configuration refreshed.": "Wikitext Formatter：站点配置已刷新。",
+  "Wikitext Formatter: trust this workspace before refreshing MediaWiki site configuration.": "Wikitext Formatter：请先信任此工作区，再刷新 MediaWiki 站点配置。",
   "Wikitext Formatter: the document is already formatted.": "Wikitext Formatter：文档已经完成格式化。",
   "Wikitext Formatter: this document does not use a configuration file.": "Wikitext Formatter：当前文档没有使用配置文件。",
   "wikitext-fmt: {message}": "wikitext-fmt：{message}"

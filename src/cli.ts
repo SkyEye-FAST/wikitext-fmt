@@ -17,7 +17,6 @@ import {
 } from "./cli/diagnostics.js";
 import { createUnifiedDiff } from "./cli/diff.js";
 import {
-  prepareLocalizationOptions,
   resolvedLocalizationAliasesJson,
 } from "./cli/localization.js";
 import { expandInputPaths } from "./cli/paths.js";
@@ -28,6 +27,11 @@ import {
   formatWikitextSafeDetailed,
 } from "./formatter.js";
 import { type FormatOptions, resolveOptions } from "./options.js";
+import type { ResolvedSiteConfiguration } from "./projectConfig.js";
+import {
+  resolveProjectConfiguration,
+  type ResolvedProjectConfiguration,
+} from "./siteConfiguration.js";
 
 const packageMetadata = createRequire(import.meta.url)("../package.json") as {
   version: string;
@@ -88,6 +92,7 @@ function debugResult(
   options: CliOptions,
   safe: boolean,
   formatOptions: FormatOptions,
+  siteConfiguration: ResolvedSiteConfiguration,
   configPath?: string,
 ): void {
   if (!options.debug) return;
@@ -99,8 +104,25 @@ function debugResult(
       ? "unchanged"
       : "changed";
   const config = configPath ? ` config=${configPath}` : " config=defaults";
+  const site = [
+    `site=${siteConfiguration.source}`,
+    `parser=${siteConfiguration.parserConfig}`,
+    `stale=${siteConfiguration.stale}`,
+    siteConfiguration.apiUrl ? `api=${siteConfiguration.apiUrl}` : undefined,
+    siteConfiguration.snapshotPath
+      ? `snapshot=${siteConfiguration.snapshotPath}`
+      : undefined,
+    siteConfiguration.cachePath
+      ? `cache=${siteConfiguration.cachePath}`
+      : undefined,
+    siteConfiguration.fetchedAt
+      ? `fetchedAt=${siteConfiguration.fetchedAt}`
+      : undefined,
+  ]
+    .filter((value): value is string => value !== undefined)
+    .join(" ");
   stderr.write(
-    `${label}: debug: mode=${mode} level=${level} status=${status}${config}\n`,
+    `${label}: debug: mode=${mode} level=${level} status=${status}${config} ${site}\n`,
   );
   for (const diagnostic of result.tableDiagnostics) {
     const style = diagnostic.separatorStyle
@@ -125,13 +147,25 @@ function reportDiagnostics(
   options: CliOptions,
   safe: boolean,
   formatOptions: FormatOptions,
+  siteConfiguration: ResolvedSiteConfiguration,
   configPath?: string,
 ): void {
   if (options.diagnosticsJson) {
-    stderr.write(`${serializeDiagnostics(label, source, result)}\n`);
+    stderr.write(
+      `${serializeDiagnostics(label, source, result, siteConfiguration)}\n`,
+    );
     return;
   }
-  debugResult(label, source, result, options, safe, formatOptions, configPath);
+  debugResult(
+    label,
+    source,
+    result,
+    options,
+    safe,
+    formatOptions,
+    siteConfiguration,
+    configPath,
+  );
 }
 
 async function main(): Promise<void> {
@@ -154,12 +188,23 @@ async function main(): Promise<void> {
 
   let formatOptions: FormatOptions;
   let configPath: string | undefined;
+  let projectResolution: ResolvedProjectConfiguration;
   try {
-    const resolved = await resolveCliConfig(formatterOptions(options), {
+    const cliFormatOptions = formatterOptions(options);
+    const resolved = await resolveCliConfig(cliFormatOptions, {
       configPath: options.configPath,
       noConfig: options.noConfig,
     });
-    formatOptions = await prepareLocalizationOptions(options, resolved.options);
+    projectResolution = await resolveProjectConfiguration({
+      projectConfig: resolved.projectConfig,
+      formatterOverrides: cliFormatOptions,
+      siteOverrides: {
+        ...(options.siteApi ? { apiUrl: options.siteApi } : {}),
+        ...(options.siteSnapshot ? { snapshotPath: options.siteSnapshot } : {}),
+      },
+      refresh: options.refreshSiteConfiguration,
+    });
+    formatOptions = projectResolution.options;
     configPath = resolved.path;
   } catch (error) {
     stderr.write(`${error instanceof Error ? error.message : String(error)}\n`);
@@ -167,8 +212,34 @@ async function main(): Promise<void> {
     return;
   }
 
+  if (!options.diagnosticsJson) {
+    for (const diagnostic of projectResolution.siteConfiguration.diagnostics) {
+      stderr.write(`warning: ${diagnostic}\n`);
+    }
+  }
+
   if (options.printLocalizationAliases) {
     stdout.write(resolvedLocalizationAliasesJson(formatOptions));
+    return;
+  }
+  if (
+    options.printSiteConfiguration ||
+    options.validateSiteConfiguration ||
+    (options.refreshSiteConfiguration && !options.stdin && options.files.length === 0)
+  ) {
+    stdout.write(
+      `${JSON.stringify(
+        {
+          siteConfiguration: projectResolution.siteConfiguration,
+          options: projectResolution.options,
+          ...(projectResolution.snapshot
+            ? { snapshot: projectResolution.snapshot }
+            : {}),
+        },
+        null,
+        2,
+      )}\n`,
+    );
     return;
   }
   const safe = useSafeFormatting(options, formatOptions);
@@ -176,7 +247,12 @@ async function main(): Promise<void> {
   if (options.stdin) {
     const source = await readStdin();
     const result = runFormatter(source, safe, formatOptions);
-    const diagnostics = createDiagnosticsRecord("stdin", source, result);
+    const diagnostics = createDiagnosticsRecord(
+      "stdin",
+      source,
+      result,
+      projectResolution.siteConfiguration,
+    );
     reportDiagnostics(
       "stdin",
       source,
@@ -184,6 +260,7 @@ async function main(): Promise<void> {
       options,
       safe,
       formatOptions,
+      projectResolution.siteConfiguration,
       configPath,
     );
     if (result.warning && !options.diagnosticsJson)
@@ -214,7 +291,14 @@ async function main(): Promise<void> {
   for (const file of files) {
     const source = await readFile(file, "utf8");
     const result = runFormatter(source, safe, formatOptions);
-    diagnostics.push(createDiagnosticsRecord(file, source, result));
+    diagnostics.push(
+      createDiagnosticsRecord(
+        file,
+        source,
+        result,
+        projectResolution.siteConfiguration,
+      ),
+    );
     reportDiagnostics(
       file,
       source,
@@ -222,6 +306,7 @@ async function main(): Promise<void> {
       options,
       safe,
       formatOptions,
+      projectResolution.siteConfiguration,
       configPath,
     );
     if (result.warning && !options.diagnosticsJson)

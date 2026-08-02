@@ -5,7 +5,11 @@ import {
   type FormatDetailedResult,
   type FormatFailure,
   type FormatOptions,
-  loadConfig,
+  loadProjectConfig,
+  type ProjectConfig,
+  type ResolvedSiteConfiguration,
+  resolveProjectConfiguration,
+  type SiteConfiguration,
 } from "wikitext-fmt";
 import { dirname, isAbsolute, resolve } from "node:path";
 import { vscodeFormatOptionMetadata } from "./optionMetadata.js";
@@ -29,7 +33,9 @@ export interface EditorFormatSettings {
   safe: boolean;
   options: FormatOptions;
   explicitOptions: FormatOptions;
-  configOptions: FormatOptions;
+  configOptions: ProjectConfig;
+  siteConfiguration?: ResolvedSiteConfiguration;
+  explicitSiteConfiguration?: SiteConfiguration;
 }
 
 export interface EditorConfigLoadOptions {
@@ -37,11 +43,14 @@ export interface EditorConfigLoadOptions {
   configPath?: string | null;
   documentPath?: string;
   workspaceFolderPath?: string;
+  globalStoragePath?: string;
+  trusted?: boolean;
+  refreshSiteConfiguration?: boolean;
 }
 
 export interface LoadedEditorConfig {
-  options: FormatOptions;
-  configOptions: FormatOptions;
+  options: ProjectConfig;
+  configOptions: ProjectConfig;
   path?: string;
 }
 
@@ -144,7 +153,9 @@ export function buildFormatOptions(
 export function buildEditorSettings(
   config: ConfigLike,
   baseOptions: FormatOptions = {},
-  configOptions: FormatOptions = baseOptions,
+  configOptions: ProjectConfig = baseOptions,
+  siteConfiguration?: ResolvedSiteConfiguration,
+  explicitSiteConfiguration?: SiteConfiguration,
 ): EditorFormatSettings {
   const explicitOptions = buildExplicitFormatOptions(config);
   return {
@@ -152,6 +163,8 @@ export function buildEditorSettings(
     options: { ...baseOptions, ...explicitOptions },
     explicitOptions,
     configOptions: { ...configOptions },
+    ...(siteConfiguration ? { siteConfiguration } : {}),
+    ...(explicitSiteConfiguration ? { explicitSiteConfiguration } : {}),
   };
 }
 export function buildEditorConfigLoadOptions(
@@ -161,6 +174,27 @@ export function buildEditorConfigLoadOptions(
     enabled: config.get<boolean>("config.enabled", true),
     configPath: config.get<string | null>("config.path", null),
   };
+}
+
+export function buildExplicitSiteConfiguration(
+  config: ConfigLike,
+): SiteConfiguration | undefined {
+  const values: SiteConfiguration = {};
+  for (const [setting, key] of [
+    ["site.apiUrl", "apiUrl"],
+    ["site.parserConfig", "parserConfig"],
+    ["site.snapshotPath", "snapshotPath"],
+    ["site.cachePath", "cachePath"],
+    ["site.cacheMaxAgeSeconds", "cacheMaxAgeSeconds"],
+    ["site.allowStaleCache", "allowStaleCache"],
+  ] as const) {
+    if (!hasConfiguredSetting(config, setting)) continue;
+    const value = config.get<SiteConfiguration[typeof key] | null>(setting, null);
+    if (value !== null && value !== undefined) {
+      (values as Record<string, unknown>)[key] = value;
+    }
+  }
+  return Object.keys(values).length > 0 ? values : undefined;
 }
 
 function isPathLikeParserConfig(value: string): boolean {
@@ -187,9 +221,9 @@ export function resolveConfigParserConfig(
 
 async function loadEditorConfigFile(path: string): Promise<LoadedEditorConfig> {
   try {
-    const configOptions = await loadConfig(path);
+    const configOptions = await loadProjectConfig(path);
     return {
-      options: resolveConfigParserConfig(configOptions, path),
+      options: configOptions,
       configOptions,
       path,
     };
@@ -225,14 +259,52 @@ export async function resolveEditorSettings(
   config: ConfigLike,
   configLoadOptions: EditorConfigLoadOptions,
 ): Promise<EditorSettingsResolution> {
+  let configPath: string | undefined;
   try {
     const loaded = await loadEditorConfigOptions(configLoadOptions);
+    configPath = loaded.path;
+    const explicitOptions = buildExplicitFormatOptions(config);
+    const rawSiteOverrides = buildExplicitSiteConfiguration(config);
+    const baseDirectory =
+      configLoadOptions.workspaceFolderPath ??
+      (configLoadOptions.documentPath
+        ? dirname(configLoadOptions.documentPath)
+        : process.cwd());
+    const siteOverrides = rawSiteOverrides
+      ? {
+          ...rawSiteOverrides,
+          ...(rawSiteOverrides.parserConfig
+            ? {
+                parserConfig: isPathLikeParserConfig(rawSiteOverrides.parserConfig)
+                  ? resolve(baseDirectory, rawSiteOverrides.parserConfig)
+                  : rawSiteOverrides.parserConfig,
+              }
+            : {}),
+          ...(rawSiteOverrides.snapshotPath
+            ? { snapshotPath: resolve(baseDirectory, rawSiteOverrides.snapshotPath) }
+            : {}),
+          ...(rawSiteOverrides.cachePath
+            ? { cachePath: resolve(baseDirectory, rawSiteOverrides.cachePath) }
+            : {}),
+        }
+      : undefined;
+    const projectResolution = await resolveProjectConfiguration({
+      projectConfig: loaded.options,
+      formatterOverrides: explicitOptions,
+      siteOverrides,
+      refresh: configLoadOptions.refreshSiteConfiguration,
+      allowNetwork: configLoadOptions.trusted ?? true,
+      allowCache: configLoadOptions.trusted ?? true,
+      defaultCacheDirectory: configLoadOptions.globalStoragePath,
+    });
     return {
       kind: "settings",
       settings: buildEditorSettings(
         config,
-        loaded.options,
+        projectResolution.options,
         loaded.configOptions,
+        projectResolution.siteConfiguration,
+        siteOverrides,
       ),
       configPath: loaded.path,
     };
@@ -244,7 +316,7 @@ export async function resolveEditorSettings(
       configPath:
         error instanceof EditorConfigLoadError
           ? error.configPath
-          : undefined,
+          : configPath,
     };
   }
 }

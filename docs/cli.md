@@ -21,6 +21,9 @@ contract.
 | `--diff` | Unified diff on stdout | No | 1 if any accepted output differs |
 | `--stdin` | Uses stdin instead of paths | Never | Follows normal, check, or diff behavior |
 | `--print-localization-aliases` | Resolved alias JSON on stdout | No | Returns without formatting input |
+| `--print-site-configuration` | Sanitized resolved project/site JSON on stdout | No | Returns without formatting input |
+| `--validate-site-configuration` | Sanitized resolved project/site JSON | No | 0 when valid; 2 on failure |
+| standalone `--refresh-site-configuration` | Sanitized resolved project/site JSON after atomic update | No | May also precede normal formatting |
 
 With multiple file inputs and no write/check/diff mode, formatted documents are
 concatenated on stdout in stable path order.
@@ -43,7 +46,11 @@ concatenated on stdout in stable path order.
 | `--report <path>` | Write an aggregate JSON batch report after processing |
 | `--config <path>` | Load one explicit validated JSON config |
 | `--no-config` | Disable config discovery and loading |
-| `--site-api <url>` | Fetch aliases and language interwiki prefixes when the resolved localization source is `siteinfo` |
+| `--site-api <url>` | Override the project MediaWiki API URL |
+| `--site-snapshot <path>` | Override the project snapshot path |
+| `--refresh-site-configuration` | Bypass snapshot/cache, fetch once, and atomically update configured cache/snapshot paths |
+| `--print-site-configuration` | Print sanitized source, paths, freshness, parser, overrides, data, and final options |
+| `--validate-site-configuration` | Resolve site and parser configuration without formatter input |
 | `--print-localization-aliases` | Print the final alias set without formatting input |
 
 `--version` and `-v` are intentionally recognized before normal argument
@@ -128,24 +135,41 @@ exit 2. Directories are not formatted.
 with normal output, `--check`, `--diff`, diagnostics, reports, and formatter
 options. Diffs label the input `stdin`.
 
-## Config and siteinfo
+## Config and site configuration
 
 Without `--config` or `--no-config`, the CLI discovers config upward from the
 current working directory. CLI values override the same keys from the selected
 config. See [Configuration](configuration.md).
 
-If the resolved `localizationSource` is `siteinfo`, `--site-api` is required.
-The CLI performs one read-only MediaWiki siteinfo request, converts the result
-to custom aliases, derives authoritative language prefixes from `interwikimap`
-entries marked `language` or `extralanglink`, and passes both to the core.
+The project config may contain a strict `site` object with `apiUrl`,
+`parserConfig`, `snapshotPath`, `cachePath`, `cacheMaxAgeSeconds`, and
+`allowStaleCache`. Relative project paths resolve from the config directory;
+relative `--site-snapshot` paths resolve from the CLI working directory.
+
+The CLI resolves explicit snapshot, fresh cache, network, then an explicitly
+allowed valid stale cache after network failure. Without `cachePath`, caching is
+in memory only. Corrupt, version-mismatched, or API-mismatched cache data is
+reported and never used. Network or validation failure exits 2; there is no
+silent built-in fallback. Same-API concurrent work shares one request, and
+`cacheMaxAgeSeconds: 0` revalidates once in each process or explicit refresh.
+
+MediaWiki siteinfo is converted to custom aliases plus authoritative language
+prefixes from `interwikimap` entries marked `language` or `extralanglink`.
 Generic interwiki entries are excluded unless explicitly configured. Explicit
-config or CLI `interlanguagePrefixes` values override the derived list. Fetch or
-validation errors exit 2; there is no silent built-in fallback.
+formatter aliases/prefixes win. When a site source is configured and
+`localizationSource` is omitted, site aliases apply automatically. An explicit
+`builtin` retains built-in aliases, although site prefixes can still apply.
+
+`--refresh-site-configuration` bypasses snapshot/cache and requires an API. It
+writes deterministic schema-version-1 JSON through temporary-file-plus-rename.
+`--print-site-configuration` never prints credentials or API query/fragment
+data. `--validate-site-configuration` exercises the same resolver and parser
+config validation without formatting input.
 
 ## Streams
 
-- Formatted text, unified diffs, version output, help, and resolved alias JSON
-  use stdout.
+- Formatted text, unified diffs, version output, help, resolved alias JSON, and
+  resolved site configuration JSON use stdout.
 - Warnings, debug output, JSON diagnostic records, and argument/config/path
   errors use stderr.
 - `--report` writes JSON only to its requested file.
@@ -172,10 +196,11 @@ The parser rejects:
 - `--config` with `--no-config`;
 - `--safe` with `--unsafe`;
 - `--stdin` with paths or `--write`;
-- `--print-localization-aliases` with `--write`, `--check`, `--diff`, or
-  `--stdin`;
-- an invocation with no path unless `--stdin` or
-  `--print-localization-aliases` is present.
+- configuration inspection (`--print-localization-aliases`,
+  `--print-site-configuration`, `--validate-site-configuration`, or a standalone
+  refresh) with `--write`, `--check`, `--diff`, or `--stdin`;
+- an invocation with no path unless `--stdin`, an inspection mode, or standalone
+  `--refresh-site-configuration` is present.
 
 `--diff` and `--check` may be combined; both suppress formatted text and use
 the same change exit status, while diff output still goes to stdout.
@@ -184,5 +209,7 @@ the same change exit status, while diff output still goes to stdout.
 
 `--debug` is for people. `--diagnostics-json` emits one compact JSON record per
 input. `--report` writes one aggregate document containing file records and
-summed counters. The fields are documented in
+summed counters. Each record includes resolved site source, API/parser sources,
+paths, fetched timestamp, stale state, applied data, namespace conflicts, and
+resolver diagnostics. The fields are documented in
 [Safety and diagnostics](safety-and-diagnostics.md).

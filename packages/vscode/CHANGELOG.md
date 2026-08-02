@@ -13,6 +13,14 @@ Core-only changes remain in the root changelog.
 
 ### Added
 
+- Added six `wikitextFmt.site.*` settings for API, parser config, snapshot,
+  cache, TTL, and stale-cache policy, plus a trusted-workspace-only refresh
+  command that never modifies project configuration.
+- Added shared project/site resolution with snapshot-only untrusted-workspace
+  behavior, default cache files under extension global storage, same-API request
+  deduplication, fail-closed network/config handling, and complete site source,
+  path, freshness, override, and namespace-conflict reporting.
+
 - Localized all VS Code UI text to English, Simplified Chinese (zh-cn), and
   Traditional Chinese (zh-tw). Command titles, setting descriptions, and
   notifications now follow the active VS Code display language.

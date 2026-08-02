@@ -1,12 +1,10 @@
-import {
-  overrideLocalizationAliases,
-  resolveLocalizationAliases,
-} from "../localization/aliases.js";
+import { resolveLocalizationAliases } from "../localization/aliases.js";
 import {
   loadSiteInfoFormattingData,
   type SiteInfoFormattingData,
 } from "../localization/siteinfo.js";
 import type { FormatOptions } from "../options.js";
+import { applySiteFormattingData } from "../projectConfig.js";
 import type { CliOptions } from "./args.js";
 
 export async function prepareLocalizationOptions(
@@ -22,16 +20,7 @@ export async function prepareLocalizationOptions(
     );
   }
   const siteData = await loadSiteData(options.siteApi);
-  return {
-    ...formatOptions,
-    localizationSource: "custom",
-    localizationAliases: overrideLocalizationAliases(
-      siteData.localizationAliases,
-      formatOptions.localizationAliases,
-    ),
-    interlanguagePrefixes:
-      formatOptions.interlanguagePrefixes ?? siteData.interlanguagePrefixes,
-  };
+  return applySiteFormattingData(formatOptions, siteData);
 }
 
 export function resolvedLocalizationAliasesJson(

@@ -19,6 +19,11 @@ describe("CLI argument parsing", () => {
       "--behavior-switch-placement",
       "--localization-source",
       "--localized-syntax-style",
+      "--site-api",
+      "--site-snapshot",
+      "--refresh-site-configuration",
+      "--print-site-configuration",
+      "--validate-site-configuration",
     ]) {
       expect(output).toContain(flag);
     }
@@ -95,5 +100,33 @@ describe("CLI argument parsing", () => {
     expect(() =>
       parseArgs(["--inline-template-spacing", "preserve", "page.wiki"]),
     ).toThrow(/auto, compact, or spaced/u);
+  });
+
+  it("parses site configuration inspection and refresh options", () => {
+    expect(
+      parseArgs([
+        "--site-api",
+        "https://wiki.example/api.php",
+        "--site-snapshot",
+        "site.json",
+        "--refresh-site-configuration",
+      ]),
+    ).toMatchObject({
+      siteApi: "https://wiki.example/api.php",
+      siteSnapshot: "site.json",
+      refreshSiteConfiguration: true,
+      files: [],
+    });
+    expect(parseArgs(["--print-site-configuration"])).toMatchObject({
+      printSiteConfiguration: true,
+      files: [],
+    });
+    expect(parseArgs(["--validate-site-configuration"])).toMatchObject({
+      validateSiteConfiguration: true,
+      files: [],
+    });
+    expect(() =>
+      parseArgs(["--print-site-configuration", "--write"]),
+    ).toThrow(/inspection.*--write/u);
   });
 });

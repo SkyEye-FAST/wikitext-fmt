@@ -6,6 +6,12 @@ additional pass verifies exact idempotency. “Safe” and “unsafe” are CLI
 compatibility names; they are not a switch between all safeguards and no
 safeguards.
 
+Project/site resolution is a wrapper stage before this synchronous pipeline.
+Invalid project config, parser `ConfigData`, snapshot schema, cache identity, or
+required network data stops the CLI/VS Code operation before formatting. The
+original document is not edited and there is no silent fallback to unrelated
+built-in site data.
+
 ## Base formatter pipeline
 
 `formatWikitextDetailedResult` performs these stages:
@@ -135,6 +141,16 @@ dedicated diagnostic objects.
     "commentBearingLinesChanged": 0,
     "structuredContentLinesChanged": 0,
     "skipReasons": {}
+  },
+  "siteConfiguration": {
+    "source": "snapshot",
+    "apiUrl": "https://wiki.example/w/api.php",
+    "parserConfig": "mediawiki",
+    "stale": false,
+    "aliasesApplied": true,
+    "prefixesApplied": true,
+    "excludedInterlanguagePrefixes": [],
+    "diagnostics": []
   }
 }
 ```
@@ -150,6 +166,13 @@ parser confirmation, marker-boundary ambiguity, Unicode separators, multiline
 content, unclosed comments, ignore ranges, protected blocks, changed structure,
 and candidates that cannot round-trip exactly.
 
+`siteConfiguration` reports `none`, `snapshot`, `fresh-cache`, `network`, or
+`stale-cache`, sanitized API and parser precedence sources, resolved
+snapshot/cache paths, fetch timestamp, stale state, whether aliases/prefixes
+were applied, local-namespace prefix exclusions, and resolver diagnostics.
+Stale usage is therefore visible in JSON, reports, CLI debug output, and VS Code
+resolved-configuration/document reports.
+
 Formatted text or diffs remain on stdout. JSON diagnostics cannot be combined
 with `--debug`.
 
@@ -162,6 +185,9 @@ with `--debug`.
 - a failure-code histogram;
 - aggregate rule and canonicalization counters;
 - aggregate formatted and skipped table-line counts.
+
+Each per-file record retains the complete resolved `siteConfiguration` object;
+the aggregate does not reinterpret or hide per-source freshness decisions.
 
 The aggregate summary includes interlanguage inspected, eligible, skipped,
 moved, and formatted counts. Per-file `footerDiagnostics` retains the reason

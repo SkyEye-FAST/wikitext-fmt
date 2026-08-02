@@ -147,6 +147,9 @@ export function createDocumentReport(input: DocumentReportInput): object {
     resolvedProfile: resolved.profile,
     resolvedLevel: resolved.level,
     explicitVscodeOptions: input.result.settings.explicitOptions,
+    explicitVscodeSiteConfiguration:
+      input.result.settings.explicitSiteConfiguration ?? null,
+    siteConfiguration: input.result.settings.siteConfiguration ?? null,
     status:
       input.result.kind === "failed" || input.result.kind === "warning"
         ? "failed"
@@ -185,8 +188,11 @@ export function createResolvedConfigurationReport(
     resolvedProfile: resolved.profile,
     resolvedLevel: resolved.level,
     vscodeOverrides: resolution.settings.explicitOptions,
+    vscodeSiteOverrides:
+      resolution.settings.explicitSiteConfiguration ?? null,
     configFileOptions: resolution.settings.configOptions,
     coreOptions: resolution.settings.options,
+    siteConfiguration: resolution.settings.siteConfiguration ?? null,
     editorOnly: {
       safe: resolution.settings.safe,
     },

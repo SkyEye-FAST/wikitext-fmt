@@ -17,6 +17,7 @@ const PREVIEW_SCHEME = "wikitext-fmt-preview";
 
 let outputChannel: vscode.OutputChannel;
 let lastReport: string | undefined;
+let globalStoragePath: string | undefined;
 
 export interface ExtensionTestApi {
   getLastReport(): string | undefined;
@@ -51,6 +52,7 @@ class PreviewContentProvider implements vscode.TextDocumentContentProvider {
 
 async function getSettings(
   document: vscode.TextDocument,
+  refreshSiteConfiguration = false,
 ): Promise<EditorSettingsResolution> {
   const config = vscode.workspace.getConfiguration("wikitextFmt", document.uri);
   const workspaceFolder = vscode.workspace.getWorkspaceFolder(document.uri);
@@ -61,6 +63,9 @@ async function getSettings(
     documentPath:
       document.uri.scheme === "file" ? document.uri.fsPath : undefined,
     workspaceFolderPath: workspaceFolder?.uri.fsPath,
+    globalStoragePath,
+    trusted: vscode.workspace.isTrusted,
+    refreshSiteConfiguration,
   });
 }
 
@@ -257,9 +262,36 @@ async function openConfiguration(document: vscode.TextDocument): Promise<void> {
   await vscode.window.showTextDocument(configDocument);
 }
 
+async function refreshSiteConfiguration(
+  document: vscode.TextDocument,
+): Promise<void> {
+  if (!vscode.workspace.isTrusted) {
+    void vscode.window.showWarningMessage(
+      vscode.l10n.t(
+        "Wikitext Formatter: trust this workspace before refreshing MediaWiki site configuration.",
+      ),
+    );
+    return;
+  }
+  const resolution = await getSettings(document, true);
+  const report = renderResolvedConfigurationReport(
+    document.uri.toString(),
+    resolution,
+  );
+  writeOutput(report, true);
+  if (resolution.kind === "warning") {
+    void showWarningWithDetails(resolution.warning);
+    return;
+  }
+  void vscode.window.showInformationMessage(
+    vscode.l10n.t("Wikitext Formatter: site configuration refreshed."),
+  );
+}
+
 export function activate(
   context: vscode.ExtensionContext,
 ): ExtensionTestApi | undefined {
+  globalStoragePath = context.globalStorageUri.fsPath;
   outputChannel = vscode.window.createOutputChannel("Wikitext Formatter");
   const previewProvider = new PreviewContentProvider();
   const provider: vscode.DocumentFormattingEditProvider = {
@@ -326,6 +358,13 @@ export function activate(
       async () => {
         const editor = activeSupportedEditor();
         if (editor) await openConfiguration(editor.document);
+      },
+    ),
+    vscode.commands.registerCommand(
+      "wikitext-fmt.refreshSiteConfiguration",
+      async () => {
+        const editor = activeSupportedEditor();
+        if (editor) await refreshSiteConfiguration(editor.document);
       },
     ),
   );

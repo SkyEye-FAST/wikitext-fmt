@@ -16,6 +16,13 @@
   `src/equivalence.ts` is the Node-facing wrapper.
 - `src/public.ts`: browser-safe public types, formatter metadata, localization
   helpers, and diagnostics shared by the Node and browser entries.
+- `src/projectConfig.ts`: browser-safe `ProjectConfig`/site/snapshot contracts,
+  strict validation, deterministic serialization, and pure site-data apply
+  logic. It must not import Node built-ins.
+- `src/config.ts` and `src/siteConfiguration.ts`: Node-only discovery/path
+  resolution plus unified snapshot/cache/network/parser resolution. The CLI and
+  VS Code wrapper must share this resolver instead of implementing their own
+  precedence or siteinfo-fetch flows.
 - `src/rules/`: transformations and rule diagnostics.
 - `src/cli.ts` and `src/cli/`: CLI parsing, config, paths, streams, diagnostics,
   reports, and siteinfo.
@@ -182,6 +189,28 @@ pnpm localization:update /path/to/mediawiki/languages/messages
 Review generated aliases and provenance. Update focused localization tests and
 [Localization](localization.md) when source languages, alias families, merging,
 or canonicalization behavior changes.
+
+## Project and site configuration changes
+
+Keep these boundaries explicit:
+
+- synchronous `formatWikitext*` calls accept pure `FormatOptions` and perform no
+  filesystem/network work;
+- project/snapshot normalization and serialization remain browser-safe;
+- Node loading resolves every relative project path from the config directory;
+- CLI/editor explicit values retain precedence over top-level project values,
+  then `site`, site data, profiles, and defaults;
+- cache files are schema/version/API checked and written atomically;
+- stale cache is never used unless configured and a network refresh failed;
+- same-API requests are deduplicated, including VS Code format/check/preview;
+- untrusted VS Code workspaces may use snapshots but not network or persistent
+  cache;
+- siteinfo supplies only formatter data, never a generated parser config.
+
+Focused coverage belongs in `tests/site-configuration.test.ts`, config and CLI
+tests, and `packages/vscode/tests/format.test.ts`. Also run browser and package
+content checks to prove the Node resolver did not leak into the browser entry or
+go missing from packaged CLI/VSIX artifacts.
 
 ## Diagnostics changes
 
