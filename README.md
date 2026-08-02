@@ -44,9 +44,12 @@ pre-1.0 release.
   information. Safe APIs and safe CLI mode add a second formatting pass to
   verify idempotency.
 
-Template formatting has one unified template rule. `formatTemplates` enables or
-disables it; `inlineTemplateSpacing`, `templateParameterLayout`, and `lineWidth`
-configure its supported layout behavior.
+Template formatting has one unified template rule. For originally single-line
+named and explicitly numbered templates, `inlineTemplateSpacing` first produces
+a parser-safe candidate. Parameter count alone does not expand it: candidates
+at or below `lineWidth` stay inline, while `templateParameterLayout` formats
+templates that were already multiline or whose safe candidate exceeds the
+width. Anonymous parameters keep their separate byte-preserving policy.
 
 For exact boundaries, see
 [Safety and diagnostics](docs/safety-and-diagnostics.md) and

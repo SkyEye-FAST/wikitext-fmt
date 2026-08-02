@@ -77,7 +77,7 @@ describe("ordinary template invocation names", () => {
     [
       "nested ordinary invocation names",
       "{{a_b|value={{nested_template}}}}\n",
-      "{{a b\n| value = {{nested template}}\n}}\n",
+      "{{a b|value={{nested template}}}}\n",
     ],
   ])("preserves %s", (_name, input, expected) => {
     expectStableFormatting(input, expected);
@@ -237,8 +237,9 @@ describe("ordinary template invocation names", () => {
     expect(result.formatted).toContain("== Heading {{heading name}} ==");
     expect(result.formatted).toContain("* {{list name}}");
     expect(result.formatted).toContain("| {{cell name}}");
-    expect(result.formatted).toContain("{{outer name");
-    expect(result.formatted).toContain("| value = {{inner name}}");
+    expect(result.formatted).toContain(
+      "{{outer name|value={{inner name}}}}",
+    );
     expect(formatWikitextSafeDetailed(result.formatted).formatted).toBe(
       result.formatted,
     );

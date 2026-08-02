@@ -65,10 +65,13 @@ describe("formatter API", () => {
   it("exposes only the unified template API", () => {
     const options: FormatOptions = {
       formatTemplates: true,
-      inlineTemplateSpacing: "auto",
+      inlineTemplateSpacing: "compact",
       templateParameterLayout: "flush",
     };
-    const result = formatWikitextDetailedResult("{{T|a=1|b=2}}\n", options);
+    const result = formatWikitextDetailedResult(
+      "{{ T | a = 1 | b = 2 }}\n",
+      options,
+    );
     const removedResultField = ["templateParameter", "Diagnostics"].join("");
     const removedRule = ["template", "Parameters"].join("");
 

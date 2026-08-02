@@ -42,11 +42,11 @@ preset.
 | --- | --- | --- | --- | --- | --- | --- |
 | `profile` | `default` \| `production` \| `aggressive` | `default` | — | `--profile` | Selects preset | Coordinated option preset |
 | `parserConfig` | non-empty string | `mediawiki` | — | `--parser-config` | unchanged | Parser config name or JSON path |
-| `lineWidth` | number > 0 | `120` | — | config/API only | unchanged | Named-template layout threshold; soft for anonymous parameters |
+| `lineWidth` | number > 0 | `120` | — | config/API only | unchanged | Maximum normalized single-line named-template candidate length; soft for anonymous parameters |
 | `formatHeadings` | boolean | `true` | safe | `--no-format-headings` | unchanged | Normalize eligible ASCII heading marker spacing while preserving non-ASCII title whitespace |
 | `formatTemplates` | boolean | `true` | normal | `--no-format-templates` | production/aggressive: `true` | Run the unified template engine, including ASCII underscore-to-space normalization in stable ordinary invocation titles |
-| `inlineTemplateSpacing` | `auto` \| `compact` \| `spaced` | `auto` | — | `--inline-template-spacing` | unchanged | Choose complete single-line named-template ASCII syntax spacing; auto uses weighted syntax-whitespace cost and a compact tie-break |
-| `templateParameterLayout` | `compact` \| `flush` \| `indented` | `flush` | — | config/API only | unchanged | Choose multiline named/numbered parameter spacing and indentation |
+| `inlineTemplateSpacing` | `auto` \| `compact` \| `spaced` | `auto` | — | `--inline-template-spacing` | unchanged | Generate parser-safe single-line named-template candidates; auto filters by `lineWidth` before weighted syntax-whitespace cost and a compact tie-break |
+| `templateParameterLayout` | `compact` \| `flush` \| `indented` | `flush` | — | config/API only | unchanged | Choose spacing and indentation after a named/numbered template must remain or become multiline |
 | `formatCategories` | boolean | `true` | normal | `--no-format-categories` | unchanged | Format eligible footer categories/defaultsort |
 | `formatLists` | boolean | `true` | normal | `--no-format-lists` | unchanged | Normalize eligible single-line list marker separators to exactly one ASCII space |
 | `formatFileLinks` | boolean | `true` | normal | `--no-format-file-links` | unchanged | Format eligible whole-line file/image links |
@@ -78,6 +78,14 @@ parameter keys and values are excluded.
 Template formatting has one unified rule. `formatTemplates` enables or disables
 it; `inlineTemplateSpacing`, `templateParameterLayout`, and `lineWidth` control
 its supported layout behavior.
+
+For an originally single-line named or explicitly numbered template, the
+formatter measures the final parser-safe candidate rather than the raw source.
+A candidate whose length is at most `lineWidth` stays inline; a wider candidate
+becomes multiline. Parameter count, redundant source whitespace, and the mere
+presence of a nested structure do not independently force expansion. Templates
+that were already multiline remain multiline, and anonymous parameters continue
+to use their separate conservative policy.
 
 ## Profiles versus levels
 

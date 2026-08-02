@@ -102,11 +102,14 @@ Single-line named and explicitly numbered templates use
 `compact` removes syntax whitespace at the braces, pipes, and equals signs.
 `spaced` uses one space at every one of those positions. The default `auto`
 mode safely generates both candidates, rejects any candidate that does not
-round-trip or preserve the template structural fingerprint, and chooses the
-one with the lower syntax-whitespace edit cost. Parameter-internal positions
-around pipes and equals signs have weight 2; outer brace positions have weight
-1. A total-cost tie prefers the lower parameter-internal cost, then `compact`.
-Whitespace inside values is not a style signal.
+round-trip or preserve the template structural fingerprint, and first filters
+them by `lineWidth`. If both fit, it chooses the candidate with the lower
+syntax-whitespace edit cost. If only one fits, that candidate wins even when the
+other would require fewer whitespace edits; if neither fits, the template
+becomes multiline. Parameter-internal positions around pipes and equals signs
+have weight 2; outer brace positions have weight 1. A total-cost tie prefers the
+lower parameter-internal cost, then `compact`. Whitespace inside values is not a
+style signal.
 
 Only parser-confirmed ASCII layout whitespace is normalized. Template names,
 named keys, and named values retain non-breaking spaces (`U+00A0`), narrow
@@ -121,9 +124,20 @@ For example:
 {{ a|b=1 }}   →  {{a|b=1}}
 ```
 
-The engine decides whether the template remains inline before applying this
-policy. Multiline named and explicitly numbered parameters instead use the
-separate `templateParameterLayout`; the default `flush` layout is:
+An originally multiline named or explicitly numbered template remains
+multiline. For an originally single-line template, the formatter first builds
+the parser-safe candidate requested by `inlineTemplateSpacing` (or both
+candidates for `auto`) and verifies its structure. A candidate with a final
+length at or below `lineWidth` remains inline; if no safe candidate fits, the
+formatter attempts a multiline layout.
+
+Parameter count, raw source length, and the mere presence of a nested template
+or other structure are not independent multiline triggers. Short, structurally
+equivalent nested templates can therefore remain inline. Actual newlines and
+line-sensitive list or table content still keep a template multiline.
+
+Once a named-parameter template must remain or become multiline,
+`templateParameterLayout` chooses its layout. The default `flush` layout is:
 
 ```wikitext
 {{Infobox|name=Example|value=42}}

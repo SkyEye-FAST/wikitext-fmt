@@ -405,6 +405,7 @@ function selectInlineNamedCandidate(
   head: string,
   args: readonly ParameterToken[],
   requestedSpacing: InlineTemplateSpacing,
+  lineWidth: number,
 ): { value?: string; reason?: string; multiline: false } {
   const raw = node.toString();
   const syntax = collectInlineSyntaxWhitespace(node, raw, args);
@@ -425,7 +426,11 @@ function selectInlineNamedCandidate(
     };
   }
 
-  const safeCandidates = (["compact", "spaced"] as const)
+  const spacings: readonly CanonicalInlineTemplateSpacing[] =
+    requestedSpacing === "auto"
+      ? ["compact", "spaced"]
+      : [requestedSpacing];
+  const safeCandidates = spacings
     .map((spacing) => {
       const value = renderInlineTemplate(head, args, spacing);
       if (value === undefined) return undefined;
@@ -445,6 +450,7 @@ function selectInlineNamedCandidate(
       return {
         spacing,
         value,
+        length: value.length,
         cost: inlineSyntaxWhitespaceCost(syntax, spacing),
       };
     })
@@ -457,27 +463,36 @@ function selectInlineNamedCandidate(
       ({ spacing }) => spacing === requestedSpacing,
     );
     return candidate
-      ? { value: candidate.value, multiline: false }
+      ? candidate.length <= lineWidth
+        ? { value: candidate.value, multiline: false }
+        : { multiline: false }
       : {
           reason: `no structurally equivalent ${requestedSpacing} inline template candidate`,
           multiline: false,
         };
   }
 
-  const candidate = safeCandidates.sort(
-    (left, right) =>
-      left.cost.total - right.cost.total ||
-      left.cost.parameterInternal - right.cost.parameterInternal ||
-      (left.spacing === "compact" ? -1 : 1),
-  )[0];
+  const candidate = safeCandidates
+    .filter(({ length }) => length <= lineWidth)
+    .sort(
+      (left, right) =>
+        left.cost.total - right.cost.total ||
+        left.cost.parameterInternal - right.cost.parameterInternal ||
+        (left.spacing === "compact" ? -1 : 1),
+    )[0];
   return candidate
     ? { value: candidate.value, multiline: false }
-    : {
-        reason: "no structurally equivalent inline template spacing candidate",
-        multiline: false,
-      };
+    : safeCandidates.length === 0
+      ? {
+          reason: "no structurally equivalent inline template spacing candidate",
+          multiline: false,
+        }
+      : { multiline: false };
 }
 
+// This bounds only the optional collapse of an existing multiline template
+// that contains anonymous values. It is independent from named-template
+// line-width decisions and protects byte-sensitive positional arguments.
 const INLINE_ANONYMOUS_ARGUMENT_LIMIT = 3;
 
 function anonymousLayoutCandidates(
@@ -620,6 +635,7 @@ function renderTemplateWithOpaqueTables(
     options,
     session,
     false,
+    raw.includes("\n"),
   );
   if (rendered.reason || rendered.value === undefined) return rendered;
   const value = protectedTables.restore(rendered.value);
@@ -690,6 +706,7 @@ function renderTemplate(
   options: TemplateFormatOptions,
   session: ParserSession,
   collapseAnonymous = true,
+  originallyMultiline = false,
 ): { value?: string; reason?: string; multiline?: boolean } {
   const raw = node.toString();
   if (!raw.startsWith("{{") || !raw.endsWith("}}")) {
@@ -737,28 +754,17 @@ function renderTemplate(
     );
   }
 
-  const compactBaseline = renderInlineTemplate(head, args, "compact");
-  if (compactBaseline === undefined) {
-    return { reason: "parser exposed an empty named-parameter key" };
-  }
-
-  const wasMultiline = raw.includes("\n");
-  const nestedStructure = args.some(containsNestedStructure);
-  const autoMultiline =
-    args.length > 1 ||
-    nestedStructure ||
-    raw.length > options.lineWidth ||
-    compactBaseline.length > options.lineWidth;
-  const multiline = wasMultiline || autoMultiline;
-
-  if (!multiline) {
-    return selectInlineNamedCandidate(
+  const wasMultiline = originallyMultiline || raw.includes("\n");
+  if (!wasMultiline) {
+    const inline = selectInlineNamedCandidate(
       node,
       session,
       head,
       args,
       options.inlineTemplateSpacing,
+      options.lineWidth,
     );
+    if (inline.value !== undefined) return inline;
   }
 
   const renderedArgs = args.map((arg) =>

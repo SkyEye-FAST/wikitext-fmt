@@ -123,7 +123,7 @@ Core details:
 | Setting | Default | Purpose |
 | --- | --- | --- |
 | `wikitextFmt.profile` | `"default"` | Select `default`, `production`, or `aggressive` |
-| `wikitextFmt.lineWidth` | `120` | Set the preferred width for parser-assisted layout |
+| `wikitextFmt.lineWidth` | `120` | Set the maximum normalized single-line named-template candidate length; soft for anonymous parameters |
 | `wikitextFmt.formatHeadings` | `true` | Enable heading formatting |
 | `wikitextFmt.formatTemplates` | `true` | Enable the unified template engine |
 | `wikitextFmt.inlineTemplateSpacing` | `"auto"` | Select `auto`, `compact`, or `spaced` for single-line named templates |
@@ -150,6 +150,13 @@ Core details:
 | `wikitextFmt.safe` | `true` | Add the second idempotency-checking formatter call |
 | `wikitextFmt.config.enabled` | `true` | Discover or load core JSON config |
 | `wikitextFmt.config.path` | `null` | Select one explicit config path |
+
+For named and explicitly numbered templates that start on one line, the
+extension measures the final parser-safe candidate after applying
+`inlineTemplateSpacing`. Candidates at or below `lineWidth` stay inline; wider
+candidates use `templateParameterLayout`. Parameter count alone does not force
+expansion, existing multiline templates remain multiline, and anonymous
+parameters keep their separate conservative policy.
 
 A profile is a preset; a reliability level is a rule ceiling. Only explicitly
 configured VS Code settings override corresponding config-file values.

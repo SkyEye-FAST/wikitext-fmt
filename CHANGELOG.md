@@ -8,6 +8,11 @@ here. The project follows the pre-1.0 policy in
 
 ### Changed
 
+- Named and explicitly numbered templates that start on one line now prefer a
+  parser-safe inline candidate whenever its final normalized length fits
+  `lineWidth`; parameter count, redundant source whitespace, and short nested
+  structures no longer force multiline output by themselves. Existing multiline
+  and anonymous-template policies remain conservative and unchanged.
 - Promoted `externalLinks`, `references`, and `sectionSpacing` from
   experimental to normal reliability. The production profile now enables all
   three, so production formatting may introduce new semantics-preserving

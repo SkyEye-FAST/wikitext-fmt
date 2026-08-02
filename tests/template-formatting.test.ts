@@ -56,13 +56,42 @@ function expectInlineLayout(
   options: FormatOptions = {},
 ): void {
   const result = formatWikitextSafeDetailed(input, options);
+  expect(result.failure).toBeUndefined();
   expect(result.warning).toBeUndefined();
   expect(result.formatted).toBe(expected);
+  expect(result.templateDiagnostics.templatesExpandedToMultiline).toBe(0);
   expect(parseWikitext(result.formatted, config).toString()).toBe(
     result.formatted,
   );
   expect(templateStructuralFingerprint(result.formatted, config)).toBe(
     templateStructuralFingerprint(input, config),
+  );
+  expect(formatWikitextSafeDetailed(result.formatted, options).formatted).toBe(
+    expected,
+  );
+  expect(result.equivalenceDiagnostics.every((entry) => entry.equivalent)).toBe(
+    true,
+  );
+}
+
+function expectExpandedLayout(
+  input: string,
+  expected: string,
+  options: FormatOptions,
+): void {
+  const result = formatWikitextSafeDetailed(input, options);
+  expect(result.failure).toBeUndefined();
+  expect(result.warning).toBeUndefined();
+  expect(result.formatted).toBe(expected);
+  expect(result.templateDiagnostics.templatesExpandedToMultiline).toBe(1);
+  expect(parseWikitext(result.formatted, config).toString()).toBe(
+    result.formatted,
+  );
+  expect(templateStructuralFingerprint(result.formatted, config)).toBe(
+    templateStructuralFingerprint(input, config),
+  );
+  expect(result.equivalenceDiagnostics.every((entry) => entry.equivalent)).toBe(
+    true,
   );
   expect(formatWikitextSafeDetailed(result.formatted, options).formatted).toBe(
     expected,
@@ -153,26 +182,103 @@ describe("unified parser-assisted template formatting", () => {
       "indented",
       "{{a\n | b = c\n | d = e\n}}\n",
     ],
-  ] as const)("supports the %s named-parameter layout", (layout, expected) => {
-    const input = "{{a|b=c|d=e}}\n";
-    for (const inlineTemplateSpacing of [
-      "auto",
-      "compact",
-      "spaced",
-    ] as const) {
-      const result = formatWikitextSafeDetailed(input, {
-        templateParameterLayout: layout,
-        inlineTemplateSpacing,
-      });
-      expect(result.warning).toBeUndefined();
-      expect(result.formatted).toBe(expected);
-      expect(
-        formatWikitextSafeDetailed(result.formatted, {
+  ] as const)(
+    "normalizes an existing multiline template with the %s named-parameter layout",
+    (layout, expected) => {
+      const input = "{{a\n|b=c\n|d=e\n}}\n";
+      for (const inlineTemplateSpacing of [
+        "auto",
+        "compact",
+        "spaced",
+      ] as const) {
+        const result = formatWikitextSafeDetailed(input, {
           templateParameterLayout: layout,
           inlineTemplateSpacing,
-        }).formatted,
-      ).toBe(expected);
-    }
+        });
+        expect(result.warning).toBeUndefined();
+        expect(result.formatted).toBe(expected);
+        expect(
+          formatWikitextSafeDetailed(result.formatted, {
+            templateParameterLayout: layout,
+            inlineTemplateSpacing,
+          }).formatted,
+        ).toBe(expected);
+      }
+    },
+  );
+
+  it.each([
+    ["two parameters", "{{T|a=1|b=2}}\n"],
+    [
+      "many parameters",
+      "{{T|a=1|b=2|c=3|d=4|e=5|f=6|g=7|h=8}}\n",
+    ],
+    ["explicit numeric parameters", "{{T|1=a|2=b|3=c|4=d}}\n"],
+  ])("keeps short named templates inline regardless of %s", (_name, input) => {
+    expectInlineLayout(input, input, {
+      inlineTemplateSpacing: "compact",
+    });
+  });
+
+  it("uses the exact normalized candidate length as the multiline boundary", () => {
+    const value = "x".repeat(30);
+    const compact = `{{T|a=${value}|b=2}}`;
+    expectInlineLayout(`${compact}\n`, `${compact}\n`, {
+      inlineTemplateSpacing: "compact",
+      lineWidth: compact.length,
+    });
+    expectExpandedLayout(
+      `${compact}\n`,
+      `{{T\n| a = ${value}\n| b = 2\n}}\n`,
+      {
+        inlineTemplateSpacing: "compact",
+        lineWidth: compact.length - 1,
+      },
+    );
+    expectExpandedLayout(
+      `${compact}\n`,
+      `{{T\n| a = ${value}\n| b = 2\n}}\n`,
+      {
+        inlineTemplateSpacing: "auto",
+        lineWidth: compact.length - 1,
+      },
+    );
+  });
+
+  it("uses normalized candidate length instead of raw input length", () => {
+    const input = "{{ T    | a = 1    | b = 2    | c = 3    }}\n";
+    const compact = "{{T|a=1|b=2|c=3}}";
+    expect(input.trimEnd().length).toBeGreaterThan(compact.length);
+    expectInlineLayout(input, `${compact}\n`, {
+      inlineTemplateSpacing: "compact",
+      lineWidth: compact.length,
+    });
+  });
+
+  it("applies explicit spacing before measuring line width", () => {
+    const compact = "{{T|a=1|b=2}}";
+    const spaced = "{{ T | a = 1 | b = 2 }}";
+    expectInlineLayout(`${compact}\n`, `${spaced}\n`, {
+      inlineTemplateSpacing: "spaced",
+      lineWidth: spaced.length,
+    });
+    expectExpandedLayout(
+      `${compact}\n`,
+      "{{T\n| a = 1\n| b = 2\n}}\n",
+      {
+        inlineTemplateSpacing: "spaced",
+        lineWidth: spaced.length - 1,
+      },
+    );
+  });
+
+  it("prefers an auto candidate that fits before whitespace edit cost", () => {
+    const input = "{{ T | a = 1 | b = 2 }}\n";
+    const compact = "{{T|a=1|b=2}}";
+    expectInlineLayout(input, `${compact}\n`, {
+      inlineTemplateSpacing: "auto",
+      lineWidth: compact.length,
+    });
   });
 
   it.each([
@@ -182,10 +288,14 @@ describe("unified parser-assisted template formatting", () => {
   ] as const)(
     "keeps inline spacing independent of the %s multiline layout",
     (templateParameterLayout) => {
-      expectInlineLayout("{{a| b = 1}}\n", "{{ a | b = 1 }}\n", {
-        templateParameterLayout,
-        inlineTemplateSpacing: "spaced",
-      });
+      expectInlineLayout(
+        "{{a| b = 1| c = 2}}\n",
+        "{{ a | b = 1 | c = 2 }}\n",
+        {
+          templateParameterLayout,
+          inlineTemplateSpacing: "spaced",
+        },
+      );
     },
   );
 
@@ -276,7 +386,11 @@ describe("unified parser-assisted template formatting", () => {
   });
 
   it.each([
-    ["all anonymous", "{{T|one|two|three}}\n", "{{T|one|two|three}}\n"],
+    [
+      "all anonymous",
+      "{{T|one|two|three|four|five}}\n",
+      "{{T|one|two|three|four|five}}\n",
+    ],
     [
       "named then anonymous",
       "{{T|name=value|tail }}\n",
@@ -320,32 +434,35 @@ describe("unified parser-assisted template formatting", () => {
   });
 
   it("keeps explicit numeric parameters named", () => {
-    const result = formatWikitextSafeDetailed("{{T|1= first |2= second }}\n");
-    expect(result.warning).toBeUndefined();
-    expect(result.formatted).toBe(
-      "{{T\n| 1 = first\n| 2 = second\n}}\n",
+    expectInlineLayout(
+      "{{T|1= first |2= second }}\n",
+      "{{T|1=first|2=second}}\n",
+      { inlineTemplateSpacing: "compact" },
     );
+  });
+
+  it("keeps a short structurally equivalent nested template inline", () => {
+    const input = "{{T|a={{U|x=1}}|b=2}}\n";
+    expectInlineLayout(input, input);
   });
 
   it("preserves anonymous whitespace around a formatted nested template", () => {
     const input = "{{T| {{Nested|a=1|b=2}} }}\n";
     const result = formatWikitextSafeDetailed(input);
     expect(result.warning).toBeUndefined();
-    expect(result.formatted).toBe(
-      "{{T| {{Nested\n| a = 1\n| b = 2\n}} }}\n",
-    );
+    expect(result.formatted).toBe(input);
     expect(result.formatted).toContain("| {{Nested");
     expect(result.formatted).toContain("}} }}");
   });
 
   it("does not collapse a multiline anonymous template with nested structure", () => {
     const input = "{{T\n|{{Nested|x=1|y=2}}|tail}}\n";
-    const expected = "{{T\n|{{Nested\n| x = 1\n| y = 2\n}}|tail}}\n";
+    const expected = "{{T\n|{{Nested|x=1|y=2}}|tail}}\n";
     const result = formatWikitextSafeDetailed(input);
     expect(result.warning).toBeUndefined();
     expect(result.formatted).toBe(expected);
     expect(anonymousValues(result.formatted)).toEqual([
-      "{{Nested\n| x = 1\n| y = 2\n}}",
+      "{{Nested|x=1|y=2}}",
       "tail",
     ]);
     expect(templateStructuralFingerprint(result.formatted, config)).toBe(
@@ -417,17 +534,18 @@ describe("unified parser-assisted template formatting", () => {
     ["reference", "<ref>source</ref>"],
     ["HTML", "<span>value</span>"],
     ["comment", "value<!-- comment -->"],
-  ])("formats a template containing %s", (_name, value) => {
+  ])("keeps a safe short template containing %s inline", (_name, value) => {
     const input = `{{Template|before=one|value=${value}|after=two}}\n`;
     const result = formatWikitextSafeDetailed(input);
     expect(result.warning).toBeUndefined();
-    expect(result.formatted).not.toBe(input);
-    expect(result.formatted).toContain("| before = one");
-    expect(result.formatted).toContain("| after = two");
+    expect(result.failure).toBeUndefined();
+    expect(result.formatted).toBe(input);
+    expect(result.templateDiagnostics.templatesExpandedToMultiline).toBe(0);
     expect(result.equivalenceDiagnostics).toContainEqual({
       equivalent: true,
       structure: "templates",
     });
+    expect(formatWikitextSafeDetailed(result.formatted).formatted).toBe(input);
   });
 
   it("preserves multiline value content while formatting every parameter", () => {
@@ -519,10 +637,10 @@ describe("unified parser-assisted template formatting", () => {
 
   it("formats nested templates deepest-first", () => {
     const input =
-      "{{Outer|safe=value|nested={{Nested|x=1|y=2}}|parser={{#if:x|y|z}}}}\n";
-    const result = formatWikitextDetailedResult(input);
+      "{{Outer|safe=value|nested={{Nested|x=1234567890|y=1234567890}}|parser={{#if:x|y|z}}}}\n";
+    const result = formatWikitextDetailedResult(input, { lineWidth: 30 });
     expect(result.formatted).toContain(
-      "{{Nested\n| x = 1\n| y = 2\n}}",
+      "{{Nested\n| x = 1234567890\n| y = 1234567890\n}}",
     );
     expect(result.formatted).toContain("{{#if:x|y|z}}");
     expect(result.templateDiagnostics.uniqueTemplatesFormatted).toBe(2);
@@ -557,12 +675,11 @@ describe("unified parser-assisted template formatting", () => {
     expect(result.templateDiagnostics).toMatchObject({
       templatesInspected: 2,
       templatesEligible: 2,
-      templatesChanged: 1,
-      templatesAlreadyCanonical: 1,
+      templatesChanged: 0,
+      templatesAlreadyCanonical: 2,
       templatesSkippedAmbiguous: 0,
-      uniqueTemplatesFormatted: 1,
-      uniqueTemplatesFormatted: 1,
-      templatesExpandedToMultiline: 1,
+      uniqueTemplatesFormatted: 0,
+      templatesExpandedToMultiline: 0,
       templatesSkipped: 0,
       convergenceLimitReached: false,
     });
@@ -578,6 +695,21 @@ describe("unified parser-assisted template formatting", () => {
         diagnostics.templateSemanticIds.includes(id),
       ),
     ).toBe(true);
+  });
+
+  it("counts only width-driven named template expansion", () => {
+    const input = "{{Template|a=1234567890|b=1234567890}}\n";
+    const result = formatWikitextSafeDetailed(input, { lineWidth: 30 });
+    expect(result.failure).toBeUndefined();
+    expect(result.warning).toBeUndefined();
+    expect(result.templateDiagnostics).toMatchObject({
+      templatesChanged: 1,
+      templatesExpandedToMultiline: 1,
+      uniqueTemplatesFormatted: 1,
+    });
+    expect(
+      formatWikitextSafeDetailed(result.formatted, { lineWidth: 30 }).formatted,
+    ).toBe(result.formatted);
   });
 
   it("fails closed and reports a convergence limit", () => {

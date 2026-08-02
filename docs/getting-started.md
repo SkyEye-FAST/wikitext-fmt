@@ -85,6 +85,13 @@ The base formatter pipeline is already fail-closed. The safe API adds a second
 formatting pass and requires exact idempotency. See
 [Safety and diagnostics](safety-and-diagnostics.md).
 
+Template layout is based on the final parser-safe candidate. An originally
+single-line named or explicitly numbered template stays inline when its
+normalized candidate fits `lineWidth`, regardless of parameter count or
+harmless source whitespace; otherwise it uses `templateParameterLayout`.
+Existing multiline templates stay multiline, while anonymous parameters follow
+a separate conservative, byte-preserving policy.
+
 ## VS Code
 
 The `wikitext-formatter` extension is a separately versioned wrapper that

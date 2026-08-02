@@ -271,7 +271,10 @@ describe("structural equivalence rejection", () => {
   it("accepts template layout changes inside an external-link label", () => {
     const input =
       "[https://example.test label {{LongTemplateName|first=alpha|second=beta}}]\n";
-    const result = formatWikitextSafeDetailed(input, production);
+    const result = formatWikitextSafeDetailed(input, {
+      ...production,
+      lineWidth: 30,
+    });
     expect(result.failure).toBeUndefined();
     expect(result.formatted).not.toBe(input);
     expect(result.equivalenceDiagnostics.at(-1)).toEqual({
@@ -294,7 +297,10 @@ describe("structural equivalence rejection", () => {
       "<span>{{Label|first=alpha|second=beta}}</span>\n",
     ],
   ])("accepts template layout changes inside %s semantics", (_name, input) => {
-    const result = formatWikitextSafeDetailed(input, production);
+    const result = formatWikitextSafeDetailed(input, {
+      ...production,
+      lineWidth: 30,
+    });
     expect(result.failure).toBeUndefined();
     expect(result.formatted).not.toBe(input);
   });
