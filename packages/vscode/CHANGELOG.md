@@ -5,11 +5,15 @@ Core-only changes remain in the root changelog.
 
 ## Unreleased
 
+## 0.4.0 - 2026-08-02
+
 ### Removed
 
-- Removed the deprecated VS Code template-parameter compatibility setting. Use
-  `wikitextFmt.formatTemplates` with the template spacing, layout, and line-width
-  settings instead.
+- **Breaking (pre-1.0):** Removed the deprecated VS Code template-parameter
+  compatibility setting. Use `wikitextFmt.formatTemplates` with the template
+  spacing, layout, and line-width settings instead.
+- **Breaking (pre-1.0):** Removed the `aggressive` profile. Existing users must
+  switch to `production`, which now represents the mature automation preset.
 
 ### Added
 
@@ -31,6 +35,12 @@ Core-only changes remain in the root changelog.
 - Added Chinese `enumDescriptions` for each enumerated configuration property
   so the VS Code Settings editor shows human-readable labels in all three
   languages.
+- Added **Generate Site Parser Configuration** and **Check Site Parser
+  Configuration** commands. They require a trusted workspace, confirm parser
+  config overwrites, report semantic drift, clear generated configuration caches,
+  and run an isolated post-generation smoke test.
+- Added `.wikitext-fmt.json` to automatic workspace configuration discovery and
+  site/parser-generation diagnostics to the extension report.
 
 ### Changed
 
@@ -42,6 +52,10 @@ Core-only changes remain in the root changelog.
   the VSIX.
 - Corrected the localized runtime spelling of `MediaWiki` and added source
   reference/orphan-key checks plus real zh-cn and zh-tw VSIX smoke coverage.
+- Bundle core `wikitext-fmt` 0.8.0. The production profile now enables mature
+  references, external links, expanded section spacing, and parser-confirmed
+  interlanguage footer placement; it reports the new interlanguage footer
+  diagnostics and skip reasons.
 
 ## 0.3.0 - 2026-07-31
 

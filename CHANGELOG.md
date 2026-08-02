@@ -6,7 +6,15 @@ here. The project follows the pre-1.0 policy in
 
 ## Unreleased
 
+## 0.8.0 - 2026-08-02
+
 ### Added
+
+- Added `formatProfiles`, `getFormatProfileOverrides`, and
+  `resolveFormatProfile` as browser-safe public APIs from both the root and
+  `wikitext-fmt/browser` entries. Settings UIs can now use the exact core
+  profile definitions without duplicating them, and every resolution returns an
+  independent value.
 
 - Added `.wikitext-fmt.json` to shared CLI/VS Code automatic discovery after the
   established filenames.
@@ -40,7 +48,9 @@ here. The project follows the pre-1.0 policy in
 - Promoted `externalLinks`, `references`, and `sectionSpacing` from
   experimental to normal reliability. The production profile now enables all
   three, so production formatting may introduce new semantics-preserving
-  whitespace changes in documents that were previously unchanged.
+  whitespace changes in documents that were previously unchanged. **Breaking
+  (pre-1.0):** external settings UIs must use the public profile helpers or
+  migrate their copied production preset.
 - Expanded section spacing to insert missing blank lines between level 2–6
   headings and adjacent lists, templates, tables, footer metadata, file links,
   behavior switches, comments, HTML/extensions, redirects, and other protected
@@ -64,9 +74,10 @@ here. The project follows the pre-1.0 policy in
 
 ### Removed
 
-- Removed the pre-1.0 `aggressive` profile from the core, CLI, corpus scripts,
-  and VS Code settings. Its mature behavior is now represented by `production`;
-  the `experimental` reliability level remains available for future rules, but
+- **Breaking (pre-1.0):** Removed the `aggressive` profile from the core, CLI,
+  corpus scripts, and VS Code settings. Its mature behavior is now represented
+  by `production`; external settings UIs must migrate saved `aggressive` values.
+  The `experimental` reliability level remains available for future rules, but
   no current rule is classified at that level.
 
 ## 0.7.0 - 2026-08-02
@@ -81,13 +92,14 @@ here. The project follows the pre-1.0 policy in
 
 ### Removed
 
-- Removed `formatTemplateParameters`, its template-parameter CLI flags, and the
-  `templateParameters` rule metadata. This is a breaking pre-1.0 change;
-  template formatting is now controlled only by `formatTemplates`,
+- **Breaking (pre-1.0):** Removed `formatTemplateParameters`, its
+  template-parameter CLI flags, and the `templateParameters` rule metadata.
+  Template formatting is now controlled only by `formatTemplates`,
   `inlineTemplateSpacing`, `templateParameterLayout`, and `lineWidth`.
-- Removed `TemplateParameterDiagnostics`, legacy template counters, and the
-  standalone template-parameter compatibility wrapper. Detailed results now use
-  `templateDiagnostics` instead of `templateParameterDiagnostics`.
+- **Breaking (pre-1.0):** Removed `TemplateParameterDiagnostics`, legacy
+  template counters, and the standalone template-parameter compatibility wrapper.
+  Detailed results now use `templateDiagnostics` instead of
+  `templateParameterDiagnostics`.
 
 ## 0.6.0 - 2026-08-01
 
