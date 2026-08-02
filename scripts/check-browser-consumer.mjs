@@ -242,6 +242,36 @@ async function writeConsumerFixtures(consumerRoot) {
           throw new Error("Removed template rule leaked through public metadata");
         }
       }
+      const reference = browser.formatWikitextSafeDetailed('<ref name="a"/>\\n', {
+        profile: "production",
+      });
+      if (reference.formatted !== '<ref name="a" />\\n' || reference.failure) {
+        throw new Error("Packed browser entry did not format a parser-confirmed reference");
+      }
+      const rootReference = node.formatWikitextSafeDetailed('<ref name="a"/>\\n', {
+        profile: "production",
+      });
+      if (JSON.stringify(rootReference) !== JSON.stringify(reference)) {
+        throw new Error("Packed root and browser entries disagreed on reference formatting");
+      }
+      const interlanguage = browser.formatWikitextSafeDetailed(
+        "[[en:Example]]\\n\\nBody\\n",
+        { profile: "production" },
+      );
+      if (
+        interlanguage.formatted !== "Body\\n\\n[[en:Example]]\\n" ||
+        interlanguage.failure ||
+        interlanguage.footerDiagnostics.interlanguageLinksMoved !== 1
+      ) {
+        throw new Error("Packed browser entry did not place a parser-confirmed interlanguage link");
+      }
+      const rootInterlanguage = node.formatWikitextSafeDetailed(
+        "[[en:Example]]\\n\\nBody\\n",
+        { profile: "production" },
+      );
+      if (JSON.stringify(rootInterlanguage) !== JSON.stringify(interlanguage)) {
+        throw new Error("Packed root and browser entries disagreed on interlanguage formatting");
+      }
     `,
   );
 }
@@ -402,12 +432,25 @@ async function verifyWorkerExecution(bundle, temporaryRoot) {
           }
           worker.postMessage({
             action: "replace",
-            data: { source: "==Title==\n" },
+            data: {
+              options: { profile: "production" },
+              source: '<ref name="a"/>\n',
+            },
           });
           return;
         }
         received.push(message);
         if (received.length === 1) {
+          worker.postMessage({
+            action: "delete",
+            data: {
+              options: { profile: "production" },
+              source: "[[en:Example]]\n\nBody\n",
+            },
+          });
+          return;
+        }
+        if (received.length === 2) {
           worker.postMessage({
             action: "delete",
             data: {
@@ -421,10 +464,11 @@ async function verifyWorkerExecution(bundle, temporaryRoot) {
         resolvePromise(received);
       });
     });
-    assert.deepEqual(results[0], { formatted: "== Title ==\n" });
-    assert.equal(results[1]?.formatted, "==Title==\n");
-    assert.equal(results[1]?.failure?.code, "unsupported-parser-config");
-    assert.equal(results[1]?.failure?.stage, "parser-config");
+    assert.deepEqual(results[0], { formatted: '<ref name="a" />\n' });
+    assert.deepEqual(results[1], { formatted: "Body\n\n[[en:Example]]\n" });
+    assert.equal(results[2]?.formatted, "==Title==\n");
+    assert.equal(results[2]?.failure?.code, "unsupported-parser-config");
+    assert.equal(results[2]?.failure?.stage, "parser-config");
   } finally {
     await worker.terminate();
   }

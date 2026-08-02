@@ -163,19 +163,19 @@ async function runWorkerScenario(
 }
 
 describe("browser parser adapter initialization", () => {
-  it("captures the parser and extracts its configuration exactly once", async () => {
+  it("captures the parser without querying its minimal configuration", async () => {
     const result = await runWorkerScenario("multiple");
     expect(result).toMatchObject({
       first: { formatted: "== Title ==\n" },
       second: { formatted: "== Second ==\n" },
       initialized: {
-        configExtractions: 1,
+        configExtractions: 0,
         moduleEvaluations: 1,
-        parseCalls: 1,
+        parseCalls: 0,
         parserIsOwn: false,
       },
       stats: {
-        configExtractions: 1,
+        configExtractions: 0,
         moduleEvaluations: 1,
       },
     });

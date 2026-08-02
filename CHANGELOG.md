@@ -6,6 +6,19 @@ here. The project follows the pre-1.0 policy in
 
 ## Unreleased
 
+## 0.8.1 - 2026-08-02
+
+### Fixed
+
+- Fixed the browser entry's bundled default parser configuration so
+  parser-confirmed reference formatting and interlanguage footer placement
+  match the Node entry. Browser interwiki classification now derives only from
+  parser-produced link targets and the active parser configuration because the
+  upstream browser bundle omits that node property.
+- Added Node/browser parser-configuration and classification parity coverage,
+  plus packed browser-consumer and Web Worker release smoke coverage for
+  references and interlanguage links.
+
 ## 0.8.0 - 2026-08-02
 
 ### Added

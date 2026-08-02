@@ -52,7 +52,7 @@ Core-only changes remain in the root changelog.
   the VSIX.
 - Corrected the localized runtime spelling of `MediaWiki` and added source
   reference/orphan-key checks plus real zh-cn and zh-tw VSIX smoke coverage.
-- Bundle core `wikitext-fmt` 0.8.0. The production profile now enables mature
+- Bundle core `wikitext-fmt` 0.8.1. The production profile now enables mature
   references, external links, expanded section spacing, and parser-confirmed
   interlanguage footer placement; it reports the new interlanguage footer
   diagnostics and skip reasons.

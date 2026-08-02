@@ -53,7 +53,7 @@ async function smokeTarball(tarball) {
       [
         "--input-type=module",
         "--eval",
-        'import { formatWikitext } from "wikitext-fmt"; import { formatWikitextSafe } from "wikitext-fmt/browser"; if (formatWikitext("==Title==\\n") !== "== Title ==\\n") process.exit(1); const result = formatWikitextSafe("==Title==\\n"); if (result.formatted !== "== Title ==\\n" || result.failure) process.exit(1);',
+        'import { formatWikitext, formatWikitextSafe as formatRoot } from "wikitext-fmt"; import { formatWikitextSafe as formatBrowser } from "wikitext-fmt/browser"; if (formatWikitext("==Title==\\n") !== "== Title ==\\n") process.exit(1); for (const format of [formatRoot, formatBrowser]) { const reference = format(\'<ref name="a"/>\\n\', { profile: "production" }); const interlanguage = format("[[en:Example]]\\n\\nBody\\n", { profile: "production" }); if (reference.formatted !== \'<ref name="a" />\\n\' || reference.failure || interlanguage.formatted !== "Body\\n\\n[[en:Example]]\\n" || interlanguage.failure) process.exit(1); }',
       ],
       { cwd: temporaryDirectory },
     );
@@ -69,6 +69,22 @@ if (entry.formatWikitext("==Title==\n") !== "== Title ==\n") {
 if (typeof entry.loadSiteInfoAliases !== "function") {
   throw new Error("loadSiteInfoAliases is not exported from dist/index.js");
 }
+const rootReference = entry.formatWikitextSafeDetailed('<ref name="a"/>\n', {
+  profile: "production",
+});
+const rootInterlanguage = entry.formatWikitextSafeDetailed(
+  "[[en:Example]]\n\nBody\n",
+  { profile: "production" },
+);
+if (
+  rootReference.formatted !== '<ref name="a" />\n' ||
+  rootReference.failure ||
+  rootInterlanguage.formatted !== "Body\n\n[[en:Example]]\n" ||
+  rootInterlanguage.failure ||
+  rootInterlanguage.footerDiagnostics.interlanguageLinksMoved !== 1
+) {
+  throw new Error("dist/index.js parser parity smoke failed");
+}
 
 const browserEntry = await import("../dist/browser.js");
 const browserResult = browserEntry.formatWikitextSafe("==Title==\n");
@@ -77,6 +93,22 @@ if (
   browserResult.failure !== undefined
 ) {
   throw new Error("dist/browser.js formatWikitextSafe smoke failed");
+}
+const browserReference = browserEntry.formatWikitextSafeDetailed('<ref name="a"/>\n', {
+  profile: "production",
+});
+const browserInterlanguage = browserEntry.formatWikitextSafeDetailed(
+  "[[en:Example]]\n\nBody\n",
+  { profile: "production" },
+);
+if (
+  browserReference.formatted !== '<ref name="a" />\n' ||
+  browserReference.failure ||
+  browserInterlanguage.formatted !== "Body\n\n[[en:Example]]\n" ||
+  browserInterlanguage.failure ||
+  browserInterlanguage.footerDiagnostics.interlanguageLinksMoved !== 1
+) {
+  throw new Error("dist/browser.js parser parity smoke failed");
 }
 const unsupportedBrowserResult = browserEntry.formatWikitextSafe("source", {
   parserConfig: "enwiki",

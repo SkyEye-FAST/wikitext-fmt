@@ -1,4 +1,7 @@
-import type { Config } from "wikiparser-node";
+import type { Config, ConfigData } from "wikiparser-node";
+import bundledDefaultConfigData from "wikiparser-node/config/default.json" with {
+  type: "json",
+};
 
 import {
   createParserRuntime,
@@ -12,6 +15,7 @@ type BrowserParserRoot = ParserRoot & {
 };
 
 interface BrowserParserAdapter {
+  getConfig(config?: ConfigData): Config;
   parse(
     source: string,
     include?: boolean,
@@ -25,7 +29,9 @@ function isBrowserParserAdapter(value: unknown): value is BrowserParserAdapter {
     typeof value === "object" &&
     value !== null &&
     "parse" in value &&
-    typeof value.parse === "function"
+    typeof value.parse === "function" &&
+    "getConfig" in value &&
+    typeof value.getConfig === "function"
   );
 }
 
@@ -50,10 +56,65 @@ function isBrowserParserRoot(value: unknown): value is BrowserParserRoot {
   );
 }
 
+interface BrowserParserNode {
+  readonly childNodes?: readonly BrowserParserNode[];
+  readonly interwiki?: unknown;
+  readonly type?: string;
+  toString(): string;
+}
+
+function isBrowserParserNode(value: unknown): value is BrowserParserNode {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "toString" in value &&
+    typeof value.toString === "function"
+  );
+}
+
+function parserConfirmedInterwikiPrefix(
+  node: BrowserParserNode,
+  config: Config,
+): string | undefined {
+  const target = node.childNodes?.find((child) => child.type === "link-target");
+  if (!target) return undefined;
+
+  // The upstream browser bundle deliberately removes Title's Node-only
+  // interwiki property. It still parses the link and its target structurally,
+  // so classify only that parser-produced target against the active Config.
+  const title = target.toString().trim();
+  if (title.startsWith(":")) return undefined;
+  const separator = title.indexOf(":");
+  if (separator <= 0) return undefined;
+  const prefix = title.slice(0, separator).trimEnd().toLocaleLowerCase();
+  return config.interwiki.find(
+    (candidate) =>
+      candidate.replaceAll("_", " ").toLocaleLowerCase() === prefix,
+  );
+}
+
+function annotateBrowserInterwiki(
+  root: BrowserParserRoot,
+  config: Config,
+): BrowserParserRoot {
+  for (const value of root.querySelectorAll("link")) {
+    if (!isBrowserParserNode(value) || typeof value.interwiki === "string") {
+      continue;
+    }
+    const interwiki = parserConfirmedInterwikiPrefix(value, config);
+    if (!interwiki) continue;
+    Object.defineProperty(value, "interwiki", {
+      configurable: true,
+      value: interwiki,
+    });
+  }
+  return root;
+}
+
 function parseBrowserRoot(
   parser: BrowserParserAdapter,
   source: string,
-  config?: Config,
+  config: Config,
 ): BrowserParserRoot {
   const root = parser.parse(source, false, undefined, config);
   if (!isBrowserParserRoot(root)) {
@@ -61,7 +122,7 @@ function parseBrowserRoot(
       "The browser-compatible wikiparser-node runtime returned an invalid parser root.",
     );
   }
-  return root;
+  return annotateBrowserInterwiki(root, config);
 }
 
 function isParserConfig(value: unknown): value is Config {
@@ -78,6 +139,20 @@ function isParserConfig(value: unknown): value is Config {
     Array.isArray(value.doubleUnderscore) &&
     "namespaces" in value &&
     typeof value.namespaces === "object"
+  );
+}
+
+function cloneConfigData(config: ConfigData): ConfigData {
+  return JSON.parse(JSON.stringify(config)) as ConfigData;
+}
+
+function createBundledDefaultConfig(parser: BrowserParserAdapter): Config {
+  // The upstream UMD bundle exposes only its deliberately minimal default
+  // configuration. Its non-enumerable public getConfig() applies the exact
+  // upstream normalization used by the Node entry, without a filesystem
+  // dependency or runtime fetch.
+  return parser.getConfig(
+    cloneConfigData(bundledDefaultConfigData as unknown as ConfigData),
   );
 }
 
@@ -140,7 +215,7 @@ async function initializeBrowserParser(): Promise<BrowserParserState> {
     }
 
     const parser = validateBrowserParser(Reflect.get(globalThis, "Parser"));
-    const config = parseBrowserRoot(parser, "").getAttribute("config");
+    const config = createBundledDefaultConfig(parser);
     if (!isParserConfig(config)) {
       throw new Error(
         "The browser-compatible wikiparser-node runtime returned an invalid parser configuration.",

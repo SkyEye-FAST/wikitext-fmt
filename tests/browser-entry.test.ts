@@ -3,6 +3,9 @@ import { describe, expect, it } from "vitest";
 import * as browser from "../src/browser.js";
 import * as node from "../src/index.js";
 import type { FormatOptions } from "../src/options.js";
+import { browserParserRuntime } from "../src/parser.browser.js";
+import { nodeParserRuntime } from "../src/parser.node.js";
+import type { ParserRuntime } from "../src/parserRuntime.js";
 
 const parityCases: ReadonlyArray<
   readonly [name: string, source: string, options?: FormatOptions]
@@ -33,9 +36,112 @@ const parityCases: ReadonlyArray<
     'Text<ref name="source"> citation </ref>\n',
     { profile: "production" },
   ],
+  [
+    "standalone reference",
+    '<ref name="source"/>\n',
+    { profile: "production" },
+  ],
+  [
+    "reference before prose",
+    '<ref name="source"/>\nParagraph\n',
+    { profile: "production" },
+  ],
+  [
+    "interlanguage footer link",
+    "[[en:Example]]\n\nBody\n",
+    { profile: "production" },
+  ],
+  [
+    "generic interwiki remains in place",
+    "[[commons:Example]]\nBody\n",
+    { profile: "production" },
+  ],
+  [
+    "labelled interlanguage link remains in place",
+    "[[en:Example|label]]\nBody\n",
+    { profile: "production" },
+  ],
+  [
+    "inline interlanguage link remains in place",
+    "Body [[en:Example]]\n",
+    { profile: "production" },
+  ],
+  [
+    "nested interlanguage link remains in place",
+    "{{T|value=[[en:Example]]}}\nBody\n",
+    { profile: "production" },
+  ],
   ["malformed source", "{{unclosed\n"],
   ["CRLF input", "==Title==\r\n"],
 ];
+
+function parserSnapshot(runtime: ParserRuntime) {
+  const session = runtime.createSession("mediawiki", {
+    interwikiPrefixes: ["en"],
+  });
+  const root = session.parse(
+    [
+      '<ref name="source"/>',
+      "[[en:Example]]",
+      "[[Category:Example]]",
+      "[[File:Example.png|thumb]]",
+      "#REDIRECT [[Target]]",
+      "__NOTOC__",
+      "{{#if:x|yes|no}}",
+      "{{T|a=1}}",
+      "{|",
+      "| A",
+      "|}",
+      "",
+    ].join("\n"),
+  );
+  const selectors = [
+    "ext",
+    "link",
+    "category",
+    "file",
+    "redirect-target",
+    "double-underscore",
+    "magic-word",
+    "template",
+    "table",
+  ];
+  return {
+    config: {
+      doubleUnderscore: session.config.doubleUnderscore,
+      ext: session.config.ext,
+      functionHook: session.config.functionHook,
+      html: session.config.html,
+      img: session.config.img,
+      interwiki: session.config.interwiki,
+      namespaces: session.config.namespaces,
+      nsid: session.config.nsid,
+      parserFunction: session.config.parserFunction,
+      protocol: session.config.protocol,
+      redirection: session.config.redirection,
+      variable: session.config.variable,
+      variants: session.config.variants,
+    },
+    nodes: Object.fromEntries(
+      selectors.map((selector) => [
+        selector,
+        root.querySelectorAll(selector).map((value) => {
+          const node = value as unknown as {
+            interwiki?: unknown;
+            type?: unknown;
+            toString(): string;
+          };
+          return {
+            interwiki:
+              typeof node.interwiki === "string" ? node.interwiki : "",
+            text: node.toString(),
+            type: node.type,
+          };
+        }),
+      ]),
+    ),
+  };
+}
 
 describe("browser entry", () => {
   it.each(parityCases)(
@@ -92,6 +198,60 @@ describe("browser entry", () => {
     const second = browser.formatWikitextSafeDetailed(first.formatted);
     expect(second.failure).toBeUndefined();
     expect(second.formatted).toBe(first.formatted);
+  });
+
+  it("keeps default and production parser-confirmed reference and interlanguage behavior", () => {
+    const reference = browser.formatWikitextSafeDetailed('<ref name="a"/>\n', {
+      profile: "production",
+    });
+    expect(reference).toMatchObject({
+      formatted: '<ref name="a" />\n',
+      referenceDiagnostics: {
+        referenceLinesSkippedUnsafe: 0,
+        referencesFormatted: 1,
+      },
+    });
+
+    const input = "[[en:Example]]\n\nBody\n";
+    expect(browser.formatWikitextSafeDetailed(input)).toMatchObject({
+      formatted: input,
+      footerDiagnostics: { interlanguageLinksInspected: 0 },
+    });
+    const production = browser.formatWikitextSafeDetailed(input, {
+      profile: "production",
+    });
+    expect(production).toMatchObject({
+      formatted: "Body\n\n[[en:Example]]\n",
+      footerDiagnostics: {
+        interlanguageLinksEligible: 1,
+        interlanguageLinksMoved: 1,
+        interlanguageLinksSkipped: 0,
+      },
+    });
+    expect(
+      browser.formatWikitextSafeDetailed(production.formatted, {
+        profile: "production",
+      }).formatted,
+    ).toBe(production.formatted);
+  });
+
+  it("uses the same default parser configuration and classifications as Node", () => {
+    expect(parserSnapshot(browserParserRuntime)).toEqual(
+      parserSnapshot(nodeParserRuntime),
+    );
+    for (const name of [
+      "#if",
+      "#ifeq",
+      "#switch",
+      "#expr",
+      "#tag",
+      "#invoke",
+      "#site-specific",
+    ]) {
+      expect(browser.classifyParserFunction(name)).toEqual(
+        node.classifyParserFunction(name),
+      );
+    }
   });
 
   it("exports browser-safe formatter metadata and helpers", () => {

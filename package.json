@@ -1,6 +1,6 @@
 {
   "name": "wikitext-fmt",
-  "version": "0.8.0",
+  "version": "0.8.1",
   "description": "A parser-assisted, semantics-preserving formatter for MediaWiki wikitext",
   "license": "GPL-3.0-or-later",
   "keywords": [
