@@ -21,14 +21,31 @@ describe("VS Code release workflow", () => {
     expect(vscodeReleaseWorkflow).not.toContain("pull_request:");
     expect(vscodeReleaseWorkflow).toContain("--component vscode");
     expect(vscodeReleaseWorkflow).toMatch(
+      /publish-marketplace:\n    if: github\.event_name == 'push' && github\.ref_type == 'tag' && startsWith\(github\.ref, 'refs\/tags\/vscode-v'\)/u,
+    );
+    expect(vscodeReleaseWorkflow).toMatch(
       /github-release:\n    if: github\.event_name == 'push' && github\.ref_type == 'tag' && startsWith\(github\.ref, 'refs\/tags\/vscode-v'\)/u,
     );
   });
 
-  it("never publishes to the Marketplace", () => {
-    expect(vscodeReleaseWorkflow).not.toMatch(/\bvsce publish\b/u);
-    expect(vscodeReleaseWorkflow).not.toContain("VSCE_PAT");
-    expect(vscodeReleaseWorkflow).not.toMatch(/\bazure\b/iu);
+  it("publishes the verified VSIX through GitHub OIDC without a PAT", () => {
+    const marketplaceJob = vscodeReleaseWorkflow.slice(
+      vscodeReleaseWorkflow.indexOf("\n  publish-marketplace:"),
+      vscodeReleaseWorkflow.indexOf("\n  github-release:"),
+    );
+    expect(marketplaceJob).toContain("environment: vscode-marketplace");
+    expect(marketplaceJob).toContain("id-token: write");
+    expect(marketplaceJob).toContain("publish");
+    expect(marketplaceJob).toContain("--oidc");
+    expect(marketplaceJob).toContain("--packagePath");
+    expect(marketplaceJob).toContain("--skip-duplicate");
+    expect(marketplaceJob).toContain('VSCE_OIDC_VERSION: "3.9.2"');
+    expect(marketplaceJob).toContain(
+      "EXTENSION_ID: skyeyefast.wikitext-formatter",
+    );
+    expect(marketplaceJob).not.toContain("VSCE_PAT");
+    expect(marketplaceJob).not.toContain("--pat");
+    expect(marketplaceJob).not.toContain("--azure-credential");
   });
 
   it("tests the minimum and stable VS Code versions", () => {
@@ -43,17 +60,29 @@ describe("VS Code release workflow", () => {
     );
   });
 
-  it("passes one verified VSIX to tests and the GitHub Release job", () => {
+  it("passes one verified VSIX to tests, Marketplace, and GitHub Release", () => {
     expect(vscodeReleaseWorkflow.match(/vsce package/gu)).toHaveLength(1);
     expect(vscodeReleaseWorkflow).toContain(
       "name: ${{ needs.verify.outputs.artifact_name }}",
     );
+
+    const marketplaceJob = vscodeReleaseWorkflow.slice(
+      vscodeReleaseWorkflow.indexOf("\n  publish-marketplace:"),
+      vscodeReleaseWorkflow.indexOf("\n  github-release:"),
+    );
+    expect(marketplaceJob).toContain("actions/download-artifact@v8");
+    expect(marketplaceJob).toContain("sha256sum --check SHA256SUMS");
+    expect(marketplaceJob).not.toContain("vsce package");
+
     const githubReleaseJob = vscodeReleaseWorkflow.slice(
       vscodeReleaseWorkflow.indexOf("\n  github-release:"),
     );
     expect(githubReleaseJob).toContain("actions/download-artifact@v8");
     expect(githubReleaseJob).not.toContain("vsce package");
     expect(githubReleaseJob).not.toContain("--clobber");
+    expect(githubReleaseJob).toMatch(
+      /needs:\n      - verify\n      - vscode-tests\n      - publish-marketplace/u,
+    );
   });
 
   it("builds workspace core declarations before extension typechecking", () => {
@@ -68,17 +97,23 @@ describe("VS Code release workflow", () => {
     );
   });
 
-  it("separates read-only verification from GitHub Release writes", () => {
+  it("keeps OIDC and repository write permissions in separate jobs", () => {
     expect(vscodeReleaseWorkflow).toMatch(
       /verify:[\s\S]*?permissions:\n      contents: read[\s\S]*?\n  vscode-tests:/u,
     );
     expect(vscodeReleaseWorkflow).toMatch(
-      /vscode-tests:[\s\S]*?permissions:\n      contents: read[\s\S]*?\n  github-release:/u,
+      /vscode-tests:[\s\S]*?permissions:\n      contents: read[\s\S]*?\n  publish-marketplace:/u,
+    );
+    expect(vscodeReleaseWorkflow).toMatch(
+      /publish-marketplace:[\s\S]*?permissions:\n      contents: read\n      id-token: write[\s\S]*?\n  github-release:/u,
     );
     expect(vscodeReleaseWorkflow).toMatch(
       /github-release:[\s\S]*?permissions:\n      contents: write/u,
     );
-    expect(vscodeReleaseWorkflow).not.toContain("id-token: write");
+    const githubReleaseJob = vscodeReleaseWorkflow.slice(
+      vscodeReleaseWorkflow.indexOf("\n  github-release:"),
+    );
+    expect(githubReleaseJob).not.toContain("id-token: write");
   });
 });
 
