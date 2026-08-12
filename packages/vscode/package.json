@@ -417,7 +417,7 @@
     "check:package-content": "node scripts/check-package-content.mjs",
     "check:release": "pnpm typecheck && pnpm build && pnpm test && pnpm check:package-content && pnpm vscode:package",
     "package": "pnpm vscode:package",
-    "test": "vitest run",
+    "test": "vitest run tests",
     "test:extension": "pnpm build && pnpm build:tests && node dist-test/test/runTest.js",
     "test:vsix": "pnpm vscode:package && pnpm test:vsix:existing",
     "test:vsix:existing": "pnpm build:tests && node scripts/test-vsix.mjs",
