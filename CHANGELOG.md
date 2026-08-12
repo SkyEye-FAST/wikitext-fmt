@@ -6,6 +6,8 @@ here. The project follows the pre-1.0 policy in
 
 ## Unreleased
 
+## 0.9.0 - 2026-08-13
+
 ### Added
 
 - Added parser-aware `<!-- wikitext-fmt-ignore -->` handling for the next

@@ -5,6 +5,8 @@ Core-only changes remain in the root changelog.
 
 ## Unreleased
 
+## 0.5.0 - 2026-08-13
+
 ### Added
 
 - Added editor support and documentation for the bundled core's parser-aware
