@@ -349,6 +349,12 @@ ranges, and links inside protected or unsafe parent nodes are left unchanged.
 Links in table cells, refs, comments, and opaque extension blocks follow the
 existing protection policy.
 
+An immediately preceding `<!-- wikitext-fmt-ignore -->` comment preserves the
+next parser-confirmed link byte-for-byte. Its range ends with that link, so later
+links in the same paragraph remain eligible. Start/end ignore regions preserve
+all contained links. See [Safety and diagnostics](safety-and-diagnostics.md) for
+the complete marker grammar and fallback behavior.
+
 Diagnostics count inspected, eligible, formatted, fragment-containing, skipped
 links and replaced underscores, with skip reasons for files, categories, remote
 targets, pure fragments, unstable targets, and unsafe parents. Final document

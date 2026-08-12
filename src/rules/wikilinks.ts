@@ -1,5 +1,6 @@
 import type { ResolvedFormatOptions } from "../options.js";
 import {
+  collectNodeSourceRanges,
   collectNodes,
   type ParsedDocumentContext,
   type ParserNodeLike,
@@ -187,43 +188,7 @@ export function wikilinkNodeSourceRanges(
   context: ParsedDocumentContext,
   requestedNodes: readonly WikilinkParserNode[],
 ): ReadonlyMap<WikilinkParserNode, SourceRange> {
-  // getAbsoluteIndex() walks preceding siblings, which becomes quadratic for
-  // link-heavy pages. Resolve relevant branches while scanning each serialized
-  // parent once in source order.
-  const requested = new Set(requestedNodes);
-  const relevant = new Set<WikilinkParserNode>();
-  for (const node of requested) {
-    let current: WikilinkParserNode | undefined = node;
-    while (current) {
-      relevant.add(current);
-      current = current.parentNode;
-    }
-  }
-
-  const ranges = new Map<WikilinkParserNode, SourceRange>();
-  const visit = (
-    parent: WikilinkParserNode,
-    parentStart: number,
-    parentRaw: string,
-  ): void => {
-    let cursor = 0;
-    for (const child of parent.childNodes) {
-      const raw = child.toString();
-      const relativeStart = parentRaw.indexOf(raw, cursor);
-      if (relativeStart < 0) continue;
-      const start = parentStart + relativeStart;
-      const end = start + raw.length;
-      if (requested.has(child)) ranges.set(child, { start, end });
-      if (relevant.has(child)) visit(child, start, raw);
-      cursor = relativeStart + raw.length;
-    }
-  };
-
-  const root = context.root as unknown as WikilinkParserNode;
-  if (root.toString() === context.source) {
-    visit(root, 0, context.source);
-  }
-  return ranges;
+  return collectNodeSourceRanges(context, requestedNodes);
 }
 
 function applyReplacements(

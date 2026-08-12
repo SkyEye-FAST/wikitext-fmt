@@ -245,9 +245,28 @@ Single-block ignore:
 == Heading left unchanged ==
 ```
 
-It protects the next heading, category/interlanguage-like line, or
-paragraph-like block until a blank line. Range ignore is preferred for complex
-content.
+When only whitespace separates the marker from a parser-confirmed formatting
+unit, it protects exactly that next unit. Supported units include headings,
+templates, tables, internal/file/category/external links, redirects, extension
+and HTML nodes, and behavior switches. The marker may be on its own line or
+inline:
+
+```wikitext
+<!-- wikitext-fmt-ignore -->
+[[Keep_This_Underscore]] [[Format_This_Link]]
+```
+
+Only the first link is ignored. If no supported parser node starts immediately
+after the separating whitespace, the conservative fallback protects one list
+line or the following paragraph-like block through the next blank line. Use a
+range for multiple or complex blocks.
+
+Range markers are paired with nesting-aware stack semantics. An unclosed start
+marker protects to end of file; an unmatched end marker is an ordinary comment.
+Markers are active only when the parser recognizes the exact marker as an HTML
+comment. Marker-like text inside `nowiki`, `pre`, `source`, `syntaxhighlight`,
+and other opaque extension blocks remains literal and cannot start an ignore
+range outside that block.
 
 ## Exact round-trip limitations
 

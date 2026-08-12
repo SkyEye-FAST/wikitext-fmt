@@ -21,6 +21,11 @@ export interface ParserNodeLike {
   toString(): string;
 }
 
+export interface ParserTreeNodeLike extends ParserNodeLike {
+  readonly childNodes: readonly ParserTreeNodeLike[];
+  readonly parentNode?: ParserTreeNodeLike;
+}
+
 export interface ParserContextMetrics {
   contextsCreated: number;
   sourceBytesParsed: number;
@@ -101,6 +106,49 @@ export function collectNodeRangesForContext(
   selector: string,
 ): SourceRange[] {
   return collectNodeRanges(context, selector);
+}
+
+/**
+ * Resolve requested node ranges while scanning each relevant parent once.
+ * This avoids getAbsoluteIndex() becoming quadratic on documents with many
+ * sibling nodes.
+ */
+export function collectNodeSourceRanges<T extends ParserTreeNodeLike>(
+  context: ParsedDocumentContext,
+  requestedNodes: readonly T[],
+): ReadonlyMap<T, SourceRange> {
+  const requested = new Set<ParserTreeNodeLike>(requestedNodes);
+  const relevant = new Set<ParserTreeNodeLike>();
+  for (const node of requestedNodes) {
+    let current: ParserTreeNodeLike | undefined = node;
+    while (current) {
+      relevant.add(current);
+      current = current.parentNode;
+    }
+  }
+
+  const ranges = new Map<T, SourceRange>();
+  const visit = (
+    parent: ParserTreeNodeLike,
+    parentStart: number,
+    parentRaw: string,
+  ): void => {
+    let cursor = 0;
+    for (const child of parent.childNodes) {
+      const raw = child.toString();
+      const relativeStart = parentRaw.indexOf(raw, cursor);
+      if (relativeStart < 0) continue;
+      const start = parentStart + relativeStart;
+      const end = start + raw.length;
+      if (requested.has(child)) ranges.set(child as T, { start, end });
+      if (relevant.has(child)) visit(child, start, raw);
+      cursor = relativeStart + raw.length;
+    }
+  };
+
+  const root = context.root as unknown as ParserTreeNodeLike;
+  if (root.toString() === context.source) visit(root, 0, context.source);
+  return ranges;
 }
 
 export function isRangeInside(

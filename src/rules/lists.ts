@@ -410,17 +410,14 @@ export function formatListsWithDiagnostics(
   );
   // Protection ranges are enough to classify the no-root fast path precisely;
   // structural fingerprints remain deferred until a root list can be edited.
-  const ignoreRanges = collectIgnoreRanges(source);
+  const ignoreRanges = collectIgnoreRanges(source, context);
   const protectedRanges = collectProtectedRanges(source, {
+    protectIgnoreRanges: false,
     protectComments: false,
     protectTables: true,
+    parserContext: context,
     additionalRanges: extensionRanges(context),
-  }).filter(
-    (range) =>
-      !ignoreRanges.some(
-        (ignore) => ignore.start === range.start && ignore.end === range.end,
-      ),
-  );
+  });
   if (!hasParserConfirmedCandidate) {
     for (const candidate of candidates) {
       const lineRange = {

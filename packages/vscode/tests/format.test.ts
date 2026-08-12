@@ -443,6 +443,22 @@ describe("VS Code formatter detailed behavior", () => {
     });
   });
 
+  it("honors core ignore markers without a VS Code-specific setting", () => {
+    const marker = "<!-- wikitext-fmt-ignore -->";
+    const source = `${marker}\n[[Keep_Underscore]] [[Format_After]]\n`;
+
+    expect(
+      getEditorDocumentFormattingResult(source, {
+        kind: "settings",
+        settings: settings(true),
+      }),
+    ).toMatchObject({
+      kind: "changed",
+      formatted: `${marker}\n[[Keep_Underscore]] [[Format After]]\n`,
+      changed: true,
+    });
+  });
+
   it("preserves the active config path in the document result", () => {
     const unchanged = detailedResult("original");
     expect(

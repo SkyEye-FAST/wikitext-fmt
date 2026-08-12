@@ -118,9 +118,11 @@ function formatNormalizedWikitextDetailedResult(
     let tableOutput = source;
     if (resolved.formatTables && isRuleEnabled("tables", resolved.level)) {
       const beforeTables = tableOutput;
+      const tableSourceContext = contextFor(tableOutput);
       const tableBlocks = protectBlocks(tableOutput, {
         protectTables: false,
-        additionalRanges: parserExtensionRanges(contextFor(tableOutput)),
+        parserContext: tableSourceContext,
+        additionalRanges: parserExtensionRanges(tableSourceContext),
       });
       const tableContext = contextFor(tableBlocks.text);
       const tableResult = formatTablesWithDiagnostics(
@@ -191,10 +193,12 @@ function formatNormalizedWikitextDetailedResult(
       resolved.formatReferences &&
       isRuleEnabled("references", resolved.level)
     ) {
+      const referenceSourceContext = contextFor(tableOutput);
       const referenceBlocks = protectBlocks(tableOutput, {
         protectTables: true,
         protectReferenceTags: false,
-        additionalRanges: parserExtensionRanges(contextFor(tableOutput), false),
+        parserContext: referenceSourceContext,
+        additionalRanges: parserExtensionRanges(referenceSourceContext, false),
       });
       const referenceContext = contextFor(referenceBlocks.text);
       const references = formatReferences(
@@ -210,9 +214,11 @@ function formatNormalizedWikitextDetailedResult(
     const templatesEnabled =
       resolved.formatTemplates && isRuleEnabled("templates", resolved.level);
     if (templatesEnabled) {
+      const templateSourceContext = contextFor(tableOutput);
       const templateBlocks = protectBlocks(tableOutput, {
         protectTables: false,
-        additionalRanges: parserExtensionRanges(contextFor(tableOutput)),
+        parserContext: templateSourceContext,
+        additionalRanges: parserExtensionRanges(templateSourceContext),
       });
       const templateContext = session.createContext(templateBlocks.text);
       const templates = formatTemplatesWithDiagnostics(
@@ -278,9 +284,11 @@ function formatNormalizedWikitextDetailedResult(
     // Re-protect tables before running rules that do not own table-internal
     // structure. Templates have already run against parser-confirmed nodes so
     // templates inside cells and tables inside templates remain supported.
+    const sharedSourceContext = contextFor(tableOutput);
     const protectedText = protectBlocks(tableOutput, {
       protectTables: true,
-      additionalRanges: parserExtensionRanges(contextFor(tableOutput)),
+      parserContext: sharedSourceContext,
+      additionalRanges: parserExtensionRanges(sharedSourceContext),
     });
     let output = protectedText.text;
     if (resolved.formatHeadings && isRuleEnabled("headings", resolved.level)) {

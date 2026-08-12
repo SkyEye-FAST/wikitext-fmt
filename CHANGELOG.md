@@ -6,6 +6,20 @@ here. The project follows the pre-1.0 policy in
 
 ## Unreleased
 
+### Added
+
+- Added parser-aware `<!-- wikitext-fmt-ignore -->` handling for the next
+  formatting unit, including inline links, templates, tables, headings, and
+  other parser-confirmed nodes. Added nesting-aware ignore regions and ensured
+  marker-like text inside opaque extension blocks remains literal.
+
+### Changed
+
+- **Breaking (pre-1.0):** A single ignore marker followed only by whitespace
+  and a supported parser node now ends at that node instead of conservatively
+  swallowing the remainder of its paragraph. Plain text retains the paragraph
+  fallback, and list-only content is limited to one line.
+
 ## 0.8.2 - 2026-08-13
 
 ### Fixed

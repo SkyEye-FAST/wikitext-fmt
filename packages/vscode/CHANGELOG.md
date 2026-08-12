@@ -5,6 +5,11 @@ Core-only changes remain in the root changelog.
 
 ## Unreleased
 
+### Added
+
+- Added editor support and documentation for the bundled core's parser-aware
+  single-unit and nested-region ignore markers. No VS Code setting is required.
+
 ## 0.4.0 - 2026-08-02
 
 ### Removed

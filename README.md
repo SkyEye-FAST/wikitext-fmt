@@ -112,6 +112,29 @@ Use `wikitext-fmt --help` for structured option help and
 [the CLI reference](docs/cli.md) for modes, conflicts, streams, reports,
 siteinfo, and exit statuses.
 
+### Ignore selected source
+
+Place `<!-- wikitext-fmt-ignore -->` immediately before a parser-confirmed
+formatting unit to preserve that unit byte-for-byte. For example, this keeps the
+intentional underscore in the first link while the following link is formatted:
+
+```wikitext
+<!-- wikitext-fmt-ignore -->
+[[Keep_This_Underscore]] [[Format_This_Link]]
+```
+
+Use a region for multiple or complex blocks:
+
+```wikitext
+<!-- wikitext-fmt-ignore-start -->
+content left unchanged
+<!-- wikitext-fmt-ignore-end -->
+```
+
+Region markers may nest. An unclosed start marker safely protects through the
+end of the file. See [Safety and diagnostics](docs/safety-and-diagnostics.md)
+for exact fallback and parser-boundary behavior.
+
 ### Reproducible site configuration
 
 Projects can keep parser selection, a MediaWiki API, and a versioned site-data

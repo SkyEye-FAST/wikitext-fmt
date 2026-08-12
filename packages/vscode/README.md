@@ -130,6 +130,22 @@ Core details:
 - [Formatting rules](https://github.com/SkyEye-FAST/wikitext-fmt/blob/master/docs/rules.md)
 - [Configuration](https://github.com/SkyEye-FAST/wikitext-fmt/blob/master/docs/configuration.md)
 
+## Ignore selected source
+
+Ignore markers work directly in editor documents and need no VS Code setting.
+Place the single marker immediately before the parser-confirmed unit to keep:
+
+```wikitext
+<!-- wikitext-fmt-ignore -->
+[[Keep_This_Underscore]] [[Format_This_Link]]
+```
+
+The first link remains byte-for-byte unchanged while the second is formatted.
+Use `<!-- wikitext-fmt-ignore-start -->` and
+`<!-- wikitext-fmt-ignore-end -->` around larger regions. The bundled core also
+supports nested regions and safely protects an unclosed start marker through the
+end of the document.
+
 ## Settings
 
 | Setting | Default | Purpose |
