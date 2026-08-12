@@ -6,6 +6,8 @@ here. The project follows the pre-1.0 policy in
 
 ## Unreleased
 
+## 0.8.2 - 2026-08-13
+
 ### Fixed
 
 - Fixed anonymous and mixed template layout selection so short parser-safe
