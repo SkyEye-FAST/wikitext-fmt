@@ -6,6 +6,15 @@ here. The project follows the pre-1.0 policy in
 
 ## Unreleased
 
+### Fixed
+
+- Fixed anonymous and mixed template layout selection so short parser-safe
+  multiline invocations collapse inline according to `lineWidth`, while
+  already-inline positional templates remain inline even when over width and
+  over-width multiline invocations are no longer forcibly collapsed. Removed
+  the fixed three-argument collapse limit while retaining exact anonymous-value
+  preservation and structural verification.
+
 ## 0.8.1 - 2026-08-02
 
 ### Fixed

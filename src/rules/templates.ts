@@ -275,19 +275,6 @@ function normalizeNamedArgumentsInPlace(
   return { value };
 }
 
-function containsNestedStructure(arg: ParameterToken): boolean {
-  return [
-    "template",
-    "magic-word",
-    "table",
-    "link",
-    "ext-link",
-    "ext",
-    "html",
-    "comment",
-  ].some((selector) => arg.lastChild.querySelectorAll(selector).length > 0);
-}
-
 function appendLine(output: string, line: string): string {
   return `${output}${output.endsWith("\n") ? "" : "\n"}${line}`;
 }
@@ -490,14 +477,10 @@ function selectInlineNamedCandidate(
       : { multiline: false };
 }
 
-// This bounds only the optional collapse of an existing multiline template
-// that contains anonymous values. It is independent from named-template
-// line-width decisions and protects byte-sensitive positional arguments.
-const INLINE_ANONYMOUS_ARGUMENT_LIMIT = 3;
-
 function anonymousLayoutCandidates(
   node: TemplateNode,
   collapseAnonymous: boolean,
+  lineWidth: number,
 ): { candidates: string[]; reason?: string } {
   const invocation = stableTemplateInvocation(node);
   if ("reason" in invocation) {
@@ -521,11 +504,13 @@ function anonymousLayoutCandidates(
   );
   const compact = `{{${head}${rendered.join("")}}}`;
   const candidates: string[] = [];
+  const originallyMultiline = node.toString().includes("\n");
+  const fitsCollapseThreshold =
+    !originallyMultiline || compact.length <= lineWidth;
   const inlineEligible =
     collapseAnonymous &&
-    args.length <= INLINE_ANONYMOUS_ARGUMENT_LIMIT &&
-    !args.some(containsNestedStructure) &&
-    !/[\r\n]/u.test(compact);
+    !/[\r\n]/u.test(compact) &&
+    fitsCollapseThreshold;
   if (inlineEligible) {
     candidates.push(compact);
   }
@@ -657,10 +642,15 @@ function selectAnonymousLayoutCandidate(
   node: TemplateNode,
   collapseAnonymous: boolean,
   requireIdempotency: boolean,
+  lineWidth: number,
   session: ParserSession,
 ): { value?: string; reason?: string; multiline?: boolean } {
   const raw = node.toString();
-  const generated = anonymousLayoutCandidates(node, collapseAnonymous);
+  const generated = anonymousLayoutCandidates(
+    node,
+    collapseAnonymous,
+    lineWidth,
+  );
   if (generated.reason) return { reason: generated.reason };
 
   let originalFingerprint: string;
@@ -685,6 +675,7 @@ function selectAnonymousLayoutCandidate(
         const regenerated = anonymousLayoutCandidates(
           reparsed,
           collapseAnonymous,
+          lineWidth,
         );
         if (
           regenerated.reason ||
@@ -750,6 +741,7 @@ function renderTemplate(
       node,
       collapseAnonymous,
       true,
+      options.lineWidth,
       session,
     );
   }

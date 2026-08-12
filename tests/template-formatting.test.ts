@@ -39,15 +39,25 @@ function anonymousValues(source: string): string[] {
   );
 }
 
-function expectAnonymousLayout(input: string, expected: string): void {
-  const result = formatWikitextSafeDetailed(input);
+function expectAnonymousLayout(
+  input: string,
+  expected: string,
+  options: FormatOptions = {},
+): void {
+  const result = formatWikitextSafeDetailed(input, options);
+  expect(result.failure).toBeUndefined();
   expect(result.warning).toBeUndefined();
   expect(result.formatted).toBe(expected);
   expect(anonymousValues(result.formatted)).toEqual(anonymousValues(input));
   expect(templateStructuralFingerprint(result.formatted, config)).toBe(
     templateStructuralFingerprint(input, config),
   );
-  expect(formatWikitextSafeDetailed(result.formatted).formatted).toBe(expected);
+  expect(formatWikitextSafeDetailed(result.formatted, options).formatted).toBe(
+    expected,
+  );
+  expect(result.equivalenceDiagnostics.every((entry) => entry.equivalent)).toBe(
+    true,
+  );
 }
 
 function expectInlineLayout(
@@ -361,6 +371,57 @@ describe("unified parser-assisted template formatting", () => {
     },
   );
 
+  it("collapses the reported multiline anonymous template regression", () => {
+    expectAnonymousLayout(
+      "{{T\n|one|two|three}}\n",
+      "{{T|one|two|three}}\n",
+    );
+  });
+
+  it("collapses more than three anonymous arguments when the candidate fits", () => {
+    expectAnonymousLayout(
+      "{{T\n|one|two|three|four|five}}\n",
+      "{{T|one|two|three|four|five}}\n",
+    );
+  });
+
+  it("uses the final anonymous candidate length as the collapse boundary", () => {
+    const input = "{{T\n|one|two|three}}\n";
+    const compact = "{{T|one|two|three}}";
+    expect(input.trimEnd().length).toBeGreaterThan(compact.length);
+    expectAnonymousLayout(input, `${compact}\n`, {
+      lineWidth: compact.length,
+    });
+    expectAnonymousLayout(input, input, {
+      lineWidth: compact.length - 1,
+    });
+
+    const retained = formatWikitextSafeDetailed(input, {
+      lineWidth: compact.length - 1,
+    });
+    expect(retained.templateDiagnostics).toMatchObject({
+      templatesChanged: 0,
+      templatesSkippedAmbiguous: 0,
+      templatesExpandedToMultiline: 0,
+      existingMultilineTemplatesNormalized: 0,
+    });
+  });
+
+  it("keeps an over-width inline anonymous template on one line", () => {
+    const input =
+      "{{T|one|two|a very very long positional value that exceeds the configured width}}\n";
+    expectAnonymousLayout(input, input, { lineWidth: 20 });
+    expect(
+      formatWikitextSafeDetailed(input, { lineWidth: 20 }).formatted,
+    ).not.toContain("{{T\n");
+  });
+
+  it("keeps an over-width multiline anonymous template multiline", () => {
+    const input =
+      "{{T\n|a very long positional value|another very long positional value}}\n";
+    expectAnonymousLayout(input, input, { lineWidth: 20 });
+  });
+
   it("collapses a short multiline anonymous template without changing values", () => {
     expectAnonymousLayout(
       "{{Lang\n|ja|シエラ}}\n",
@@ -381,6 +442,8 @@ describe("unified parser-assisted template formatting", () => {
     ["trailing space", "{{T|foo }}\n"],
     ["surrounding spaces", "{{T| foo }}\n"],
     ["leading tab", "{{T|\tfoo}}\n"],
+    ["empty before a value", "{{T||foo}}\n"],
+    ["whitespace-only before a value", "{{T| |foo}}\n"],
   ])("preserves %s anonymous parameters byte-for-byte", (_name, input) => {
     expectAnonymousLayout(input, input);
   });
@@ -406,8 +469,6 @@ describe("unified parser-assisted template formatting", () => {
       "{{T|one|a=1|two|b=2}}\n",
       "{{T|one|a=1|two|b=2}}\n",
     ],
-    ["empty", "{{T||foo}}\n", "{{T||foo}}\n"],
-    ["whitespace-only", "{{T| |foo}}\n", "{{T| |foo}}\n"],
     [
       "multiline",
       "{{T|first line\nsecond line}}\n",
@@ -433,6 +494,19 @@ describe("unified parser-assisted template formatting", () => {
     );
   });
 
+  it("collapses a short multiline mixed template", () => {
+    expectAnonymousLayout(
+      "{{T\n|one|name = value|two}}\n",
+      "{{T|one|name=value|two}}\n",
+    );
+  });
+
+  it("keeps an over-width inline mixed template on one line", () => {
+    const input =
+      "{{T|one|name=value|a very very long positional value}}\n";
+    expectAnonymousLayout(input, input, { lineWidth: 20 });
+  });
+
   it("keeps explicit numeric parameters named", () => {
     expectInlineLayout(
       "{{T|1= first |2= second }}\n",
@@ -455,20 +529,18 @@ describe("unified parser-assisted template formatting", () => {
     expect(result.formatted).toContain("}} }}");
   });
 
-  it("does not collapse a multiline anonymous template with nested structure", () => {
-    const input = "{{T\n|{{Nested|x=1|y=2}}|tail}}\n";
-    const expected = "{{T\n|{{Nested|x=1|y=2}}|tail}}\n";
-    const result = formatWikitextSafeDetailed(input);
-    expect(result.warning).toBeUndefined();
-    expect(result.formatted).toBe(expected);
-    expect(anonymousValues(result.formatted)).toEqual([
-      "{{Nested|x=1|y=2}}",
-      "tail",
-    ]);
-    expect(templateStructuralFingerprint(result.formatted, config)).toBe(
-      templateStructuralFingerprint(input, config),
+  it("collapses a verified multiline anonymous template with nested structure", () => {
+    expectAnonymousLayout(
+      "{{T\n|{{U|x=1}}|tail}}\n",
+      "{{T|{{U|x=1}}|tail}}\n",
     );
-    expect(formatWikitextSafeDetailed(result.formatted).formatted).toBe(expected);
+  });
+
+  it("collapses a comment-containing anonymous argument without changing it", () => {
+    expectAnonymousLayout(
+      "{{T\n|one<!-- comment -->|two}}\n",
+      "{{T|one<!-- comment -->|two}}\n",
+    );
   });
 
   it("keeps an anonymous value immediately adjacent to the closing braces", () => {
@@ -482,20 +554,6 @@ describe("unified parser-assisted template formatting", () => {
       `{{T|${first}|${second}}}\n`,
       `{{T|${first}|${second}}}\n`,
     );
-  });
-
-  it("treats line width as soft for anonymous parameters", () => {
-    const input =
-      "{{Lang\n|ja|a very long value that cannot reasonably stay inline}}\n";
-    const expected =
-      "{{Lang|ja|a very long value that cannot reasonably stay inline}}\n";
-    const result = formatWikitextSafeDetailed(input, { lineWidth: 20 });
-    expect(result.warning).toBeUndefined();
-    expect(result.formatted).toBe(expected);
-    expect(anonymousValues(result.formatted)).toEqual(anonymousValues(input));
-    expect(
-      formatWikitextSafeDetailed(result.formatted, { lineWidth: 20 }).formatted,
-    ).toBe(expected);
   });
 
   it("preserves multiline anonymous parameter whitespace exactly", () => {

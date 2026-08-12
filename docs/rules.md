@@ -157,24 +157,31 @@ The other multiline modes are `compact`, which emits `|name=value`, and
 templates never gain spaces after `{{` or before `}}`.
 
 Anonymous parameters are whitespace-sensitive in MediaWiki. For templates
-containing any anonymous parameter, `lineWidth` is therefore a soft constraint:
+containing any anonymous parameter, `lineWidth` is a collapse threshold rather
+than a wrapping target:
 
-- a simple template with at most three arguments may collapse to one line only
-  when the resulting candidate has no newline and exact structural equivalence
-  is proven;
+- an existing multiline invocation may collapse to a parser-safe compact form
+  when that final candidate fits `lineWidth`;
+- an existing single-line invocation is never expanded solely because it
+  exceeds `lineWidth`, because inserted layout whitespace can change positional
+  argument bytes;
+- anonymous argument count does not independently determine inline eligibility;
 - line width never causes anonymous parameters to gain indentation or trailing
   newlines;
-- existing multiline anonymous values are preserved byte-for-byte unless an
-  exactly equivalent compact candidate exists;
-- nested structures, comments, and embedded tables prevent compact collapse.
+- anonymous values are preserved byte-for-byte, and a newline inside a value is
+  never treated as removable invocation layout;
+- nested structures and comments may collapse only when the compact candidate
+  passes parser round-trip, structural-fingerprint, and idempotency checks;
+- parser-confirmed embedded tables retain their opaque safety handling;
 - mixed named/anonymous templates never use the spaced inline style; safe
   compact candidates preserve anonymous bytes and compact only named syntax,
   otherwise the original boundary spelling is retained.
 
 For example, `{{Lang` followed by `|ja|シエラ}}` on the next line becomes
-`{{Lang|ja|シエラ}}`, while a long positional template stays inline even when
-it exceeds `lineWidth`. The formatter does not convert anonymous parameters to
-explicit numeric parameters.
+`{{Lang|ja|シエラ}}` when the compact form fits. A long positional template
+that is already inline stays inline even when it exceeds `lineWidth`, while an
+over-width multiline invocation retains its safe multiline layout. The
+formatter does not convert anonymous parameters to explicit numeric parameters.
 
 Eligibility and safety:
 
