@@ -6,6 +6,8 @@ here. The project follows the pre-1.0 policy in
 
 ## Unreleased
 
+## 0.9.1 - 2026-08-24
+
 ### Fixed
 
 - Fixed list formatting inside parser-confirmed multiline template parameter

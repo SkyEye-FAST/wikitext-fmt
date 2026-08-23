@@ -5,6 +5,8 @@ Core-only changes remain in the root changelog.
 
 ## Unreleased
 
+## 0.5.1 - 2026-08-24
+
 ### Fixed
 
 - Bundled core formatting now handles parser-confirmed lists in nested template
