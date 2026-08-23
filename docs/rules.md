@@ -290,6 +290,12 @@ output is reparsed and its marker hierarchy, content bytes, structured children,
 and exact round trip are checked before edits are accepted; final document
 equivalence still runs afterward.
 
+Parser-confirmed numbered items such as `#Text[[Page]]` remain lists even when
+their text immediately precedes a wikilink. Configured redirect aliases stay
+reserved for the redirect rule even when the parser does not recognize a
+localized spelling. A self-closing protected tag covers only its own parser range
+and does not hide ordinary lines before a later paired tag.
+
 Before requesting parser data, the rule scans physical lines for a potential
 line-start `*`, `#`, `:`, or `;`. A document without candidates returns
 immediately with zero list diagnostics; this fast path proves only absence and
@@ -485,9 +491,10 @@ becomes:
 #REDIRECT [[Target]]
 ```
 
-Alias spelling is preserved by default; certainly recognized localized
-keywords may become `#REDIRECT` in canonical-English mode. The separate
-default-on `wikilinks` rule may normalize underscores in the redirect's
+Alias spelling and case are preserved by default while matching follows
+MediaWiki's case-insensitive redirect magic-word behavior. Certainly recognized
+localized keywords may become `#REDIRECT` in canonical-English mode. The
+separate default-on `wikilinks` rule may normalize underscores in the redirect's
 parser-confirmed page-title component; its fragment remains unchanged.
 
 Redirect-like later lines, unbalanced/multiple links, templates in targets,

@@ -8,6 +8,7 @@ import {
   normalizeSourceLineEndings,
   type SupportedNormalizedSource,
 } from "./lineEndings.js";
+import { resolveLocalizationAliases } from "./localization/aliases.js";
 import type { FormatOptions, ResolvedFormatOptions } from "./options.js";
 import { resolveOptions } from "./options.js";
 import {
@@ -272,7 +273,13 @@ function formatNormalizedWikitextDetailedResult(
       const listContext = contextFor(tableOutput);
       const lists = formatListsWithDiagnostics(
         listContext,
-        { verifyCandidate: false },
+        {
+          verifyCandidate: false,
+          redirectMagicWords: resolveLocalizationAliases(
+            resolved.localizationSource,
+            resolved.localizationAliases,
+          ).redirectMagicWords,
+        },
       );
       diagnostics.listDiagnostics = lists.diagnostics;
       if (lists.formatted !== tableOutput) {

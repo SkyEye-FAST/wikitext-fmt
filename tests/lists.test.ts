@@ -113,6 +113,7 @@ describe("list formatting", () => {
     [":{{Template}}", ": {{Template}}"],
     [":[[Page]]", ": [[Page]]"],
     [":[[Page|label]]", ": [[Page|label]]"],
+    ["#正文[[Page]]", "# 正文[[Page]]"],
     [":<ref>source</ref>", ": <ref>source</ref>"],
     [":<span>text</span>", ": <span>text</span>"],
     [":*{{Template}}<!-- comment -->", ":* {{Template}}<!-- comment -->"],
@@ -127,6 +128,7 @@ describe("list formatting", () => {
       "| 内容 = 说明：",
       "*item",
       "**{{T}}",
+      "#正文[[Page]]",
       "}}",
       "}}",
       "",
@@ -137,6 +139,7 @@ describe("list formatting", () => {
       "| 内容 = 说明：",
       "* item",
       "** {{T}}",
+      "# 正文[[Page]]",
       "}}",
       "}}",
       "",
@@ -146,14 +149,28 @@ describe("list formatting", () => {
     expect(
       formatListsWithDiagnostics(session.createContext(source)).diagnostics,
     ).toMatchObject({
-      listLinesInspected: 2,
-      listLinesEligible: 2,
-      listLinesChanged: 2,
+      listLinesInspected: 3,
+      listLinesEligible: 3,
+      listLinesChanged: 3,
       listLinesSkipped: 0,
-      structuredContentLinesChanged: 1,
+      structuredContentLinesChanged: 2,
       skipReasons: {},
     });
   });
+
+  it.each([
+    '<ref name="used" />',
+    '<ref name="used"/>',
+    '<REF NAME="used"   />',
+  ])(
+    "does not let a self-closing reference protect following list lines: %s",
+    (selfClosing) => {
+      const source = `${selfClosing}\n*item\n<ref>later</ref>\n`;
+      const expected = `${selfClosing}\n* item\n<ref>later</ref>\n`;
+
+      assertListPipeline(source, expected);
+    },
+  );
 
   it("rejects multiline structured list content inside a template value", () => {
     const source = "{{T|\n:{{U|\n| x = y\n}}\n}}\n";
@@ -373,15 +390,41 @@ describe("list formatting", () => {
     expect(direct.diagnostics.skipReasons).toEqual({ "protected-block": 1 });
   });
 
-  it("does not mistake redirect-like or ordinary prose syntax for list content", () => {
-    const redirectLike = "#UNKNOWN[[Target]]\n";
-    const redirectResult = formatListsWithDiagnostics(
-      session.createContext(redirectLike),
+  it("uses parser evidence to distinguish numbered lists from redirects", () => {
+    assertListPipeline(
+      "#UNKNOWN[[Target]]\n",
+      "# UNKNOWN[[Target]]\n",
     );
-    expect(redirectResult.formatted).toBe(redirectLike);
-    expect(redirectResult.diagnostics.skipReasons).toEqual({
+
+    const mixed = "#REDIRECT[[Target]]\n#item\n";
+    const mixedResult = formatListsWithDiagnostics(session.createContext(mixed));
+    expect(mixedResult.formatted).toBe("#REDIRECT[[Target]]\n# item\n");
+    expect(mixedResult.diagnostics).toMatchObject({
+      listLinesInspected: 2,
+      listLinesEligible: 1,
+      listLinesChanged: 1,
+      listLinesSkipped: 1,
+      skipReasons: { "not-parser-confirmed": 1 },
+    });
+
+    const configuredAlias = formatListsWithDiagnostics(
+      session.createContext("#go[[Target]]\n"),
+      { redirectMagicWords: ["GO"] },
+    );
+    expect(configuredAlias.formatted).toBe("#go[[Target]]\n");
+    expect(configuredAlias.diagnostics.skipReasons).toEqual({
       "ambiguous-marker-boundary": 1,
     });
+    expect(
+      formatListsWithDiagnostics(
+        session.createContext("#GOING[[Target]]\n"),
+        { redirectMagicWords: ["GO"] },
+      ).formatted,
+    ).toBe("# GOING[[Target]]\n");
+
+    expect(formatListsDirect("#重定向[[Target]]\n")).toBe(
+      "#重定向[[Target]]\n",
+    );
     expect(formatListsDirect("ordinary:text\n")).toBe("ordinary:text\n");
   });
 

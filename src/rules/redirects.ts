@@ -6,6 +6,10 @@ import {
   lineIndexAt,
   type ParsedDocumentContext,
 } from "../parserContext.js";
+import {
+  matchRedirectAliasPrefix,
+  normalizeRedirectAlias,
+} from "../utils/redirectAliases.js";
 import { hasFinalNewline, withFinalNewline } from "../utils/text.js";
 
 export interface RedirectDiagnostics {
@@ -23,10 +27,6 @@ function emptyRedirectDiagnostics(): RedirectDiagnostics {
     redirectsFormatted: 0,
     localizedRedirectAliasesCanonicalized: 0,
   };
-}
-
-function normalizeRedirectAlias(alias: string): string {
-  return alias.startsWith("#") || alias.startsWith("＃") ? alias : `#${alias}`;
 }
 
 function redirectAliases(
@@ -58,14 +58,15 @@ function formatRedirectLine(
 ): { value: string; canonicalized: boolean } | undefined {
   if (line.trimStart() !== line || /<|>/u.test(line)) return undefined;
   for (const alias of aliases) {
-    if (!line.startsWith(alias)) continue;
-    const rest = line.slice(alias.length);
+    const sourceAlias = matchRedirectAliasPrefix(line, alias);
+    if (!sourceAlias) continue;
+    const rest = line.slice(sourceAlias.length);
     const match = /^(?:[ \t]*)(\[\[[^\]\n]+\]\])[ \t]*$/u.exec(rest);
     if (!match?.[1] || !safeRedirectTarget(match[1])) continue;
-    const keyword = canonicalEnglish ? "#REDIRECT" : alias;
+    const keyword = canonicalEnglish ? "#REDIRECT" : sourceAlias;
     return {
       value: `${keyword} ${match[1]}`,
-      canonicalized: canonicalEnglish && keyword !== alias,
+      canonicalized: canonicalEnglish && keyword !== sourceAlias,
     };
   }
   return undefined;

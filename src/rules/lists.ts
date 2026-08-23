@@ -11,6 +11,7 @@ import {
   collectIgnoreRanges,
   collectProtectedRanges,
 } from "../utils/protectBlocks.js";
+import { matchRedirectAliasPrefix } from "../utils/redirectAliases.js";
 
 const LIST_LINE = /^([*#:;]+)([ \t]*)(\S.*)$/u;
 const EMPTY_LIST_LINE = /^([*#:;]+)[ \t]*$/u;
@@ -54,6 +55,8 @@ export interface ListFormatOptions {
    * final parse and document-equivalence gates. Direct callers verify locally.
    */
   verifyCandidate?: boolean;
+  /** Redirect aliases that must remain available to the redirect rule. */
+  redirectMagicWords?: readonly string[];
 }
 
 interface ListParserNode extends ParserNodeLike {
@@ -130,6 +133,18 @@ function recordSkip(
   diagnostics.listLinesSkipped++;
   diagnostics.skipReasons[reason] =
     (diagnostics.skipReasons[reason] ?? 0) + 1;
+}
+
+function isConfiguredRedirectLine(
+  line: string,
+  aliases: readonly string[],
+): boolean {
+  return aliases.some((alias) => {
+    const prefix = matchRedirectAliasPrefix(line, alias);
+    return (
+      prefix !== undefined && /^[ \t]*\[\[/u.test(line.slice(prefix.length))
+    );
+  });
 }
 
 function intersects(a: SourceRange, b: SourceRange): boolean {
@@ -549,14 +564,6 @@ export function formatListsWithDiagnostics(
       recordSkip(diagnostics, "protected-block");
       continue;
     }
-    if (
-      candidateMarkers === "#" &&
-      /^#[^#*:;\s\[]+[ \t]*\[\[/u.test(line)
-    ) {
-      recordSkip(diagnostics, "ambiguous-marker-boundary");
-      continue;
-    }
-
     const lineRange = { start: lineStart, end: lineEnd };
     if (ignoreRanges.some((range) => intersects(lineRange, range))) {
       recordSkip(diagnostics, "ignore-range");
@@ -568,6 +575,14 @@ export function formatListsWithDiagnostics(
       )
     ) {
       recordSkip(diagnostics, "protected-block");
+      continue;
+    }
+
+    if (
+      candidateMarkers === "#" &&
+      isConfiguredRedirectLine(line, options.redirectMagicWords ?? [])
+    ) {
+      recordSkip(diagnostics, "ambiguous-marker-boundary");
       continue;
     }
 

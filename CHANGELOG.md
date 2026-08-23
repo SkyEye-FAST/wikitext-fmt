@@ -11,6 +11,11 @@ here. The project follows the pre-1.0 policy in
 - Fixed list formatting inside parser-confirmed multiline template parameter
   values, including nested template parameters, while retaining fail-closed
   handling for opaque containers and multiline list item content.
+- Fixed protected-range discovery so self-closing extension tags no longer hide
+  intervening content through a later closing tag.
+- Fixed parser-confirmed numbered list items whose text immediately precedes a
+  wikilink being mistaken for redirect-like syntax, while preserving
+  case-insensitive configured redirect aliases for the redirect rule.
 
 ## 0.9.0 - 2026-08-13
 

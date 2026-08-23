@@ -15,6 +15,7 @@ const redirectOptions = {
 describe("redirect formatting", () => {
   it.each([
     ["#REDIRECT[[Target]]\n", "#REDIRECT [[Target]]\n"],
+    ["#redirect[[Target]]\n", "#redirect [[Target]]\n"],
     ["#重定向[[Target]]\n", "#重定向 [[Target]]\n"],
     ["#転送[[Target]]\n", "#転送 [[Target]]\n"],
     ["#넘겨주기[[Target]]\n", "#넘겨주기 [[Target]]\n"],
@@ -79,7 +80,6 @@ describe("redirect formatting", () => {
     "#REDIRECT[[Target]] <!-- comment -->\n",
     "#REDIRECT[[Target]][[Other]]\n",
     "#REDIRECT[[Target|label]]\n",
-    "#UNKNOWN[[Target]]\n",
     "{{T|x=#REDIRECT [[Target]]}}\n",
   ])("preserves unsafe redirect line %s", (input) => {
     expect(formatWikitext(input, { formatTemplates: false })).toBe(input);
@@ -87,11 +87,11 @@ describe("redirect formatting", () => {
 
   it("supports custom redirect aliases", () => {
     expect(
-      formatWikitext("#GO[[Target]]\n", {
+      formatWikitext("#go[[Target]]\n", {
         localizationSource: "custom",
         localizationAliases: { redirectMagicWords: ["#GO"] },
       }),
-    ).toBe("#GO [[Target]]\n");
+    ).toBe("#go [[Target]]\n");
   });
 
   it("supports siteinfo redirect aliases when aliases are preloaded", () => {

@@ -229,7 +229,7 @@ function structuralRanges(
     (tag) => protectReferenceTags || tag !== "ref",
   ).join("|");
   const tagPattern = new RegExp(
-    `<(${tags})\\b[^>]*>[\\s\\S]*?<\\/\\1\\s*>`,
+    `<(${tags})\\b(?![^>]*\\/\\s*>)[^>]*>[\\s\\S]*?<\\/\\1\\s*>`,
     "giu",
   );
   for (const match of source.matchAll(tagPattern)) {
