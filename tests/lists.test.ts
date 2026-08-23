@@ -120,6 +120,49 @@ describe("list formatting", () => {
     assertListPipeline(`${input}\n`, `${expected}\n`);
   });
 
+  it("formats parser-confirmed list items in nested template parameter values", () => {
+    const source = [
+      "{{News List",
+      "| 1 = {{新闻单元",
+      "| 内容 = 说明：",
+      "*item",
+      "**{{T}}",
+      "}}",
+      "}}",
+      "",
+    ].join("\n");
+    const expected = [
+      "{{News List",
+      "| 1 = {{新闻单元",
+      "| 内容 = 说明：",
+      "* item",
+      "** {{T}}",
+      "}}",
+      "}}",
+      "",
+    ].join("\n");
+
+    assertListPipeline(source, expected);
+    expect(
+      formatListsWithDiagnostics(session.createContext(source)).diagnostics,
+    ).toMatchObject({
+      listLinesInspected: 2,
+      listLinesEligible: 2,
+      listLinesChanged: 2,
+      listLinesSkipped: 0,
+      structuredContentLinesChanged: 1,
+      skipReasons: {},
+    });
+  });
+
+  it("rejects multiline structured list content inside a template value", () => {
+    const source = "{{T|\n:{{U|\n| x = y\n}}\n}}\n";
+    const result = formatListsWithDiagnostics(session.createContext(source));
+
+    expect(result.formatted).toBe(source);
+    expect(result.diagnostics.skipReasons).toEqual({ "multiline-content": 1 });
+  });
+
   it("reports changed list categories", () => {
     const source =
       ":*item\n:c<!-- c -->\n:{{T}}\n* already canonical\n:\u00A0unchanged\n";
@@ -222,6 +265,11 @@ describe("list formatting", () => {
       "protected-block",
     ],
     ["only-source", "<source>\n:c\n</source>\n", "protected-block"],
+    [
+      "template-inside-ref",
+      "<ref>\n{{T|\n:c\n}}\n</ref>\n",
+      "protected-block",
+    ],
     ["only-math", "<math>\n:c\n</math>\n", "protected-block"],
     ["only-chem", "<chem>\n:c\n</chem>\n", "protected-block"],
     [
@@ -229,7 +277,6 @@ describe("list formatting", () => {
       "<templatedata>\n:c\n</templatedata>\n",
       "protected-block",
     ],
-    ["only-template", "{{T|\n:c\n}}\n", "protected-block"],
     ["only-table", "{|\n:c\n|}\n", "protected-block"],
     [
       "only-ignore-range",
@@ -290,9 +337,6 @@ describe("list formatting", () => {
       "{|",
       "| :c",
       "|}",
-      "{{T|",
-      ":c",
-      "}}",
       "",
     ].join("\n");
 

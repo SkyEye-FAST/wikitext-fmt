@@ -235,6 +235,21 @@ function structuresByCandidateLine(
   return byLine;
 }
 
+function sameRange(left: SourceRange, right: SourceRange): boolean {
+  return left.start === right.start && left.end === right.end;
+}
+
+function listContentStructures(
+  structures: readonly StructuralNode[],
+  templateAncestorRanges: readonly SourceRange[],
+): StructuralNode[] {
+  return structures.filter(
+    (structure) =>
+      structure.type !== "template" ||
+      !templateAncestorRanges.some((range) => sameRange(structure.range, range)),
+  );
+}
+
 function lineStructures(
   structures: readonly StructuralNode[],
   contentStart: number,
@@ -273,6 +288,60 @@ function listNodesAtLineStart(
   return byStart;
 }
 
+function isEditableListNode(node: ListParserNode): boolean {
+  const seen = new Set<ListParserNode>([node]);
+  let parent = node.parentNode;
+
+  while (parent) {
+    if (seen.has(parent)) return false;
+    seen.add(parent);
+    if (parent.type === "root") return true;
+    if (parent.type !== "parameter-value") return false;
+
+    const parameter = parent.parentNode;
+    if (
+      !parameter ||
+      seen.has(parameter) ||
+      parameter.type !== "parameter"
+    ) {
+      return false;
+    }
+    seen.add(parameter);
+
+    const template = parameter.parentNode;
+    if (!template || seen.has(template) || template.type !== "template") {
+      return false;
+    }
+    seen.add(template);
+    parent = template.parentNode;
+  }
+
+  return false;
+}
+
+function collectTemplateAncestorRanges(
+  nodes: readonly ListParserNode[],
+): SourceRange[] | undefined {
+  const ranges: SourceRange[] = [];
+  for (const node of nodes) {
+    const seen = new Set<ListParserNode>([node]);
+    let parent = node.parentNode;
+    while (parent) {
+      if (seen.has(parent)) return undefined;
+      seen.add(parent);
+      if (parent.type === "template") {
+        try {
+          ranges.push(nodeRange(parent));
+        } catch {
+          return undefined;
+        }
+      }
+      parent = parent.parentNode;
+    }
+  }
+  return ranges;
+}
+
 function describeParserListLine(
   context: ParsedDocumentContext,
   lineIndex: number,
@@ -280,24 +349,31 @@ function describeParserListLine(
   listNodes: ReadonlyMap<number, readonly ListParserNode[]>,
   structures: readonly StructuralNode[],
 ):
-  | { descriptor: ListLineDescriptor }
+  | {
+      descriptor: ListLineDescriptor;
+      templateAncestorRanges: readonly SourceRange[];
+    }
   | { reason: ListSkipReason } {
   const lineStart = context.lineStarts[lineIndex];
   if (lineStart === undefined) return { reason: "not-parser-confirmed" };
   const lineEnd = sourceLineEnd(context, lineIndex);
   const nodes = listNodes.get(lineStart) ?? [];
-  const rootNodes = nodes.filter((item) => item.parentNode?.type === "root");
-  const node = rootNodes[0];
+  const editableNodes = nodes.filter(isEditableListNode);
+  const node = editableNodes[0];
   if (!node) {
     return {
       reason: nodes.length > 0 ? "protected-block" : "not-parser-confirmed",
     };
   }
+  const templateAncestorRanges = collectTemplateAncestorRanges(editableNodes);
+  if (!templateAncestorRanges) {
+    return { reason: "ambiguous-marker-boundary" };
+  }
 
   let prefixEnd: number;
   try {
     prefixEnd = Math.max(
-      ...rootNodes.map(
+      ...editableNodes.map(
         (item) => item.getAbsoluteIndex() + item.toString().length,
       ),
     );
@@ -333,6 +409,7 @@ function describeParserListLine(
       }),
       structures: lineStructures(structures, prefixEnd, lineEnd),
     },
+    templateAncestorRanges,
   };
 }
 
@@ -404,12 +481,11 @@ export function formatListsWithDiagnostics(
   diagnostics.listLinesInspected = candidates.length;
   const listNodes = listNodesAtLineStart(context);
   const hasParserConfirmedCandidate = candidates.some((candidate) =>
-    (listNodes.get(candidate.lineStart) ?? []).some(
-      (node) => node.parentNode?.type === "root",
-    ),
+    (listNodes.get(candidate.lineStart) ?? []).some(isEditableListNode),
   );
-  // Protection ranges are enough to classify the no-root fast path precisely;
-  // structural fingerprints remain deferred until a root list can be edited.
+  // Protection ranges are enough to classify the no-editable-list fast path
+  // precisely; structural fingerprints remain deferred until a list can be
+  // edited.
   const ignoreRanges = collectIgnoreRanges(source, context);
   const protectedRanges = collectProtectedRanges(source, {
     protectIgnoreRanges: false,
@@ -514,7 +590,11 @@ export function formatListsWithDiagnostics(
     }
 
     const overlappingStructures = structuresByLine.get(lineIndex) ?? [];
-    const comments = overlappingStructures.filter(
+    const contentStructures = listContentStructures(
+      overlappingStructures,
+      described.templateAncestorRanges,
+    );
+    const comments = contentStructures.filter(
       (structure) => structure.type === "comment",
     );
     if (comments.some((comment) => !comment.raw.endsWith("-->"))) {
@@ -524,7 +604,7 @@ export function formatListsWithDiagnostics(
     if (
       described.descriptor.rangeBody.includes("\n") ||
       described.descriptor.rangeBody.includes("\r") ||
-      overlappingStructures.some(
+      contentStructures.some(
         (structure) =>
           structure.raw.includes("\n") || structure.raw.includes("\r"),
       )
@@ -572,7 +652,7 @@ export function formatListsWithDiagnostics(
       before: described.descriptor,
       mixedMarkers: isMixedMarkerSequence(candidateMarkers),
       commentBearing: comments.length > 0,
-      structuredContent: overlappingStructures.some(
+      structuredContent: contentStructures.some(
         (structure) => structure.type !== "comment",
       ),
     });

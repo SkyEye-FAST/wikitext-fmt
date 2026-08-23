@@ -248,7 +248,9 @@ Footer diagnostics report moved/formatted/canonicalized counts.
 ## Lists
 
 The list rule handles a physical line only when the parser confirms its complete
-leading sequence of `*`, `#`, `:`, and `;` as a list prefix. For a non-empty
+leading sequence of `*`, `#`, `:`, and `;` as a list prefix. This includes list
+lines in template parameter values when the complete parser ancestor chain
+consists only of parameter values, parameters, and templates. For a non-empty
 item, it replaces ASCII spaces or tabs between that exact marker sequence and
 the first content node with one ASCII space. It may also remove trailing ASCII
 horizontal whitespace that lies outside structured content:
@@ -274,7 +276,10 @@ colons inside term/definition content are not marker-prefix targets.
 Parser-confirmed templates, wikilinks, references, inline HTML, and ordinary
 comments may be the item content. Their source, order, and internal whitespace
 remain byte-for-byte unchanged; the rule edits only ranges before the first
-content node or after the last content byte. It never enters those structures.
+content node or after the last content byte. Multiline templates that merely
+contain a parameter-value list are treated as parser-confirmed ancestors, not as
+list item content. The rule never enters structured list item content or changes
+the bytes inside it.
 
 Ignore-controlled lines, opaque blocks, multiline structured content, unclosed
 comments, protected placeholders, table delimiters, Unicode separators, and
@@ -291,7 +296,7 @@ immediately with zero list diagnostics; this fast path proves only absence and
 does not make eligibility decisions. With candidates, the rule reuses the
 formatter's parser context, confirms list nodes, and maps structural ranges to
 candidate lines without rescanning every structure for every line. These are
-performance changes only and do not broaden list syntax eligibility.
+performance changes only and do not bypass parser eligibility decisions.
 
 Pure CRLF documents are normalized by the formatter-wide line-ending envelope,
 so this and every other rule still sees LF internally. Accepted output is

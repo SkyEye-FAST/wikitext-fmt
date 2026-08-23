@@ -6,6 +6,12 @@ here. The project follows the pre-1.0 policy in
 
 ## Unreleased
 
+### Fixed
+
+- Fixed list formatting inside parser-confirmed multiline template parameter
+  values, including nested template parameters, while retaining fail-closed
+  handling for opaque containers and multiline list item content.
+
 ## 0.9.0 - 2026-08-13
 
 ### Added

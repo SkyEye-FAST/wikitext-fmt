@@ -192,7 +192,7 @@ describe("parser complexity", () => {
   it("classifies protected-only list candidates without full structural analysis", () => {
     const source = Array.from(
       { length: 100 },
-      (_value, index) => `{{T${index}|\n:c\n}}`,
+      () => "<nowiki>\n:c\n</nowiki>",
     ).join("\n");
     const measured = measureParserContexts(() =>
       formatListsWithDiagnostics(session.createContext(source)),
