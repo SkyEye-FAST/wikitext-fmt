@@ -16,6 +16,36 @@ const expectedCommands = [
   "wikitext-fmt.checkSiteParserConfig",
 ] as const;
 
+const bundledCoreInput = [
+  "#ReDiReCt[[Target]]",
+  "{{News List",
+  "| 1 = {{新闻单元",
+  "| 内容 = 说明：",
+  "*item",
+  "#正文[[Page]]",
+  "}}",
+  "}}",
+  '<ref name="used" />',
+  "*outside",
+  "<ref>later</ref>",
+  "",
+].join("\n");
+
+const bundledCoreExpected = [
+  "#ReDiReCt [[Target]]",
+  "{{News List",
+  "| 1 = {{新闻单元",
+  "| 内容 = 说明：",
+  "* item",
+  "# 正文[[Page]]",
+  "}}",
+  "}}",
+  '<ref name="used" />',
+  "* outside",
+  "<ref>later</ref>",
+  "",
+].join("\n");
+
 interface ExtensionTestApi {
   getLastReport(): string | undefined;
 }
@@ -135,6 +165,32 @@ export async function run(): Promise<void> {
   await vscode.commands.executeCommand("wikitext-fmt.formatDocument");
 
   assert.equal(editor.document.getText(), "== Title ==");
+
+  const bundledCoreDocument = await vscode.workspace.openTextDocument({
+    content: bundledCoreInput,
+    language: "wikitext",
+  });
+  const bundledCoreEditor = await vscode.window.showTextDocument(
+    bundledCoreDocument,
+  );
+
+  await vscode.commands.executeCommand("wikitext-fmt.formatDocument");
+
+  assert.equal(bundledCoreEditor.document.getText(), bundledCoreExpected);
+  const bundledCoreReport = getLastDocumentReport(extensionApi);
+  assert.equal(bundledCoreReport.status, "changed");
+  assert.equal(bundledCoreReport.changed, true);
+  assert.equal(bundledCoreReport.failure, null);
+  assert.equal(bundledCoreReport.warning, null);
+
+  await vscode.commands.executeCommand("wikitext-fmt.formatDocument");
+
+  assert.equal(bundledCoreEditor.document.getText(), bundledCoreExpected);
+  const bundledCoreSecondReport = getLastDocumentReport(extensionApi);
+  assert.equal(bundledCoreSecondReport.status, "unchanged");
+  assert.equal(bundledCoreSecondReport.changed, false);
+  assert.equal(bundledCoreSecondReport.failure, null);
+  assert.equal(bundledCoreSecondReport.warning, null);
 
   const unsupportedDocument = await vscode.workspace.openTextDocument({
     content: "==Title==",

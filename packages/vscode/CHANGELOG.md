@@ -5,6 +5,13 @@ Core-only changes remain in the root changelog.
 
 ## Unreleased
 
+### Fixed
+
+- Bundled core formatting now handles parser-confirmed lists in nested template
+  parameter values, prevents self-closing extension tags from hiding later list
+  items, distinguishes numbered-list text from redirect aliases, and matches
+  redirect magic words case-insensitively.
+
 ## 0.5.0 - 2026-08-13
 
 ### Added
