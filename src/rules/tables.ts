@@ -668,13 +668,15 @@ function hasNestedTable(node: ParserTableNode): boolean {
 function tableCellLayoutShape(
   cell: TableCellSourceRange,
   raw: string,
+  inlineSeparators: ReadonlySet<number> = new Set(),
 ): TableCellLayoutShape | undefined {
   const syntaxValue = cell.syntax.value;
   const isCaption = /\|\+$/u.test(syntaxValue);
   if (
     isCaption
       ? !/\n[\t ]*\|\+$/u.test(syntaxValue)
-      : !/\n[\t ]*[!|]$/u.test(syntaxValue)
+      : !/\n[\t ]*[!|]$/u.test(syntaxValue) &&
+        !inlineSeparators.has(cell.syntax.range.start)
   ) {
     return undefined;
   }
@@ -707,18 +709,39 @@ function standaloneCellLayoutReplacements(
   cells: readonly TableCellSourceRange[],
   raw: string,
   cellsBeforeSplitSeparators: ReadonlySet<number>,
+  inlineSeparators: ReadonlySet<number> = new Set(),
 ): TableSourceReplacement[] {
   const replacements: TableSourceReplacement[] = [];
   for (const cell of cells) {
-    const shape = tableCellLayoutShape(cell, raw);
-    if (!shape || cellsBeforeSplitSeparators.has(shape.cellRange.end)) continue;
+    const shape = tableCellLayoutShape(cell, raw, inlineSeparators);
+    if (!shape) {
+      // A parser cell can begin inside an opaque link when tokenization
+      // disagrees. Only its independently confirmed ending is editable.
+      const end = cell.cellRange.end;
+      if (inlineSeparators.has(end) && raw[end - 1] !== " ") {
+        replacements.push({
+          start: end,
+          end,
+          value: " ",
+          tableLine: tableLineAt(raw, end),
+          reason: "normalized inline table cell separator layout",
+        });
+      }
+      continue;
+    }
+    if (cellsBeforeSplitSeparators.has(shape.cellRange.end)) continue;
+    let content = renderCellContent(shape.content.value);
+    if (inlineSeparators.has(shape.cellRange.end) && !content.endsWith(" ")) {
+      content += " ";
+    }
     const reason = shape.isCaption
       ? "normalized table caption layout"
-      : "normalized standalone table cell layout";
+      : inlineSeparators.has(cell.syntax.range.start) ||
+          inlineSeparators.has(shape.cellRange.end)
+        ? "normalized inline table cell layout"
+        : "normalized standalone table cell layout";
     if (shape.attributes) {
-      const value = `${renderCellAttributes(shape.attributes.value)}|${renderCellContent(
-        shape.content.value,
-      )}`;
+      const value = `${renderCellAttributes(shape.attributes.value)}|${content}`;
       const start = shape.attributes.range.start;
       const end = shape.content.range.end;
       if (raw.slice(start, end) !== value) {
@@ -732,7 +755,7 @@ function standaloneCellLayoutReplacements(
       }
       continue;
     }
-    const value = renderCellContent(shape.content.value);
+    const value = content;
     if (value !== shape.content.value) {
       replacements.push({
         start: shape.content.range.start,
@@ -847,6 +870,7 @@ function tableLayoutReplacements(
   raw: string,
   cells: readonly TableCellSourceRange[],
   cellsBeforeSplitSeparators: ReadonlySet<number>,
+  inlineSeparators: ReadonlySet<number> = new Set(),
 ): TableSourceReplacement[] {
   return [
     ...tableOpenerLayoutReplacements(table, raw),
@@ -855,6 +879,7 @@ function tableLayoutReplacements(
       cells,
       raw,
       cellsBeforeSplitSeparators,
+      inlineSeparators,
     ),
   ];
 }
@@ -929,14 +954,26 @@ function analyzeParserTable(
         : "aggressive auto splits every parser-confirmed multi-cell row";
 
   if (style === "preserve") {
+    const confirmed = confirmedInlineSeparators(table, raw, cells);
+    // The balanced, protected-range-aware fallback establishes real inline
+    // boundaries even when the parser splits a link label into phantom cells.
+    const inlineSeparators = new Set(
+      confirmed.balanced
+        ? confirmed.separators.map(({ position }) => position)
+        : [],
+    );
     const layoutReplacements = tableLayoutReplacements(
       table,
       raw,
       cells,
       new Set(),
+      inlineSeparators,
     );
     const value = applyTableSourceReplacements(raw, layoutReplacements);
     const changed = value !== raw;
+    const fallbackReason = !confirmed.parserBoundariesReliable && inlineSeparators.size > 0
+      ? "parser cell tokenization disagreed with balanced link-aware separators; used documented top-level fallback"
+      : undefined;
     return {
       start,
       end,
@@ -950,7 +987,9 @@ function analyzeParserTable(
         changed,
         ambiguous: false,
         reason: changed
-          ? tableChangeReason(layoutReplacements)
+          ? [fallbackReason, tableChangeReason(layoutReplacements)]
+              .filter((reason): reason is string => reason !== undefined)
+              .join("; ")
           : "inline cell separators explicitly preserved; no table layout normalization required",
         separatorStyle: style,
         separatorStyleReason,

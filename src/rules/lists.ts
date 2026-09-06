@@ -311,6 +311,21 @@ function isEditableListNode(node: ListParserNode): boolean {
     if (seen.has(parent)) return false;
     seen.add(parent);
     if (parent.type === "root") return true;
+    if (parent.type === "td-inner") {
+      const cell = parent.parentNode;
+      if (!cell || seen.has(cell) || cell.type !== "td") return false;
+      seen.add(cell);
+      let table = cell.parentNode;
+      if (table?.type === "tr") {
+        if (seen.has(table)) return false;
+        seen.add(table);
+        table = table.parentNode;
+      }
+      if (!table || seen.has(table) || table.type !== "table") return false;
+      seen.add(table);
+      parent = table.parentNode;
+      continue;
+    }
     if (parent.type !== "parameter-value") return false;
 
     const parameter = parent.parentNode;
@@ -505,7 +520,7 @@ export function formatListsWithDiagnostics(
   const protectedRanges = collectProtectedRanges(source, {
     protectIgnoreRanges: false,
     protectComments: false,
-    protectTables: true,
+    protectTables: false,
     parserContext: context,
     additionalRanges: extensionRanges(context),
   });

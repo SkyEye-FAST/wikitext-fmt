@@ -395,13 +395,49 @@ function closestTable(
   return current;
 }
 
+function canonicalizeTableCellLists(inner: ParserTableNode): string {
+  const raw = inner.toString();
+  if (!inner.childNodes.some((node) => node.type === "list")) return raw;
+  const base = inner.getAbsoluteIndex();
+  const children = inner.childNodes.map((node) => ({
+    type: node.type,
+    start: node.getAbsoluteIndex() - base,
+    end: node.getAbsoluteIndex() - base + node.toString().length,
+  }));
+  const starts = new Set(
+    children
+      .filter(({ type, start }) => type === "list" && start > 0 && raw[start - 1] === "\n")
+      .map(({ start }) => start),
+  );
+  let output = raw;
+  for (const start of [...starts].sort((a, b) => b - a)) {
+    const newline = raw.indexOf("\n", start);
+    const end = newline < 0 ? raw.length : newline;
+    // A multiline structure belongs to its own verifier. In particular, never
+    // interpret list-looking text inside a comment, extension, or template.
+    if (children.some((child) =>
+      child.type !== "text" && child.type !== "list" &&
+      child.start < end && child.end > start &&
+      (child.start < start || child.end > end)
+    )) continue;
+    const line = raw.slice(start, end);
+    const trailingStart = end - (/[ \t]*$/u.exec(line)?.[0].length ?? 0);
+    if (children.some((child) =>
+      child.type !== "text" && child.type !== "list" &&
+      child.start < end && child.end > trailingStart
+    )) continue;
+    output = output.slice(0, start) + canonicalizeListLayout(line) + output.slice(end);
+  }
+  return output;
+}
+
 function semanticTableCellContent(
   cell: ParserTableNode,
   owner: ParserTableNode,
 ): string | TableContentPart[] {
   const inner = cell.childNodes[2];
   if (!inner) return "";
-  let output = inner.toString();
+  const output = canonicalizeTableCellLists(inner);
   const directNestedTables = inner
     .querySelectorAll<ParserTableNode>("table")
     .filter((table) => closestTable(table.parentNode) === owner);

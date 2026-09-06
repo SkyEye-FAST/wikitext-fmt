@@ -49,6 +49,11 @@ function assertListPipeline(source: string, expected: string): void {
 }
 
 describe("list formatting", () => {
+  it.each(["*[[xxx]]", "*[[File:xxx]]"])(
+    "formats an adjacent link without a final newline: %s",
+    (source) => assertListPipeline(source, `* ${source.slice(1)}`),
+  );
+
   it.each([
     ["*item", "* item"],
     ["*  item", "* item"],
@@ -110,6 +115,10 @@ describe("list formatting", () => {
   });
 
   it.each([
+    ["*[[xxx]]", "* [[xxx]]"],
+    ["**[[Page|label]]", "** [[Page|label]]"],
+    ["*[[File:xxx]]", "* [[File:xxx]]"],
+    ["*[[File:X.png|thumb|caption]]", "* [[File:X.png|thumb|caption]]"],
     [":{{Template}}", ": {{Template}}"],
     [":[[Page]]", ": [[Page]]"],
     [":[[Page|label]]", ": [[Page|label]]"],
@@ -156,6 +165,72 @@ describe("list formatting", () => {
       structuredContentLinesChanged: 2,
       skipReasons: {},
     });
+  });
+
+  it.each([
+    ["*[[File:X]]", "* [[File:X]]"],
+    ["**[[Page|label]]", "** [[Page|label]]"],
+    ["*item   ", "* item"],
+    ["*{{T}}<!-- keep -->", "* {{T}}<!-- keep -->"],
+    [":*item", ":* item"],
+  ])("formats a parser-confirmed list in a table cell: %s", (input, expected) => {
+    const source = `{|\n|-\n| content\n${input}\n|}`;
+    const output = `{|\n|-\n| content\n${expected}\n|}`;
+    assertListPipeline(source, output);
+    expect(verifyStructuralEquivalence(source, output, config, "tables"))
+      .toMatchObject({ equivalent: true });
+  });
+
+  it.each([
+    ["{|\n| outer\n{|\n| inner\n", "\n|}\n|}"],
+    ["{{T|\n{|\n| content\n", "\n|}\n}}"],
+  ])("formats lists through nested table and template ancestors", (before, after) => {
+    assertListPipeline(`${before}*item${after}`, `${before}* item${after}`);
+  });
+
+  it.each([
+    ["*before\n{{T}}\n*after", "* before\n{{T}}\n* after"],
+    ["{{T|\n*item\n}}", "{{T|\n* item\n}}"],
+    [
+      "*before\n{|\n| inner\n*inside\n|}\n*after",
+      "* before\n{|\n| inner\n* inside\n|}\n* after",
+    ],
+  ])("verifies list layout alongside nested cell structures", (before, after) => {
+    assertListPipeline(`{|\n| content\n${before}\n|}`, `{|\n| content\n${after}\n|}`);
+  });
+
+  it.each([
+    "| *item",
+    "| <nowiki>\n*item\n</nowiki>",
+    "| <ref>\n*item\n</ref>",
+    "| <!--\n*item\n-->",
+    "| content\n<!-- wikitext-fmt-ignore-start -->\n*item\n<!-- wikitext-fmt-ignore-end -->",
+    "| content\n*{{T|\nvalue\n}}",
+  ])("keeps unconfirmed or protected table cell content intact: %s", (cell) => {
+    const source = `{|\n${cell}\n|}`;
+    assertListPipeline(source, source);
+  });
+
+  it("keeps table lists unchanged when the list rule is disabled", () => {
+    const source = "{|\n| content\n*item\n|}";
+    const result = formatWikitextSafeDetailed(source, { formatLists: false });
+    expect(result.failure).toBeUndefined();
+    expect(result.formatted).toBe(source);
+  });
+
+  it.each([
+    ["*one", "*two"],
+    ["*one", "#one"],
+    ["<nowiki>\n*one\n</nowiki>", "<nowiki>\n* one\n</nowiki>"],
+    ["<!--\n*one\n-->", "<!--\n* one\n-->"],
+    [" *one", " * one"],
+  ])("rejects table list content or opaque whitespace changes", (before, after) => {
+    expect(verifyStructuralEquivalence(
+      `{|\n| content\n${before}\n|}`,
+      `{|\n| content\n${after}\n|}`,
+      config,
+      "tables",
+    )).toMatchObject({ equivalent: false });
   });
 
   it.each([

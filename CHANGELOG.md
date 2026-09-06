@@ -6,6 +6,20 @@ here. The project follows the pre-1.0 policy in
 
 ## Unreleased
 
+### Fixed
+
+- Parser-confirmed lists in table cells, including nested tables and templates,
+  are now formatted instead of being skipped as protected table content.
+  Table equivalence recognizes only their list layout whitespace while
+  retaining checks on content, markers, and opaque structures.
+- Inline table spacing now handles balanced link labels containing `||` while
+  preserving the label and formatting only separators outside it.
+- Table separator style `preserve` now adds missing layout spaces around
+  parser-confirmed inline data/header cells and their attributes, formatting
+  `A||B||C` as `A || B || C` without splitting the row. Extra whitespace and
+  opaque content remain unchanged; ambiguous boundaries retain conservative
+  handling.
+
 ## 0.9.1 - 2026-08-24
 
 ### Fixed

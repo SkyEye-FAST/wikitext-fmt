@@ -223,7 +223,9 @@ may be understood by one rule and opaque to another.
 
 The list rule runs against parser-confirmed source before the shared placeholder
 pass, so it can distinguish real inline comments and structures from opaque
-blocks. It rejects edits whose ranges intersect ignore or protected blocks;
+blocks. Parser-confirmed list prefixes in table cell content are eligible;
+table fingerprints normalize their layout separately from opaque content.
+It rejects edits whose ranges intersect ignore or protected blocks;
 accepted source is then protected before later rules run.
 
 ## Ignore markers

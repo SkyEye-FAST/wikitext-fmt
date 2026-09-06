@@ -249,8 +249,10 @@ Footer diagnostics report moved/formatted/canonicalized counts.
 
 The list rule handles a physical line only when the parser confirms its complete
 leading sequence of `*`, `#`, `:`, and `;` as a list prefix. This includes list
-lines in template parameter values when the complete parser ancestor chain
-consists only of parameter values, parameters, and templates. For a non-empty
+lines in template parameter values and table cell content, including nested
+tables and templates, when the complete parser ancestor chain consists only of
+those supported containers. Text after a cell marker on the same physical line
+is not treated as a list without parser confirmation. For a non-empty
 item, it replaces ASCII spaces or tabs between that exact marker sequence and
 the first content node with one ASCII space. It may also remove trailing ASCII
 horizontal whitespace that lies outside structured content:
@@ -547,7 +549,7 @@ The audited syntax surfaces are:
 | explicit row | `tr` `table-syntax` `|-` + `table-attrs` | `|-` or `|- attrs` |
 | caption | `td` subtype `caption` | `|+ Caption`, or `|+ attrs | Caption` |
 | standalone data/header cell | `td` subtype `td`/`th` | `| Cell` / `! Header` |
-| inline separator | parser-confirmed `||` / `!!` | split in `auto`/`split`; retained in `preserve` |
+| inline separator | parser-confirmed `||` / `!!` | split in `auto`/`split`; spaced inline in `preserve` |
 | closer and continuation lines | table syntax / ordinary content | unchanged |
 
 The engine does not invent closer or continuation-line formatting, and it skips
@@ -643,8 +645,16 @@ Only the first parser-confirmed ASCII layout space is syntax; additional
 leading, trailing, and attribute-boundary whitespace remains structurally
 significant.
 
-`preserve` preserves whether `||` and `!!` are inline; it does not disable safe
-opener, row, caption, or standalone-cell marker layout normalization. Nested
+`preserve` preserves whether `||` and `!!` are inline and adds missing ASCII
+layout spaces around confirmed inline boundaries: `|A||B||C` becomes
+`| A || B || C`, and `!A!!B` becomes `! A !! B`. Inline cell attributes use
+the same layout as standalone cell attributes. Existing additional whitespace
+is retained. Inline layout uses parser-confirmed boundaries or the balanced,
+protected-range fallback used by splitting. For example, `[[Page|A||B]]||C`
+becomes `[[Page|A||B]] || C`; separators inside link labels are not edited.
+
+This option also normalizes safe opener, row, caption, and standalone-cell
+marker layout. Nested
 tables, tables in template text, comments, links, HTML, extensions, refs,
 templates, parser functions, and multiline cell contents are handled as
 parser-confirmed or protected opaque content.

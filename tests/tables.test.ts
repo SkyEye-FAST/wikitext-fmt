@@ -392,11 +392,11 @@ describe("production parser table formatter", () => {
 
   it("preserves inline separators while normalizing other table layout", () => {
     const input = '{|class="wikitable"\n|-class="row"\n|+Caption\n|A||B\n|}\n';
-    const result = expectProductionTableOutput(input, '{| class="wikitable"\n|- class="row"\n|+ Caption\n| A||B\n|}\n', {
+    const result = expectProductionTableOutput(input, '{| class="wikitable"\n|- class="row"\n|+ Caption\n| A || B\n|}\n', {
       profile: "production",
       tableCellSeparatorStyle: "preserve",
     });
-    expect(result.formatted).toContain("| A||B");
+    expect(result.formatted).toContain("| A || B");
     expect(result.tableFormatDiagnostics).toMatchObject({
       tablesInspected: 1,
       tablesEligible: 1,
@@ -411,6 +411,55 @@ describe("production parser table formatter", () => {
         reason: expect.stringContaining("normalized table caption layout"),
       }),
     );
+  });
+
+  it.each([
+    ["|A||B||C", "| A || B || C"],
+    ["!A!!B!!C", "! A !! B !! C"],
+    ['|A||class="x"|B||C', '| A || class="x" | B || C'],
+    ["|A|| ||C", "| A || || C"],
+    ["|  A  ||  B  ", "|  A  ||  B  "],
+    ["|[[Page]]||{{T}}||<nowiki>A||B</nowiki>", "| [[Page]] || {{T}} || <nowiki>A||B</nowiki>"],
+  ])("spaces confirmed inline cell layout: %s", (input, expected) => {
+    expectProductionTableOutput(`{|\n${input}\n|}`, `{|\n${expected}\n|}`, {
+      ...production,
+      tableCellSeparatorStyle: "preserve",
+    });
+  });
+
+  it("retains inline layout when table formatting is disabled or above the rule level", () => {
+    const source = "{|\n|A||B||C\n|}";
+    for (const options of [{ formatTables: false }, { level: "safe" as const }]) {
+      const result = formatWikitextSafeDetailed(source, {
+        tableCellSeparatorStyle: "preserve",
+        ...options,
+      });
+      expect(result.failure).toBeUndefined();
+      expect(result.formatted).toBe(source);
+    }
+  });
+
+  it("spaces only external inline boundaries when link tokenization disagrees", () => {
+    const result = expectProductionTableOutput(
+      "{|\n| [[Page|A||B]]||C\n|}",
+      "{|\n| [[Page|A||B]] || C\n|}",
+      { ...production, tableCellSeparatorStyle: "preserve" },
+    );
+    expect(result.tableDiagnostics[0]?.reason).toContain("used documented top-level fallback");
+  });
+
+  it.each([
+    ["| [[Page|A||B]]||[[Other|C||D]]||E", "| [[Page|A||B]] || [[Other|C||D]] || E"],
+    ["| [https://example.test A||B]||C", "| [https://example.test A||B] || C"],
+    ["| [[Page|A||B]]||class=x|C", "| [[Page|A||B]] || class=x | C"],
+    ["| A||||C", "| A||||C"],
+    ["| A||--||--", "| A||--||--"],
+    ["| [[A||B", "| [[A||B"],
+  ])("uses only balanced inline layout boundaries: %s", (input, expected) => {
+    expectProductionTableOutput(`{|\n${input}\n|}`, `{|\n${expected}\n|}`, {
+      ...production,
+      tableCellSeparatorStyle: "preserve",
+    });
   });
 
   it("removes only separator-adjacent layout whitespace while splitting", () => {
