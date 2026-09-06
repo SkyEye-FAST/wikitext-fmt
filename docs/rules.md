@@ -570,6 +570,11 @@ global spelling replacement. There is no dedicated diagnostic object.
 
 ## Tables
 
+Both the default and production profiles use `tableCellSeparatorStyle: "preserve"`.
+Existing inline rows stay inline, and existing one-cell-per-line rows keep that
+layout. Missing marker and separator spaces are still normalized. This retains
+compact comparison tables and documented examples without expanding every row.
+
 The table engine uses parser-owned table, row, caption, and cell source ranges,
 deepest first, with a maximum of 64 passes. A narrow balanced fallback handles
 parser-confirmed tables hidden by template-stage order or parser disagreement

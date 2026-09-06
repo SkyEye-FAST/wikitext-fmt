@@ -19,7 +19,10 @@ import { formatTablesWithDiagnostics } from "../src/rules/tables.js";
 
 const config = getParserConfig("mediawiki");
 const session = createNodeParserSession(config);
-const production: FormatOptions = { profile: "production" };
+const production: FormatOptions = {
+  profile: "production",
+  tableCellSeparatorStyle: "split",
+};
 
 function expectProductionTable(
   input: string,
@@ -65,6 +68,37 @@ function expectProductionTableOutput(
 }
 
 describe("production parser table formatter", () => {
+  it.each(["pre", "nowiki", "syntaxhighlight"])(
+    "confirms inline separators after multiline opaque %s content",
+    (tag) => {
+      const opaque = `<${tag}>x\n|fake||cell\n</${tag}>`;
+      const source = `{|\n|${opaque}||y\n|}\n`;
+      const expected = `{|\n| ${opaque} || y\n|}\n`;
+      expectProductionTableOutput(source, expected, { tableCellSeparatorStyle: "preserve" });
+      expect(formatTablesWithDiagnostics(session.createContext(source), resolveOptions()).formatted).toBe(expected);
+      expect(verifyStructuralEquivalence(
+        source,
+        expected.replace("|fake||cell", "| fake || cell"),
+        config,
+        "tables",
+      ).equivalent).toBe(false);
+    },
+  );
+
+  it.each(["default", "production"] as const)(
+    "preserves inline rows by default in the %s profile while allowing explicit splitting",
+    (profile) => {
+      const source = "{|\n!A!!B\n|-\n|C||D\n|}\n";
+      expectProductionTableOutput(source, "{|\n! A !! B\n|-\n| C || D\n|}\n", { profile });
+      for (const tableCellSeparatorStyle of ["auto", "split"] as const) {
+        expectProductionTableOutput(source, "{|\n! A\n! B\n|-\n| C\n| D\n|}\n", {
+          profile,
+          tableCellSeparatorStyle,
+        });
+      }
+    },
+  );
+
   it.each([
     ["simple two-column data row", "{|\n| A || B\n|}"],
     ["many-column row", "{|\n! A !! B !! C !! D\n|}"],
@@ -370,7 +404,7 @@ describe("production parser table formatter", () => {
     const input = "{|\n| [[A || B\n|}";
     const result = formatTablesWithDiagnostics(
       session.createContext(input),
-      resolveOptions({ profile: "production" }),
+      resolveOptions(production),
     );
     expect(result.formatted).toBe(input);
     expect(result.diagnostics).toContainEqual(
@@ -498,7 +532,7 @@ describe("production parser table formatter", () => {
     expect(staleContext.source).not.toBe(source);
     const result = formatTablesWithDiagnostics(
       session.createContext(source),
-      resolveOptions({ profile: "production" }),
+      resolveOptions(production),
     );
     expect(result.formatted).toBe("{|\n| A\n| B\n|}\n");
   });

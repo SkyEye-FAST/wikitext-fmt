@@ -146,7 +146,7 @@ describe("line-ending normalization envelope", () => {
 
   it("maps table diagnostics back to original CRLF offsets including EOF", () => {
     const source = "Lead\r\n{|\r\n| A || B\r\n|}";
-    const result = formatWikitextDetailedResult(source);
+    const result = formatWikitextDetailedResult(source, { tableCellSeparatorStyle: "split" });
     expect(result.failure).toBeUndefined();
     expect(result.tableDiagnostics).toHaveLength(1);
     expect(result.tableDiagnostics[0]).toMatchObject({

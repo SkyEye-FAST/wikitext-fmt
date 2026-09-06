@@ -138,6 +138,7 @@ describe("CLI output helpers", () => {
     const changed = formatWikitextDetailedResult(source, {
       level: "experimental",
       formatTables: true,
+      tableCellSeparatorStyle: "split",
     });
     const listSource = ":*item\n:c<!-- c -->\n";
     const listChanged = formatWikitextDetailedResult(listSource);

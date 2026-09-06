@@ -5,6 +5,12 @@ Core-only changes remain in the root changelog.
 
 ## Unreleased
 
+### Changed
+
+- Table cell layout now defaults to `preserve`, matching the core default and
+  production profiles. Inline rows retain their layout while gaining missing
+  spaces; explicit `auto` and `split` settings still expand rows.
+
 ### Added
 
 - The existing reference setting now formats parser-confirmed inline

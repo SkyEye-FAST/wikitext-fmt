@@ -85,8 +85,8 @@ describe("formatter API", () => {
   });
 
   it("enables tables by default and supports an explicit opt-out", () => {
-    const input = '{| class="wikitable"\n! A !! B\n|}\n';
-    expect(formatWikitext(input)).toBe('{| class="wikitable"\n! A\n! B\n|}\n');
+    const input = '{|class="wikitable"\n!A!!B\n|}\n';
+    expect(formatWikitext(input)).toBe('{| class="wikitable"\n! A !! B\n|}\n');
     expect(formatWikitext(input, { formatTables: false })).toBe(input);
   });
 
@@ -139,7 +139,11 @@ describe("formatter API", () => {
   it("formats parser-confirmed indented tables", () => {
     const input = '  {| class="wikitable"\n| A || B\n|}\n';
     expect(
-      formatWikitext(input, { formatTables: true, level: "experimental" }),
+      formatWikitext(input, {
+        formatTables: true,
+        level: "experimental",
+        tableCellSeparatorStyle: "split",
+      }),
     ).toBe('  {| class="wikitable"\n| A\n| B\n|}\n');
   });
 

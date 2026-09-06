@@ -78,7 +78,7 @@ preset.
 | `localizedSyntaxStyle` | `preserve` \| `canonical-english` | `preserve` | — | `--localized-syntax-style` | unchanged | Preserve recognized spelling or canonicalize certain keywords |
 | `localizationAliases` | object | `{}` | — | config/API only | unchanged | Custom or preloaded site aliases |
 | `formatTables` | boolean | `true` | normal | `--format-tables`, `--no-format-tables` | production: `true` | Run parser-assisted table layout |
-| `tableCellSeparatorStyle` | `auto` \| `split` \| `preserve` | `auto` | — | `--table-cell-separator-style` | production: `auto` | Split inline `\|\|`/`!!`, or retain them inline with missing layout spaces added while normalizing other safe table layout |
+| `tableCellSeparatorStyle` | `auto` \| `split` \| `preserve` | `preserve` | — | `--table-cell-separator-style` | unchanged | Retain inline `\|\|`/`!!` with missing layout spaces added; explicitly select `auto` or `split` to put cells on separate lines |
 | `normalizeBlankLines` | boolean | `true` | safe | `--no-normalize-blank-lines` | unchanged | Collapse 3+ blank lines to 2 |
 | `level` | `safe` \| `normal` \| `experimental` | `normal` | — | `--level` | production: `normal` | Maximum cumulative rule reliability |
 | `htmlVoidTagStyle` | `html5` \| `xhtml` \| `preserve` | `html5` | safe | `--html-void-tag-style` | unchanged | Spell simple `br`/`hr`/`wbr` tags |
@@ -110,7 +110,7 @@ classes may execute. Both the rule's boolean option and its level must allow it.
   individual switches default to off remain available as explicit opt-ins.
 - `production` selects normal level and enables every mature normal rule,
   including references, external links, section spacing, templates, tables with
-  automatic table splitting, and parser-confirmed interlanguage links with
+  preserved inline cell layout, and parser-confirmed interlanguage links with
   footer placement. It is the preset intended for automation.
 
 The `experimental` level remains a valid cumulative ceiling for future rules,

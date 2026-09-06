@@ -109,7 +109,8 @@ function expectExpandedLayout(
 }
 
 function expectEmbeddedTableLayout(input: string, expected: string): void {
-  const result = formatWikitextSafeDetailed(input);
+  const options = { tableCellSeparatorStyle: "split" } as const;
+  const result = formatWikitextSafeDetailed(input, options);
   expect(result.warning).toBeUndefined();
   expect(result.formatted).toBe(expected);
   expect(result.templateDiagnostics.skipReasons).toEqual({});
@@ -119,7 +120,7 @@ function expectEmbeddedTableLayout(input: string, expected: string): void {
   expect(result.equivalenceDiagnostics.every((entry) => entry.equivalent)).toBe(
     true,
   );
-  expect(formatWikitextSafeDetailed(result.formatted).formatted).toBe(expected);
+  expect(formatWikitextSafeDetailed(result.formatted, options).formatted).toBe(expected);
 }
 
 describe("unified parser-assisted template formatting", () => {

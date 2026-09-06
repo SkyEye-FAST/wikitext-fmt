@@ -428,7 +428,13 @@ function lexicalSeparatorPositions(
   let lineStart = 0;
   let tableLine = 1;
   while (lineStart < raw.length) {
-    const newline = raw.indexOf("\n", lineStart);
+    let newline = raw.indexOf("\n", lineStart);
+    // Opaque nodes are tokens in the surrounding table grammar. Their internal
+    // newlines must not hide a separator following the closing tag from the
+    // independent boundary scan. Keep original offsets and skip their content.
+    while (newline >= 0 && positionIsProtected(newline, protectedRanges)) {
+      newline = raw.indexOf("\n", newline + 1);
+    }
     const lineEnd = newline < 0 ? raw.length : newline;
     const line = raw.slice(lineStart, lineEnd);
     const match = /^[\t ]*[!|](?![-+}])/u.exec(line);
@@ -457,7 +463,7 @@ function lexicalSeparatorPositions(
     }
     if (newline < 0) break;
     lineStart = newline + 1;
-    tableLine++;
+    tableLine += line.split("\n").length;
   }
   return {
     positions: [...new Set(positions)].sort((a, b) => a - b),

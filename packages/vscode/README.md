@@ -171,7 +171,7 @@ end of the document.
 | `wikitextFmt.behaviorSwitchPlacement` | `"preserve"` | Select `preserve` or `footer` placement |
 | `wikitextFmt.localizedSyntaxStyle` | `"preserve"` | Preserve localized syntax or use `canonical-english` |
 | `wikitextFmt.formatTables` | `true` | Enable normal-level table formatting |
-| `wikitextFmt.tableCellSeparatorStyle` | `"auto"` | Select `auto`, `split`, or `preserve` |
+| `wikitextFmt.tableCellSeparatorStyle` | `"preserve"` | Keep inline cells by default; select `auto` or `split` to expand rows |
 | `wikitextFmt.normalizeBlankLines` | `true` | Normalize large blank-line runs |
 | `wikitextFmt.level` | `"normal"` | Select the `safe`, `normal`, or `experimental` ceiling |
 | `wikitextFmt.htmlVoidTagStyle` | `"html5"` | Select `html5`, `xhtml`, or `preserve` |

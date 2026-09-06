@@ -183,7 +183,7 @@ export const optionSchema: readonly OptionSchemaEntry[] = [
   {
     name: "tableCellSeparatorStyle",
     type: "enum",
-    defaultValue: "auto",
+    defaultValue: "preserve",
     enumValues: ["auto", "split", "preserve"],
   },
   {

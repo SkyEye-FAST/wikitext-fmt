@@ -16,8 +16,17 @@ here. The project follows the pre-1.0 policy in
   level-1 headings alongside levels 2–6, preserving heading levels, title
   content, protected regions, and consecutive-heading layout.
 
+### Changed
+
+- Default and production table formatting now preserves inline cell layout.
+  Missing layout spaces are still added; explicitly select `auto` or `split`
+  to expand inline cells onto separate lines.
+
 ### Fixed
 
+- Inline table separator recognition now continues across multiline opaque
+  blocks such as `<pre>`, preserving their contents and avoiding unnecessary
+  safety fallbacks when formatting tables containing code examples.
 - Footer formatting no longer moves categories, default sort keys, behavior
   switches, or interlanguage links across `includeonly`, `noinclude`, or
   `onlyinclude` boundaries. Structural verification now tracks their inclusion
