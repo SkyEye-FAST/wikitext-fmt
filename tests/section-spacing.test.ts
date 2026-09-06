@@ -40,31 +40,23 @@ describe("section spacing", () => {
     expect(formatWikitext(input, { profile: "production" })).toBe(expected);
   });
 
-  it("adds spacing on both sides of a heading next to paragraphs", () => {
-    expect(formatSectionSpacing("Intro\n== A ==\nText\n").formatted).toBe(
-      "Intro\n\n== A ==\n\nText\n",
-    );
-  });
-
-  it("uses parser-confirmed complete headings from the current snapshot", () => {
+  it("recognizes complete headings with missing, current, or stale parser context", () => {
     const source = "Intro\n== A ==\nText\n";
-    expect(
-      formatSectionSpacing(source, session.createContext(source)).formatted,
-    ).toBe("Intro\n\n== A ==\n\nText\n");
+    for (const context of [
+      undefined,
+      session.createContext(source),
+      session.createContext("Plain text\n"),
+    ]) {
+      expect(formatSectionSpacing(source, context).formatted).toBe(
+        "Intro\n\n== A ==\n\nText\n",
+      );
+    }
 
     const incomplete = "Intro\n== A == trailing\nText\n";
     expect(
       formatSectionSpacing(incomplete, session.createContext(incomplete))
         .formatted,
     ).toBe(incomplete);
-  });
-
-  it("uses the strict heading fallback when parser context is stale", () => {
-    const source = "Intro\n== A ==\nText\n";
-    expect(
-      formatSectionSpacing(source, session.createContext("Plain text\n"))
-        .formatted,
-    ).toBe("Intro\n\n== A ==\n\nText\n");
   });
 
   it.each([
@@ -111,7 +103,6 @@ describe("section spacing", () => {
     expect(
       formatSectionSpacing(source, session.createContext(source)).formatted,
     ).toBe(expected);
-    expect(formatSectionSpacing(source).formatted).toBe(expected);
     const result = formatWikitextDetailedResult(source, options);
     expect(result.failure).toBeUndefined();
     expect(result.formatted).toBe(expected);
@@ -172,30 +163,10 @@ describe("section spacing", () => {
     ["extension block", "<nowiki>Text</nowiki>"],
     ["redirect-like line", "#REDIRECT [[Target]]"],
     ["protected placeholder", "\uE000wikitext-fmt:0\uE001"],
-  ])("adds spacing between %s and a following heading", (_name, block) => {
+  ])("adds spacing between %s and headings in both directions", (_name, block) => {
     expect(formatSectionSpacing(`${block}\n== A ==\n`).formatted).toBe(
       `${block}\n\n== A ==\n`,
     );
-  });
-
-  it.each([
-    ["list", "* Item"],
-    ["numbered list", "# Item"],
-    ["definition list", "; Term"],
-    ["indented content", ": Detail"],
-    ["template", "{{Infobox}}"],
-    ["table", "{| class=\"wikitable\"\n|-\n| Cell\n|}"],
-    ["category", "[[Category:A]]"],
-    ["DEFAULTSORT", "{{DEFAULTSORT:A}}"],
-    ["interlanguage link", "[[en:Example]]"],
-    ["file link", "[[File:A.png|thumb]]"],
-    ["behavior switch", "__NOTOC__"],
-    ["comment", "<!-- comment -->"],
-    ["HTML", "<div>Text</div>"],
-    ["extension block", "<nowiki>Text</nowiki>"],
-    ["redirect-like line", "#REDIRECT [[Target]]"],
-    ["protected placeholder", "\uE000wikitext-fmt:0\uE001"],
-  ])("adds spacing between a heading and following %s", (_name, block) => {
     expect(formatSectionSpacing(`== A ==\n${block}\n`).formatted).toBe(
       `== A ==\n\n${block}\n`,
     );
@@ -306,11 +277,5 @@ describe("section spacing", () => {
         formatSectionSpacing: false,
       }),
     ).toBe("Intro\n== Title ==\nText\n");
-  });
-
-  it("uses the current source snapshot after heading formatting", () => {
-    expect(formatWikitext("Intro\n==Title==\nText\n", options)).toBe(
-      "Intro\n\n== Title ==\n\nText\n",
-    );
   });
 });

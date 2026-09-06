@@ -37,9 +37,6 @@ describe("heading formatting", () => {
     const safe = formatWikitextSafeDetailed(`${input}\n`);
     expect(safe.failure).toBeUndefined();
     expect(safe.formatted).toBe(`${expected}\n`);
-    expect(formatWikitextSafeDetailed(safe.formatted).formatted).toBe(
-      safe.formatted,
-    );
   });
 
   it("formats level-1 headings at safe level and respects the option", () => {

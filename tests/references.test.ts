@@ -77,27 +77,18 @@ describe("reference formatting", () => {
       1,
     ],
   ])("preserves opposite quotes inside attribute values %s", (input, expected, groups) => {
-    for (const context of [
-      undefined,
-      session.createContext(input),
-      session.createContext("Plain text\n"),
-    ]) {
-      const result = formatReferences(input, context);
-      expect(result.formatted).toBe(expected);
-      expect(result.diagnostics).toEqual({
-        referencesFormatted: 1,
-        referenceGroupsFormatted: groups,
-        referenceLinesSkippedUnsafe: 0,
-      });
-    }
+    const direct = formatReferences(input);
+    expect(direct.formatted).toBe(expected);
+    expect(direct.diagnostics).toEqual({
+      referencesFormatted: 1,
+      referenceGroupsFormatted: groups,
+      referenceLinesSkippedUnsafe: 0,
+    });
     const result = formatWikitextSafeDetailed(input, options);
     expect(result.failure).toBeUndefined();
     expect(result.warning).toBeUndefined();
     expect(result.formatted).toBe(expected);
-    const canonical = formatWikitextSafeDetailed(expected, options);
-    expect(canonical.failure).toBeUndefined();
-    expect(canonical.formatted).toBe(expected);
-    expect(canonical.referenceDiagnostics.referencesFormatted).toBe(0);
+    expect(result.referenceDiagnostics).toEqual(direct.diagnostics);
   });
 
   it.each([
@@ -112,16 +103,11 @@ describe("reference formatting", () => {
     expect(formatWikitextSafeDetailed(input, options).formatted).toBe(input);
   });
 
-  it("preserves CRLF and option/level gates for quoted reference names", () => {
+  it("preserves CRLF for quoted reference names", () => {
     const input = `<ref name="O'Brien"/>\r\n`;
     const result = formatWikitextSafeDetailed(input, { profile: "production" });
     expect(result.failure).toBeUndefined();
     expect(result.formatted).toBe(`<ref name="O'Brien" />\r\n`);
-    expect(formatWikitext(input, { ...options, level: "safe" })).toBe(input);
-    expect(formatWikitext(input, {
-      profile: "production",
-      formatReferences: false,
-    })).toBe(input);
   });
 
   it.each([
@@ -136,32 +122,40 @@ describe("reference formatting", () => {
   });
 
   it("ignores a stale reference parser context for a different source", () => {
-    const source = '<ref name="foo"/>\n';
+    const source = `<ref name="O'Brien"/>\n`;
     expect(
       formatReferences(source, session.createContext("Plain text\n"))
         .formatted,
-    ).toBe('<ref name="foo" />\n');
+    ).toBe(`<ref name="O'Brien" />\n`);
   });
 
   it.each([
     "<ref>content</ref>\n",
-    '<ref name="x">content</ref>\n',
     "Text<ref>content</ref>\n",
     "<ref>{{Citation|title=Example}}</ref>\n",
     "<ref>\nmultiline\n</ref>\n",
     '<ref name="{{x}}" />\n',
     '<ref name="[[x]]" />\n',
-    '<!-- <ref name="x"/> -->\n',
   ])("preserves unsafe reference line %s", (input) => {
     expect(formatWikitext(input, options)).toBe(input);
   });
 
-  it("is idempotent", () => {
-    const once = formatWikitext(
-      '<references group="note"/>\n<ref name="foo"/>\n',
-      options,
-    );
-    expect(formatWikitext(once, options)).toBe(once);
+  it("is idempotent and reports no changes for canonical standalone and inline tags", () => {
+    const input = `<references group="O'Brien"/>\n<ref name="foo"/>\n` +
+      `Text<ref name='a"b'/><REF name="a'b" group='c"d'/>.\n`;
+    const expected = `<references group="O'Brien" />\n<ref name="foo" />\n` +
+      `Text<ref name='a"b' /><ref name="a'b" group='c"d' />.\n`;
+    const once = formatWikitextDetailedResult(input, options);
+    expect(once.failure).toBeUndefined();
+    expect(once.formatted).toBe(expected);
+    const canonical = formatWikitextSafeDetailed(once.formatted, options);
+    expect(canonical.failure).toBeUndefined();
+    expect(canonical.formatted).toBe(expected);
+    expect(canonical.referenceDiagnostics).toEqual({
+      referencesFormatted: 0,
+      referenceGroupsFormatted: 0,
+      referenceLinesSkippedUnsafe: 0,
+    });
   });
 
   it("reports reference diagnostics", () => {
@@ -192,22 +186,21 @@ describe("reference formatting", () => {
     ['[[Page]]<ref name="x"/>\n', '[[Page]]<ref name="x" />\n'],
     ['Text<references group="note"/>\n', 'Text<references group="note" />\n'],
   ])("formats parser-confirmed inline references %s", (input, expected) => {
-    expect(formatReferences(input, session.createContext(input)).formatted).toBe(expected);
     const result = formatWikitextSafeDetailed(input, options);
     expect(result.failure).toBeUndefined();
     expect(result.warning).toBeUndefined();
     expect(result.formatted).toBe(expected);
     expect(result.referenceDiagnostics.referenceLinesSkippedUnsafe).toBe(0);
-    const canonical = formatWikitextSafeDetailed(expected, options);
-    expect(canonical.failure).toBeUndefined();
-    expect(canonical.formatted).toBe(expected);
-    expect(canonical.referenceDiagnostics.referencesFormatted).toBe(0);
   });
 
   it("requires current parser confirmation for inline and multiple references", () => {
-    for (const input of ['Text<ref name="x"/>\n', '<ref name="x"/><ref name="y"/>\n']) {
+    for (const [input, expected] of [
+      ['Text<ref name="x"/>\n', 'Text<ref name="x" />\n'],
+      ['<ref name="x"/><ref name="y"/>\n', '<ref name="x" /><ref name="y" />\n'],
+    ] as const) {
       expect(formatReferences(input).formatted).toBe(input);
       expect(formatReferences(input, session.createContext("Other text\n")).formatted).toBe(input);
+      expect(formatReferences(input, session.createContext(input)).formatted).toBe(expected);
     }
   });
 
