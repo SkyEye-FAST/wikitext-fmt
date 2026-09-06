@@ -26,6 +26,7 @@ const parityCases: ReadonlyArray<
   ],
   ["lists", "*item\n"],
   ["categories", "Text\n[[Category:Example]]\n"],
+  ["inclusion footer boundaries", "==Title==\n<includeonly>\n[[Category:Included]]\n</includeonly>\n<noinclude>\n[[Category:Documentation]]\n</noinclude>\n"],
   ["wikilinks", "[[Main_Page]]\n"],
   ["file links", "[[File:Example.png|thumb|Caption]]\n"],
   ["redirects", "#redirect [[Target]]\n"],

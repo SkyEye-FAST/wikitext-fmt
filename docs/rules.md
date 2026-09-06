@@ -227,6 +227,11 @@ It uses parser category nodes where available and conservative whole-line
 matching for selected localization aliases. It excludes metadata inside
 templates and other parser ranges.
 
+Metadata inside `includeonly`, `noinclude`, and `onlyinclude` stays within its
+original inclusion scope. This protection also applies to behavior switches
+and interlanguage links. Unclosed or mismatched inclusion boundaries prevent
+footer relocation because a safe destination cannot be established.
+
 Eligible metadata is grouped at the footer while preserving category order,
 titles, sort keys, and source spelling in `preserve` localization mode:
 

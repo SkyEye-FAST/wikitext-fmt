@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { formatWikitext } from "../src/index.js";
+import { formatWikitext, formatWikitextSafeDetailed } from "../src/index.js";
+import { resolveOptions } from "../src/options.js";
 import {
   createNodeParserSession,
   getParserConfig,
@@ -23,6 +24,43 @@ const localization = {
 } as const;
 
 describe("page footer formatting", () => {
+  it.each(["includeonly", "noinclude", "onlyinclude", "NOINCLUDE"])(
+    "keeps metadata inside %s while formatting the outside footer",
+    (tag) => {
+      const block = `<${tag}>\n[[Category:Inside]]\n{{DEFAULTSORT:Inside}}\n__NOTOC__\n[[en:Inside]]\n</${tag}>`;
+      const source = `[[Category:Outside]]\nBody\n${block}\n`;
+      const expected = `Body\n${block}\n\n[[Category:Outside]]\n`;
+      const options = resolveOptions({
+        profile: "production",
+        behaviorSwitchPlacement: "footer",
+      });
+      const direct = formatPageFooter(interlanguageSession.createContext(source), options);
+      expect(direct.formatted).toBe(expected);
+      expect(direct.diagnostics.defaultsortMoved).toBe(0);
+      expect(direct.diagnostics.behaviorSwitchesMoved).toBe(0);
+      expect(direct.diagnostics.interlanguageLinksMoved).toBe(0);
+      const safe = formatWikitextSafeDetailed(source, options);
+      expect(safe.failure).toBeUndefined();
+      expect(safe.formatted).toBe(expected);
+    },
+  );
+
+  it.each([
+    "<noinclude>\n[[Category:Inside]]\n",
+    "<includeonly>\n[[Category:Inside]]<ref/>\n",
+    "<onlyinclude><noinclude>\n[[Category:Inside]]\n</onlyinclude>\n",
+  ])("does not move any footer metadata across an unclosed inclusion boundary %s", (block) => {
+    const source = `[[Category:Outside]]\nBody\n${block}`;
+    expect(formatPageFooter(session.createContext(source), resolveOptions()).formatted).toBe(source);
+  });
+
+  it("ignores literal inclusion markers in opaque source and preserves CRLF", () => {
+    const source = '[[Category:Outside]]\r\n<nowiki><noinclude></nowiki>\r\n<!-- <onlyinclude> -->\r\n';
+    const result = formatWikitextSafeDetailed(source);
+    expect(result.failure).toBeUndefined();
+    expect(result.formatted).toBe('<nowiki><noinclude></nowiki>\r\n<!-- <onlyinclude> -->\r\n\r\n[[Category:Outside]]\r\n');
+  });
+
   it.each([
     "__NOTOC__",
     "__FORCETOC__   ",

@@ -8,6 +8,7 @@ import { formatPageFooter } from "./rules/categories.js";
 import { formatExternalLinks } from "./rules/externalLinks.js";
 import { formatFileLinks } from "./rules/fileLinks.js";
 import { formatHeadings } from "./rules/headings.js";
+import { collectInclusionRanges } from "./utils/inclusionRanges.js";
 import { formatHtmlVoidTags } from "./rules/htmlVoidTags.js";
 import { canonicalizeListLayout } from "./rules/lists.js";
 import { formatRedirects } from "./rules/redirects.js";
@@ -972,6 +973,14 @@ export function documentStructuralFingerprint(
   source = canonicalizeDocumentSyntax(source, options, session);
   const context = session.createContext(source);
   const root = context.root as unknown as GenericNode;
+  const inclusionRanges = collectInclusionRanges(context);
+  const inclusionScope = (node: GenericNode): number[] => {
+    const start = node.getAbsoluteIndex();
+    const end = start + node.toString().length;
+    return inclusionRanges.flatMap((range, index) =>
+      start >= range.start && end <= range.end ? [index] : [],
+    );
+  };
   const normalizeDocumentWikilinkTarget: WikilinkTargetNormalizer = (
     node,
     target,
@@ -1150,10 +1159,12 @@ export function documentStructuralFingerprint(
     })),
     references: references.map(semanticExtension),
     categories: categories.map((node) => ({
+      inclusionScope: inclusionScope(node),
       target: node.name ?? childText(node, "link-target"),
       sortKey: childText(node, "link-text"),
     })),
     defaultsort: defaultsort.map((node) => ({
+      inclusionScope: inclusionScope(node),
       name: node.name?.toLowerCase(),
       value: node
         .querySelectorAll<GenericNode>("parameter")
@@ -1175,11 +1186,12 @@ export function documentStructuralFingerprint(
     behaviorSwitches: [
       ...new Set(
         behaviorSwitches.map((node) =>
-          (node.name ?? node.toString()).toLowerCase(),
+          JSON.stringify([(node.name ?? node.toString()).toLowerCase(), inclusionScope(node)]),
         ),
       ),
     ],
     interlanguageLinks: interlanguageLinks.map((node) => ({
+      inclusionScope: inclusionScope(node),
       target: childText(node, "link-target"),
       label: semanticChildText(node, "link-text"),
     })),

@@ -18,6 +18,11 @@ here. The project follows the pre-1.0 policy in
 
 ### Fixed
 
+- Footer formatting no longer moves categories, default sort keys, behavior
+  switches, or interlanguage links across `includeonly`, `noinclude`, or
+  `onlyinclude` boundaries. Structural verification now tracks their inclusion
+  scope, and ambiguous unclosed boundaries prevent footer relocation.
+
 - Reference formatting now recognizes apostrophes inside double-quoted
   attributes and double quotes inside single-quoted attributes as literal
   content. These references can be normalized without changing their values;

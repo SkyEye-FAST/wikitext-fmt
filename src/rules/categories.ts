@@ -16,6 +16,7 @@ import {
   type BehaviorSwitchId,
 } from "../localization/aliases.js";
 import { hasFinalNewline, withFinalNewline } from "../utils/text.js";
+import { collectInclusionRanges } from "../utils/inclusionRanges.js";
 import {
   findWikilinkAncestorType,
   wikilinkNodeSourceRanges,
@@ -131,10 +132,10 @@ export function isStandaloneBehaviorSwitchLine(
   return behaviorSwitchIds.some((id) => trimmed === `__${id.toUpperCase()}__`);
 }
 
-function templateRanges(
+function metadataProtectedRanges(
   context: ParsedDocumentContext,
 ): SourceRange[] {
-  return collectNodeRanges(context, "template");
+  return [...collectNodeRanges(context, "template"), ...collectInclusionRanges(context)];
 }
 
 function parserCategoryLineIndexes(
@@ -255,7 +256,7 @@ function collectInterlanguageLinks(
     node.childNodes.filter((child) => child.type === "link-target"),
   );
   const ranges = wikilinkNodeSourceRanges(context, [...nodes, ...targetNodes]);
-  const htmlRanges = htmlElementRanges(context);
+  const htmlRanges = [...htmlElementRanges(context), ...collectInclusionRanges(context)];
   const entries: FooterEntry[] = [];
 
   for (const node of nodes) {
@@ -445,6 +446,9 @@ export function formatPageFooter(
     }
     return { formatted: source, diagnostics };
   }
+  if (collectInclusionRanges(context).some((range) => !range.closed)) {
+    return { formatted: source, diagnostics };
+  }
   const finalNewline = hasFinalNewline(source);
   const lines = source.split("\n");
   if (finalNewline) lines.pop();
@@ -464,7 +468,7 @@ export function formatPageFooter(
     ),
   );
   const canonicalEnglish = options.localizedSyntaxStyle === "canonical-english";
-  const ranges = templateRanges(context);
+  const ranges = metadataProtectedRanges(context);
   const parserCategoryLines = parserCategoryLineIndexes(context);
   const lineStarts = context.lineStarts;
   const candidates = collectMetadataCandidates(

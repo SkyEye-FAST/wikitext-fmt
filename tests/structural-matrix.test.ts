@@ -171,6 +171,18 @@ describe("structural equivalence rejection", () => {
     interlanguagePlacement: "footer",
   });
 
+  it.each(["includeonly", "noinclude", "onlyinclude"])(
+    "rejects footer metadata moved across %s boundaries",
+    (tag) => {
+      for (const metadata of ["[[Category:X]]", "{{DEFAULTSORT:X}}", "__NOTOC__", "[[en:Example]]"]) {
+        const before = `Body\n<${tag}>\n${metadata}\n</${tag}>\n`;
+        const after = `Body\n<${tag}>\n</${tag}>\n${metadata}\n`;
+        expect(verifyStructuralEquivalence(before, after, config, "document", documentOptions))
+          .toMatchObject({ equivalent: false });
+      }
+    },
+  );
+
   it.each([
     ["links", "[[Target|Label]]", "[[Changed|Label]]"],
     [
