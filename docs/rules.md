@@ -103,7 +103,7 @@ Single-line named and explicitly numbered templates use
 `spaced` uses one space at every one of those positions. The default `auto`
 mode safely generates both candidates, rejects any candidate that does not
 round-trip or preserve the template structural fingerprint, and first filters
-them by `lineWidth`. If both fit, it chooses the candidate with the lower
+them by `lineWidth` for standalone invocations. If both fit, it chooses the candidate with the lower
 syntax-whitespace edit cost. If only one fits, that candidate wins even when the
 other would require fewer whitespace edits; if neither fits, the template
 becomes multiline. Parameter-internal positions around pipes and equals signs
@@ -129,7 +129,10 @@ multiline. For an originally single-line template, the formatter first builds
 the parser-safe candidate requested by `inlineTemplateSpacing` (or both
 candidates for `auto`) and verifies its structure. A candidate with a final
 length at or below `lineWidth` remains inline; if no safe candidate fits, the
-formatter attempts a multiline layout.
+formatter attempts a multiline layout. This width-based expansion applies only
+to invocations occupying a whole physical line. A single-line template embedded
+in prose, a list, a table cell, or another template keeps its inline layout even
+when it exceeds `lineWidth`; safe inline spacing normalization still applies.
 
 Parameter count, raw source length, and the mere presence of a nested template
 or other structure are not independent multiline triggers. Short, structurally

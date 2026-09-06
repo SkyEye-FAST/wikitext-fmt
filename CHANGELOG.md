@@ -18,6 +18,9 @@ here. The project follows the pre-1.0 policy in
 
 ### Changed
 
+- Long single-line named templates embedded in prose, lists, or other syntax
+  now stay inline. Width-based expansion applies to standalone invocations;
+  existing multiline templates and inline spacing options retain their behavior.
 - Default and production table formatting now preserves inline cell layout.
   Missing layout spaces are still added; explicitly select `auto` or `split`
   to expand inline cells onto separate lines.

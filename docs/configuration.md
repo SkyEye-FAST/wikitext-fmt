@@ -95,6 +95,9 @@ its supported layout behavior.
 
 For an originally single-line named or explicitly numbered template, the
 formatter measures the final parser-safe candidate rather than the raw source.
+Width-based expansion applies only when the invocation occupies a whole line.
+Templates embedded in prose, lists, table cells, or other templates stay inline
+while still following `inlineTemplateSpacing`.
 A candidate whose length is at most `lineWidth` stays inline; a wider candidate
 becomes multiline. Parameter count, redundant source whitespace, and the mere
 presence of a nested structure do not independently force expansion. Templates

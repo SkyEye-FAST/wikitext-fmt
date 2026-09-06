@@ -286,6 +286,7 @@ describe("structural equivalence rejection", () => {
     const result = formatWikitextSafeDetailed(input, {
       ...production,
       lineWidth: 30,
+      inlineTemplateSpacing: "spaced",
     });
     expect(result.failure).toBeUndefined();
     expect(result.formatted).not.toBe(input);
@@ -312,6 +313,7 @@ describe("structural equivalence rejection", () => {
     const result = formatWikitextSafeDetailed(input, {
       ...production,
       lineWidth: 30,
+      inlineTemplateSpacing: "spaced",
     });
     expect(result.failure).toBeUndefined();
     expect(result.formatted).not.toBe(input);

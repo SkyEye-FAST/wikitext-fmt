@@ -124,6 +124,18 @@ function expectEmbeddedTableLayout(input: string, expected: string): void {
 }
 
 describe("unified parser-assisted template formatting", () => {
+  it.each([
+    ["prose", "Before ", " after"],
+    ["list", "* Before ", ""],
+    ["table cell", "{|\n| Before ", "\n|}"],
+    ["nested parameter", "{{Outer\n| value = ", "\n}}"],
+  ])("keeps long single-line named templates inline in %s", (_name, prefix, suffix) => {
+    const input = `${prefix}{{T|first=long value|second=another value}}${suffix}\n`;
+    expectInlineLayout(input, input, { lineWidth: 30 });
+    const spaced = `${prefix}{{ T | first = long value | second = another value }}${suffix}\n`;
+    expectInlineLayout(input, spaced, { lineWidth: 30, inlineTemplateSpacing: "spaced" });
+  });
+
   it("normalizes existing multiline templates at normal level", () => {
     const input = "{{Template   \n| a=b   \n| c =d\n| empty=   \n}}\n";
     expect(formatWikitext(input)).toBe(
@@ -696,10 +708,10 @@ describe("unified parser-assisted template formatting", () => {
 
   it("formats nested templates deepest-first", () => {
     const input =
-      "{{Outer|safe=value|nested={{Nested|x=1234567890|y=1234567890}}|parser={{#if:x|y|z}}}}\n";
+      "{{Outer|safe=value|nested={{Nested_template|x=1234567890|y=1234567890}}|parser={{#if:x|y|z}}}}\n";
     const result = formatWikitextDetailedResult(input, { lineWidth: 30 });
     expect(result.formatted).toContain(
-      "{{Nested\n| x = 1234567890\n| y = 1234567890\n}}",
+      "{{Nested template|x=1234567890|y=1234567890}}",
     );
     expect(result.formatted).toContain("{{#if:x|y|z}}");
     expect(result.templateDiagnostics.uniqueTemplatesFormatted).toBe(2);

@@ -3,7 +3,7 @@ import type {
   InlineTemplateSpacing,
   TemplateParameterLayout,
 } from "../options.js";
-import type { ParsedDocumentContext } from "../parserContext.js";
+import { isWholeLineRange, type ParsedDocumentContext } from "../parserContext.js";
 import {
   templateStructuralFingerprint,
   templateTokenStructuralFingerprint,
@@ -619,8 +619,7 @@ function renderTemplateWithOpaqueTables(
     protectedNode,
     options,
     session,
-    false,
-    raw.includes("\n"),
+    { collapseAnonymous: false, originallyMultiline: raw.includes("\n") },
   );
   if (rendered.reason || rendered.value === undefined) return rendered;
   const value = protectedTables.restore(rendered.value);
@@ -696,8 +695,15 @@ function renderTemplate(
   node: TemplateNode,
   options: TemplateFormatOptions,
   session: ParserSession,
-  collapseAnonymous = true,
-  originallyMultiline = false,
+  {
+    collapseAnonymous = true,
+    originallyMultiline = false,
+    allowWidthExpansion = true,
+  }: {
+    collapseAnonymous?: boolean;
+    originallyMultiline?: boolean;
+    allowWidthExpansion?: boolean;
+  } = {},
 ): { value?: string; reason?: string; multiline?: boolean } {
   const raw = node.toString();
   if (!raw.startsWith("{{") || !raw.endsWith("}}")) {
@@ -754,9 +760,9 @@ function renderTemplate(
       head,
       args,
       options.inlineTemplateSpacing,
-      options.lineWidth,
+      allowWidthExpansion ? options.lineWidth : Number.POSITIVE_INFINITY,
     );
-    if (inline.value !== undefined) return inline;
+    if (inline.value !== undefined || !allowWidthExpansion) return inline;
   }
 
   const renderedArgs = args.map((arg) =>
@@ -904,7 +910,9 @@ export function formatTemplatesWithDiagnostics(
         canonicalNodeValues.set(semanticId, raw);
         continue;
       }
-      const rendered = renderTemplate(node, options, context.session);
+      const rendered = renderTemplate(node, options, context.session, {
+        allowWidthExpansion: isWholeLineRange(output, start, end),
+      });
       if (rendered.reason) {
         const reasonIdentity = `${semanticId}\u0000${rendered.reason}`;
         if (!recordedSkipReasons.has(reasonIdentity)) {
