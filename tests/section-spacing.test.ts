@@ -67,11 +67,79 @@ describe("section spacing", () => {
     ).toBe("Intro\n\n== A ==\n\nText\n");
   });
 
-  it("does not treat level-1 headings as section-spacing headings", () => {
-    const source = "Intro\n= Not a section =\nText\n";
+  it.each([
+    "=Title==",
+    "==Title=",
+    "==Title===",
+    "= =",
+    "==",
+    "= =Title =",
+    "= Title= =",
+    "=======Title=======",
+    "=Title= trailing",
+  ])("preserves ambiguous heading markers %j in every context", (heading) => {
+    const source = `Intro\n${heading}\nText\n`;
+    for (const context of [
+      undefined,
+      session.createContext("Plain text\n"),
+      session.createContext(source),
+    ]) {
+      const result = formatSectionSpacing(source, context);
+      expect(result.formatted).toBe(source);
+      expect(result.diagnostics).toEqual({
+        sectionSpacingBeforeHeadingsInserted: 0,
+        sectionSpacingAfterHeadingsInserted: 0,
+      });
+    }
+  });
+
+  it("spaces an unpadded one-character level-1 heading", () => {
+    const source = "Intro\n=A=\nText\n";
+    const expected = "Intro\n\n=A=\n\nText\n";
+    expect(formatSectionSpacing(source).formatted).toBe(expected);
+    const result = formatWikitextSafe(source, {
+      ...options,
+      formatHeadings: false,
+    });
+    expect(result.failure).toBeUndefined();
+    expect(result.formatted).toBe(expected);
+  });
+
+  it("spaces level-1 headings and reports the inserted blank lines", () => {
+    const source = "Intro\n= Section =\nText\n";
+    const expected = "Intro\n\n= Section =\n\nText\n";
     expect(
       formatSectionSpacing(source, session.createContext(source)).formatted,
-    ).toBe(source);
+    ).toBe(expected);
+    expect(formatSectionSpacing(source).formatted).toBe(expected);
+    const result = formatWikitextDetailedResult(source, options);
+    expect(result.failure).toBeUndefined();
+    expect(result.formatted).toBe(expected);
+    expect(result.sectionSpacingDiagnostics).toEqual({
+      sectionSpacingBeforeHeadingsInserted: 1,
+      sectionSpacingAfterHeadingsInserted: 1,
+    });
+    const safe = formatWikitextSafe(expected, { profile: "production" });
+    expect(safe.failure).toBeUndefined();
+    expect(safe.formatted).toBe(expected);
+  });
+
+  it("retains level-1 spacing when disabled or below normal level", () => {
+    const source = "Intro\n= Title =\nText\n";
+    expect(formatWikitext(source)).toBe(source);
+    expect(formatWikitext(source, { ...options, level: "safe" })).toBe(source);
+    expect(formatWikitext(source, {
+      profile: "production",
+      formatSectionSpacing: false,
+    })).toBe(source);
+  });
+
+  it("keeps adjacent level-1 and level-2 headings together", () => {
+    const result = formatWikitextSafe("=Title=\r\n==Child==\r\nText\r\n", {
+      profile: "production",
+    });
+    expect(result.failure).toBeUndefined();
+    expect(result.formatted).toBe("= Title =\r\n== Child ==\r\n\r\nText\r\n");
   });
 
   it("does not treat a heading-like template parameter value as a section", () => {

@@ -6,8 +6,16 @@ here. The project follows the pre-1.0 policy in
 
 ## Unreleased
 
+### Added
+
+- Heading whitespace normalization and optional section spacing now support
+  level-1 headings alongside levels 2–6, preserving heading levels, title
+  content, protected regions, and consecutive-heading layout.
+
 ### Fixed
 
+- Section spacing now leaves empty titles and mismatched or ambiguous heading
+  markers unchanged, including when parser context is unavailable or stale.
 - Parser-confirmed lists in table cells, including nested tables and templates,
   are now formatted instead of being skipped as protected table content.
   Table equivalence recognizes only their list layout whitespace while

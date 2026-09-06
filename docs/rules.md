@@ -7,7 +7,7 @@ level allow them. The default level is `normal`.
 
 | Rule | Level | Default | Option / CLI | Syntax | Major preservation boundary |
 | --- | --- | --- | --- | --- | --- |
-| `headings` | safe | on | `formatHeadings`; `--no-format-headings` | Standalone level 2–6 headings | Empty or ambiguous marker content is unchanged |
+| `headings` | safe | on | `formatHeadings`; `--no-format-headings` | Standalone level 1–6 headings | Empty or ambiguous marker content is unchanged |
 | `blankLines` | safe | on | `normalizeBlankLines`; `--no-normalize-blank-lines` | Runs of blank lines | Does not otherwise trim lines |
 | `templates` | normal | on | `formatTemplates`; `--no-format-templates` | Parser-confirmed templates | Argument order/state/values and structural fingerprint |
 | `categories` | normal | on | `formatCategories`; `--no-format-categories` | Standalone categories and defaultsort | Titles, sort keys, order, and nested metadata |
@@ -17,7 +17,7 @@ level allow them. The default level is `normal`.
 | `externalLinks` | normal | off | `formatExternalLinks`; positive/negative flags | Whole-line labelled external links | URL and label text |
 | `references` | normal | off | `formatReferences`; positive/negative flags | Whole-line self-closing ref tags | Attributes, order, quoting, and values |
 | `interlanguageLinks` | normal | off | `formatInterlanguageLinks`; positive/negative flags | Parser-confirmed configured whole-line language links | Target, prefix spelling, duplicates, and relative order |
-| `sectionSpacing` | normal | off | `formatSectionSpacing`; positive/negative flags | Level 2–6 headings beside content blocks | Consecutive headings and existing blank lines |
+| `sectionSpacing` | normal | off | `formatSectionSpacing`; positive/negative flags | Level 1–6 headings beside content blocks | Consecutive headings and existing blank lines |
 | `redirects` | normal | on | `formatRedirects`; `--no-format-redirects` | First non-empty redirect line | Target and unsupported trailing syntax |
 | `behaviorSwitches` | normal | on | `formatBehaviorSwitches`; `--no-format-behavior-switches` | Standalone recognized switches | Unknown/embedded switches and relative order |
 | `htmlVoidTags` | safe | style `html5` | `htmlVoidTagStyle`; value flag | Attribute-free `br`, `hr`, `wbr` | Attributes and extension tags |
@@ -32,7 +32,7 @@ once text changes, later rules use a fresh context rather than stale ranges.
 Eligibility:
 
 - one complete line;
-- matching 2–6 opening and closing `=` markers;
+- matching 1–6 opening and closing `=` markers;
 - non-empty title that does not itself begin or end with `=`.
 
 Transformation:
@@ -452,8 +452,11 @@ targets, and unsafe parents. The rule never sorts or deduplicates language links
 
 ## Section spacing
 
-This parser-assisted rule identifies complete level 2–6 heading lines. When a
-heading directly touches non-empty content, it inserts one missing blank line:
+This parser-assisted rule identifies complete level 1–6 heading lines with
+matching markers and a non-empty title that does not begin or end with `=`.
+Empty titles and mismatched or ambiguous markers remain unchanged, including
+when falling back without a current parser context. When a heading directly
+touches non-empty content, it inserts one missing blank line:
 
 ```wikitext
 Text
@@ -474,7 +477,7 @@ More
 Adjacent content may be prose, lists, templates, tables, categories,
 DEFAULTSORT or interlanguage links, file links, behavior switches, comments,
 HTML/extensions, redirects, or protected block placeholders. Consecutive
-level 2–6 headings stay together. Existing blank lines are not removed; larger
+level 1–6 headings stay together. Existing blank lines are not removed; larger
 runs remain the responsibility of `blankLines`. Heading marker normalization
 belongs to `headings`. Diagnostics count insertions before and after headings.
 

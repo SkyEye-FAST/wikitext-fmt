@@ -7,7 +7,7 @@ import {
   type ParsedDocumentContext,
 } from "../parserContext.js";
 
-const HEADING = /^={2,6}[^=\n].*={2,6}[ \t]*$/u;
+const HEADING = /^(={1,6})[ \t]*(.*?)[ \t]*\1[ \t]*$/u;
 const BLANK = /^[ \t]*$/u;
 
 export interface SectionSpacingDiagnostics {
@@ -25,7 +25,8 @@ interface HeadingNode extends ParserNodeLike {
 }
 
 function isHeading(line: string): boolean {
-  return HEADING.test(line.trimEnd());
+  const title = HEADING.exec(line)?.[2];
+  return Boolean(title && !title.startsWith("=") && !title.endsWith("="));
 }
 
 function parserHeadingLineIndexes(
@@ -40,8 +41,7 @@ function parserHeadingLineIndexes(
     if (!isNodeWholeLine(context, node)) continue;
     const lineIndex = lineIndexAt(context, node.getAbsoluteIndex());
     const line = lines[lineIndex] ?? lineTextAt(context, lineIndex);
-    // wikiparser-node also exposes level-1 headings. Section spacing is
-    // intentionally limited to complete level 2-6 headings.
+    // Only complete standalone headings are eligible for section spacing.
     if (isHeading(line)) indexes.add(lineIndex);
   }
   return indexes;
