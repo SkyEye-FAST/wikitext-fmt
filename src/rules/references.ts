@@ -46,9 +46,16 @@ function hasUnsafeSyntax(line: string): boolean {
 }
 
 function hasBalancedQuotes(value: string): boolean {
-  const doubleQuotes = value.match(/"/gu)?.length ?? 0;
-  const singleQuotes = value.match(/'/gu)?.length ?? 0;
-  return doubleQuotes % 2 === 0 && singleQuotes % 2 === 0;
+  let quote: "\"" | "'" | undefined;
+  for (const character of value) {
+    if (quote !== undefined) {
+      // The opposite quote is literal content inside a quoted attribute.
+      if (character === quote) quote = undefined;
+    } else if (character === '"' || character === "'") {
+      quote = character;
+    }
+  }
+  return quote === undefined;
 }
 
 function formatReferenceLine(

@@ -14,6 +14,10 @@ here. The project follows the pre-1.0 policy in
 
 ### Fixed
 
+- Reference formatting now recognizes apostrophes inside double-quoted
+  attributes and double quotes inside single-quoted attributes as literal
+  content. These references can be normalized without changing their values;
+  unclosed attribute quotes remain unchanged even when raw quote counts are even.
 - Section spacing now leaves empty titles and mismatched or ambiguous heading
   markers unchanged, including when parser context is unavailable or stale.
 - Parser-confirmed lists in table cells, including nested tables and templates,

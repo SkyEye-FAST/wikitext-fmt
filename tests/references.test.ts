@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { formatWikitext, formatWikitextDetailedResult } from "../src/index.js";
+import {
+  formatWikitext,
+  formatWikitextDetailedResult,
+  formatWikitextSafeDetailed,
+} from "../src/index.js";
 import { createNodeParserSession, getParserConfig } from "../src/parser.js";
 import { formatReferences } from "../src/rules/references.js";
 
@@ -57,6 +61,80 @@ describe("reference formatting", () => {
     expect(
       formatReferences(source, session.createContext(source)).formatted,
     ).toBe('<references group="note" />\n');
+  });
+
+  it.each([
+    [`<ref name="O'Brien"/>\n`, `<ref name="O'Brien" />\n`, 0],
+    [`<ref name='a"b'/>\n`, `<ref name='a"b' />\n`, 0],
+    [
+      `<ref name="a'b" group='c"d'/>\n`,
+      `<ref name="a'b" group='c"d' />\n`,
+      0,
+    ],
+    [
+      `<references group="O'Brien"/>\n`,
+      `<references group="O'Brien" />\n`,
+      1,
+    ],
+  ])("preserves opposite quotes inside attribute values %s", (input, expected, groups) => {
+    for (const context of [
+      undefined,
+      session.createContext(input),
+      session.createContext("Plain text\n"),
+    ]) {
+      const result = formatReferences(input, context);
+      expect(result.formatted).toBe(expected);
+      expect(result.diagnostics).toEqual({
+        referencesFormatted: 1,
+        referenceGroupsFormatted: groups,
+        referenceLinesSkippedUnsafe: 0,
+      });
+    }
+    const result = formatWikitextSafeDetailed(input, options);
+    expect(result.failure).toBeUndefined();
+    expect(result.warning).toBeUndefined();
+    expect(result.formatted).toBe(expected);
+    const canonical = formatWikitextSafeDetailed(expected, options);
+    expect(canonical.failure).toBeUndefined();
+    expect(canonical.formatted).toBe(expected);
+    expect(canonical.referenceDiagnostics.referencesFormatted).toBe(0);
+  });
+
+  it.each([
+    `<ref name="a'b" group='c/>\n`,
+    `<ref name='a"b' group="c/>\n`,
+    `<ref name="a'b/>\n`,
+    `<ref name='a"b/>\n`,
+  ])("skips unclosed quotes even when opposite quotes make counts even %s", (input) => {
+    const result = formatReferences(input);
+    expect(result.formatted).toBe(input);
+    expect(result.diagnostics.referenceLinesSkippedUnsafe).toBe(1);
+    expect(formatWikitextSafeDetailed(input, options).formatted).toBe(input);
+  });
+
+  it("preserves CRLF and option/level gates for quoted reference names", () => {
+    const input = `<ref name="O'Brien"/>\r\n`;
+    const result = formatWikitextSafeDetailed(input, { profile: "production" });
+    expect(result.failure).toBeUndefined();
+    expect(result.formatted).toBe(`<ref name="O'Brien" />\r\n`);
+    expect(formatWikitext(input, { ...options, level: "safe" })).toBe(input);
+    expect(formatWikitext(input, {
+      profile: "production",
+      formatReferences: false,
+    })).toBe(input);
+  });
+
+  it.each([
+    `<nowiki>\n<ref name="O'Brien"/>\n</nowiki>\n`,
+    `<!--\n<ref name="O'Brien"/>\n-->\n`,
+    `<!-- wikitext-fmt-ignore -->\n<ref name="O'Brien"/>\n`,
+    `Text <ref name="O'Brien"/>\n`,
+    `<ref name="O'Brien">content</ref>\n`,
+    `<ref name="O'Brien"/><ref name='a"b'/>\n`,
+  ])("retains protected and unsupported reference layouts %s", (input) => {
+    const result = formatWikitextSafeDetailed(input, options);
+    expect(result.failure).toBeUndefined();
+    expect(result.formatted).toBe(input);
   });
 
   it("ignores a stale reference parser context for a different source", () => {

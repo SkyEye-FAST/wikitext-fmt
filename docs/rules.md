@@ -413,7 +413,9 @@ becomes:
 
 Parser extension nodes identify whole-line candidates, followed by exact source
 checks. Tag casing and the space before `/>` are normalized; attribute order,
-quotes, names, and values are preserved.
+quotes, names, and values are preserved. Opposite quotes inside a quoted
+attribute, such as the apostrophe in `<ref name="O'Brien"/>`, remain literal
+content and do not prevent formatting. Unclosed attribute quotes are skipped.
 
 Content-bearing, inline, multiline, multiple, indented, unbalanced, or
 structured lines are skipped. Diagnostics distinguish formatted refs,
