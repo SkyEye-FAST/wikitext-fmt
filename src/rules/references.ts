@@ -3,6 +3,7 @@ import {
   isNodeWholeLine,
   lineIndexAt,
   type ParsedDocumentContext,
+  type ParserNodeLike,
 } from "../parserContext.js";
 import { hasFinalNewline, withFinalNewline } from "../utils/text.js";
 
@@ -61,10 +62,8 @@ function hasBalancedQuotes(value: string): boolean {
 function formatReferenceLine(
   line: string,
 ): { value: string; kind: "ref" | "references" } | undefined {
-  // wikiparser-node exposes ref/references as extension nodes, but the rule's
-  // safety boundary depends on exact source syntax: standalone, single tag,
-  // self-closing, and no content-bearing ref body. Keep this source-line check
-  // rather than relying only on ext node shape.
+  // Validate an exact single self-closing tag, even for parser-confirmed ranges.
+  // Without parser context, the caller must supply a complete standalone line.
   if (hasUnsafeSyntax(line)) return undefined;
   const trimmed = line.trimEnd();
   const match = /^<(ref|references)\b([^<>]*)\/\s*>$/iu.exec(trimmed);
@@ -76,38 +75,81 @@ function formatReferenceLine(
   return { value: `<${kind}${attrs} />`, kind };
 }
 
-function parserReferenceLineIndexes(
+function formatParserReferences(
   source: string,
-  context?: ParsedDocumentContext,
-): Set<number> | undefined {
-  if (context?.source !== source) return undefined;
-  const lineIndexes = new Set<number>();
+  context: ParsedDocumentContext,
+): ReferenceFormatResult {
+  const diagnostics = emptyReferenceDiagnostics();
+  const lines = source.split("\n");
+  const confirmedLines = new Set<number>();
+  const unsafeLines = new Set<number>();
+  const replacements: { start: number; end: number; value: string }[] = [];
   for (const node of collectNodes(context, "ext")) {
-    if (!isNodeWholeLine(context, node)) continue;
     const text = node.toString();
     if (!/^<(?:ref|references)\b/iu.test(text)) continue;
-    lineIndexes.add(lineIndexAt(context, node.getAbsoluteIndex()));
+    const start = node.getAbsoluteIndex();
+    const end = start + text.length;
+    const index = lineIndexAt(context, start);
+    confirmedLines.add(index);
+    const line = lines[index]!;
+    const wholeLine = isNodeWholeLine(context, node) && line.startsWith("<");
+    const parent = (node as ParserNodeLike & { parentNode?: unknown }).parentNode;
+    // Inline nodes must belong directly to the document. Template values, link
+    // labels, attributes, table cells, and other nested containers stay opaque.
+    if (
+      start < 0 ||
+      end > source.length ||
+      source.slice(start, end) !== text ||
+      /[\r\n]/u.test(text) ||
+      (!wholeLine && parent !== context.root)
+    ) {
+      unsafeLines.add(index);
+      continue;
+    }
+    const candidate = wholeLine ? line : text;
+    const formatted = formatReferenceLine(candidate);
+    if (!formatted) {
+      unsafeLines.add(index);
+      continue;
+    }
+    if (formatted.value === candidate) continue;
+    replacements.push({
+      start,
+      end: wholeLine ? context.lineStarts[index]! + line.length : end,
+      value: formatted.value,
+    });
+    diagnostics.referencesFormatted++;
+    if (formatted.kind === "references") diagnostics.referenceGroupsFormatted++;
   }
-  return lineIndexes;
+  for (let index = 0; index < lines.length; index++) {
+    if (!confirmedLines.has(index) && isReferenceLikeLine(lines[index]!)) {
+      unsafeLines.add(index);
+    }
+  }
+  diagnostics.referenceLinesSkippedUnsafe = unsafeLines.size;
+  let cursor = 0;
+  const output: string[] = [];
+  for (const replacement of replacements.sort((a, b) => a.start - b.start)) {
+    output.push(source.slice(cursor, replacement.start), replacement.value);
+    cursor = replacement.end;
+  }
+  output.push(source.slice(cursor));
+  return { formatted: output.join(""), diagnostics };
 }
 
 export function formatReferences(
   source: string,
   context?: ParsedDocumentContext,
 ): ReferenceFormatResult {
+  if (context?.source === source) return formatParserReferences(source, context);
   const diagnostics = emptyReferenceDiagnostics();
   const finalNewline = hasFinalNewline(source);
   const lines = source.split("\n");
   if (finalNewline) lines.pop();
-  const parserConfirmedLines = parserReferenceLineIndexes(source, context);
   let changed = false;
 
   for (let index = 0; index < lines.length; index++) {
     const line = lines[index]!;
-    if (parserConfirmedLines && !parserConfirmedLines.has(index)) {
-      if (isReferenceLikeLine(line)) diagnostics.referenceLinesSkippedUnsafe++;
-      continue;
-    }
     const formatted = formatReferenceLine(line);
     if (!formatted) {
       if (isReferenceLikeLine(line)) diagnostics.referenceLinesSkippedUnsafe++;

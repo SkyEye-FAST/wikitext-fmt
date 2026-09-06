@@ -204,6 +204,19 @@ describe("browser entry", () => {
     const reference = browser.formatWikitextSafeDetailed('<ref name="a"/>\n', {
       profile: "production",
     });
+
+    const inlineSource = 'Text<ref name="a"/><ref name="b"/>\r\n';
+    const inline = browser.formatWikitextSafeDetailed(inlineSource, {
+      profile: "production",
+    });
+    expect(inline.failure).toBeUndefined();
+    expect(inline).toMatchObject({
+      formatted: 'Text<ref name="a" /><ref name="b" />\r\n',
+      referenceDiagnostics: {
+        referenceLinesSkippedUnsafe: 0,
+        referencesFormatted: 2,
+      },
+    });
     expect(reference).toMatchObject({
       formatted: '<ref name="a" />\n',
       referenceDiagnostics: {

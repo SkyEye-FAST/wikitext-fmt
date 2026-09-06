@@ -15,7 +15,7 @@ level allow them. The default level is `normal`.
 | `fileLinks` | normal | on | `formatFileLinks`; `--no-format-file-links` | One whole-line file/image link | Target, caption, values, and option order |
 | `wikilinks` | normal | on | `formatWikilinks`; `--no-format-wikilinks` | Parser-confirmed ordinary internal links and redirect targets | Labels, fragments, file options, category sort keys, and remote targets |
 | `externalLinks` | normal | off | `formatExternalLinks`; positive/negative flags | Whole-line labelled external links | URL and label text |
-| `references` | normal | off | `formatReferences`; positive/negative flags | Whole-line self-closing ref tags | Attributes, order, quoting, and values |
+| `references` | normal | off | `formatReferences`; positive/negative flags | Standalone and parser-confirmed inline self-closing reference tags | Attributes, order, quoting, values, and surrounding content |
 | `interlanguageLinks` | normal | off | `formatInterlanguageLinks`; positive/negative flags | Parser-confirmed configured whole-line language links | Target, prefix spelling, duplicates, and relative order |
 | `sectionSpacing` | normal | off | `formatSectionSpacing`; positive/negative flags | Level 1–6 headings beside content blocks | Consecutive headings and existing blank lines |
 | `redirects` | normal | on | `formatRedirects`; `--no-format-redirects` | First non-empty redirect line | Target and unsupported trailing syntax |
@@ -398,8 +398,8 @@ context makes the rule a no-op.
 
 ## References
 
-The normal reference rule normalizes one whole-line self-closing `ref` or
-`references` extension:
+The normal reference rule normalizes self-closing `ref` and `references`
+extensions on standalone lines or at parser-confirmed inline positions:
 
 ```wikitext
 <ref name="source"/>
@@ -411,16 +411,41 @@ becomes:
 <ref name="source" />
 ```
 
-Parser extension nodes identify whole-line candidates, followed by exact source
-checks. Tag casing and the space before `/>` are normalized; attribute order,
+Multiple references on the same line are formatted independently:
+
+```wikitext
+Text<ref name="first"/><ref name="second"/>.
+```
+
+becomes:
+
+```wikitext
+Text<ref name="first" /><ref name="second" />.
+```
+
+Parser extension nodes identify exact tag ranges, followed by source checks.
+Tag casing and the space before `/>` are normalized; attribute order,
 quotes, names, and values are preserved. Opposite quotes inside a quoted
 attribute, such as the apostrophe in `<ref name="O'Brien"/>`, remain literal
 content and do not prevent formatting. Unclosed attribute quotes are skipped.
 
-Content-bearing, inline, multiline, multiple, indented, unbalanced, or
-structured lines are skipped. Diagnostics distinguish formatted refs,
-references groups, and unsafe skips. The rule does not format citation content
-or merge references.
+Inline formatting requires a current parser context and a reference node
+directly owned by the document. This includes ordinary prose, list items, and
+HTML body text. Text, indentation, and trailing whitespace outside inline tags
+remain exact. Existing unindented standalone-line formatting still removes
+trailing layout whitespace. Missing or stale parser context retains the
+standalone-only fallback.
+
+Inline references nested in template values, link labels, headings, or HTML
+attributes are skipped. Protected tables, extension bodies, comments, and ignore
+ranges remain unchanged. Content-bearing, multiline, unbalanced, or
+structured-attribute tags are skipped; citation content is never formatted and
+references are never merged. Diagnostics count each changed tag in
+`referencesFormatted`, each changed `references` group in
+`referenceGroupsFormatted`, and each line with unsupported parser-confirmed
+references in `referenceLinesSkippedUnsafe` once, even if it contains multiple
+skipped references. Unconfirmed reference-like lines starting with a tag also
+retain their unsafe-skip count.
 
 ## Interlanguage links
 

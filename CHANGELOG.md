@@ -8,6 +8,10 @@ here. The project follows the pre-1.0 policy in
 
 ### Added
 
+- Reference formatting now supports parser-confirmed inline self-closing tags,
+  including multiple references in prose, list items, and HTML body text.
+  It preserves surrounding text and whitespace, retains nested/opaque syntax
+  boundaries, and counts changed tags and unsafe lines independently.
 - Heading whitespace normalization and optional section spacing now support
   level-1 headings alongside levels 2–6, preserving heading levels, title
   content, protected regions, and consecutive-heading layout.

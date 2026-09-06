@@ -21,7 +21,7 @@
   "configuration.formatInterlanguageLinks.description": "启用整行跨语言链接格式化（解析器确认，标准级别）。",
   "configuration.formatLists.description": "启用列表标记格式化。",
   "configuration.formatRedirects.description": "启用重定向格式化（解析器辅助）。",
-  "configuration.formatReferences.description": "启用独占整行的自闭合引用格式化（标准级别）。",
+  "configuration.formatReferences.description": "启用独占整行及解析器确认的行内自闭合引用格式化（标准级别）。",
   "configuration.formatSectionSpacing.description": "启用标题与相邻内容块之间的间距格式化（标准级别）。",
   "configuration.formatTables.description": "启用表格格式化（解析器辅助，标准级别）。",
   "configuration.formatTemplates.description": "启用统一的模板格式化器（解析器辅助）。",

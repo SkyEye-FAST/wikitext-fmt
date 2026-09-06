@@ -66,7 +66,7 @@ preset.
 | `formatFileLinks` | boolean | `true` | normal | `--no-format-file-links` | unchanged | Format eligible whole-line file/image links |
 | `formatWikilinks` | boolean | `true` | normal | `--no-format-wikilinks` | unchanged | Replace ASCII underscores with spaces only in eligible parser-confirmed internal page-title components |
 | `formatExternalLinks` | boolean | `false` | normal | `--format-external-links`, `--no-format-external-links` | production: `true` | Normalize labelled whole-line external-link spacing |
-| `formatReferences` | boolean | `false` | normal | `--format-references`, `--no-format-references` | production: `true` | Normalize standalone self-closing ref tags |
+| `formatReferences` | boolean | `false` | normal | `--format-references`, `--no-format-references` | production: `true` | Normalize standalone and parser-confirmed inline self-closing reference tags |
 | `formatInterlanguageLinks` | boolean | `false` | normal | `--format-interlanguage-links`, `--no-format-interlanguage-links` | production: `true` | Recognize parser-confirmed interlanguage footer links |
 | `interlanguagePlacement` | `preserve` \| `footer` | `preserve` | — | `--interlanguage-placement` | production: `footer` | Preserve or move recognized links |
 | `interlanguagePrefixes` | non-empty string[] | `ar,de,en,es,fr,it,ja,ko,pl,pt,ru,uk,zh,zh-hans,zh-hant` | — | `--interlanguage-prefixes` | unchanged | Authoritative prefix list; siteinfo may supply it in the CLI |

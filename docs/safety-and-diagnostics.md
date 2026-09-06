@@ -111,6 +111,13 @@ Detailed results expose structured information for rules that need it:
 Simple heading, blank-line, and HTML void-tag normalization do not expose
 dedicated diagnostic objects.
 
+Reference diagnostics count each changed tag, including multiple tags on one
+line, in `referencesFormatted`. `referenceGroupsFormatted` is the subset for
+`references` tags. `referenceLinesSkippedUnsafe` counts each line containing
+unsupported parser-confirmed references once; unconfirmed reference-like lines
+starting with a tag are also counted. Inline edits require exact parser ranges
+and preserve all surrounding source text.
+
 ## JSON diagnostic records
 
 `--diagnostics-json` writes one compact JSON object per input to stderr:

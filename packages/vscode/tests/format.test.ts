@@ -332,6 +332,18 @@ describe("VS Code formatter option parity", () => {
 });
 
 describe("VS Code formatter detailed behavior", () => {
+  it("formats inline references with the bundled core and existing setting", () => {
+    const source = 'Text<ref name="a"/><ref name="b"/>\n';
+    const editorSettings = {
+      ...settings(true),
+      options: { formatReferences: true },
+    };
+    const result = formatTextForEditor(source, editorSettings);
+    expect(result.failure).toBeUndefined();
+    expect(result.formatted).toBe('Text<ref name="a" /><ref name="b" />\n');
+    expect(result.referenceDiagnostics.referencesFormatted).toBe(2);
+  });
+
   it("uses safe detailed formatting when safe is true", () => {
     const formatter = formatterApi(
       detailedResult("normal"),

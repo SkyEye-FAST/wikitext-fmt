@@ -5,6 +5,12 @@ Core-only changes remain in the root changelog.
 
 ## Unreleased
 
+### Added
+
+- The existing reference setting now formats parser-confirmed inline
+  self-closing references, including multiple references on one line, through
+  the bundled core. Setting descriptions now reflect the expanded scope.
+
 ## 0.5.1 - 2026-08-24
 
 ### Fixed

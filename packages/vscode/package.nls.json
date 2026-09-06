@@ -21,7 +21,7 @@
   "configuration.formatInterlanguageLinks.description": "Enable normal-level parser-confirmed whole-line interlanguage link formatting.",
   "configuration.formatLists.description": "Enable list-marker formatting.",
   "configuration.formatRedirects.description": "Enable parser-assisted redirect formatting.",
-  "configuration.formatReferences.description": "Enable normal-level standalone self-closing reference formatting.",
+  "configuration.formatReferences.description": "Enable normal-level standalone and parser-confirmed inline self-closing reference formatting.",
   "configuration.formatSectionSpacing.description": "Enable normal-level spacing between headings and adjacent content blocks.",
   "configuration.formatTables.description": "Enable normal-level parser-assisted table formatting.",
   "configuration.formatTemplates.description": "Enable the unified parser-assisted template formatter.",

@@ -128,9 +128,7 @@ describe("reference formatting", () => {
     `<nowiki>\n<ref name="O'Brien"/>\n</nowiki>\n`,
     `<!--\n<ref name="O'Brien"/>\n-->\n`,
     `<!-- wikitext-fmt-ignore -->\n<ref name="O'Brien"/>\n`,
-    `Text <ref name="O'Brien"/>\n`,
     `<ref name="O'Brien">content</ref>\n`,
-    `<ref name="O'Brien"/><ref name='a"b'/>\n`,
   ])("retains protected and unsupported reference layouts %s", (input) => {
     const result = formatWikitextSafeDetailed(input, options);
     expect(result.failure).toBeUndefined();
@@ -149,16 +147,11 @@ describe("reference formatting", () => {
     "<ref>content</ref>\n",
     '<ref name="x">content</ref>\n',
     "Text<ref>content</ref>\n",
-    'Text <ref name="x" />\n',
     "<ref>{{Citation|title=Example}}</ref>\n",
     "<ref>\nmultiline\n</ref>\n",
-    '<ref name="x" /><ref name="y" />\n',
     '<ref name="{{x}}" />\n',
     '<ref name="[[x]]" />\n',
     '<!-- <ref name="x"/> -->\n',
-    '<span><ref name="x"/></span>\n',
-    '| <ref name="x"/>\n',
-    '* <ref name="x"/>\n',
   ])("preserves unsafe reference line %s", (input) => {
     expect(formatWikitext(input, options)).toBe(input);
   });
@@ -181,5 +174,94 @@ describe("reference formatting", () => {
       referenceGroupsFormatted: 1,
       referenceLinesSkippedUnsafe: 1,
     });
+  });
+
+  it.each([
+    ['Text<ref name="x"/>.', 'Text<ref name="x" />.'],
+    [`Text <ref name="O'Brien"/>\n`, `Text <ref name="O'Brien" />\n`],
+    [
+      `<ref name="O'Brien"/><ref name='a"b'/>\n`,
+      `<ref name="O'Brien" /><ref name='a"b' />\n`,
+    ],
+    ['A<REF name="x"/>B<ref name="x"/>C  \n', 'A<ref name="x" />B<ref name="x" />C  \n'],
+    ['<span><ref name="x"/></span>\n', '<span><ref name="x" /></span>\n'],
+    ['| <ref name="x"/>\n', '| <ref name="x" />\n'],
+    ['* Item<ref name="x"/>\n', '* Item<ref name="x" />\n'],
+    ['  <ref name="x"/>  \n', '  <ref name="x" />  \n'],
+    ['<!-- note --><ref name="x"/>\n', '<!-- note --><ref name="x" />\n'],
+    ['[[Page]]<ref name="x"/>\n', '[[Page]]<ref name="x" />\n'],
+    ['Text<references group="note"/>\n', 'Text<references group="note" />\n'],
+  ])("formats parser-confirmed inline references %s", (input, expected) => {
+    expect(formatReferences(input, session.createContext(input)).formatted).toBe(expected);
+    const result = formatWikitextSafeDetailed(input, options);
+    expect(result.failure).toBeUndefined();
+    expect(result.warning).toBeUndefined();
+    expect(result.formatted).toBe(expected);
+    expect(result.referenceDiagnostics.referenceLinesSkippedUnsafe).toBe(0);
+    const canonical = formatWikitextSafeDetailed(expected, options);
+    expect(canonical.failure).toBeUndefined();
+    expect(canonical.formatted).toBe(expected);
+    expect(canonical.referenceDiagnostics.referencesFormatted).toBe(0);
+  });
+
+  it("requires current parser confirmation for inline and multiple references", () => {
+    for (const input of ['Text<ref name="x"/>\n', '<ref name="x"/><ref name="y"/>\n']) {
+      expect(formatReferences(input).formatted).toBe(input);
+      expect(formatReferences(input, session.createContext("Other text\n")).formatted).toBe(input);
+    }
+  });
+
+  it("preserves inline CRLF and the reference option and reliability gates", () => {
+    const input = 'Text<ref name="x"/>\r\nMore<ref name="y"/>\r\n';
+    const result = formatWikitextSafeDetailed(input, { profile: "production" });
+    expect(result.failure).toBeUndefined();
+    expect(result.formatted).toBe('Text<ref name="x" />\r\nMore<ref name="y" />\r\n');
+    expect(formatWikitext(input)).toBe(input);
+    expect(formatWikitext(input, { ...options, level: "safe" })).toBe(input);
+    expect(formatWikitext(input, { profile: "production", formatReferences: false })).toBe(input);
+  });
+
+  it("counts formatted tags separately and unsafe lines once", () => {
+    const input = 'Text<ref name="x"/><ref name="y"/> <references/>\n' +
+      'Other<ref>body</ref><ref>more</ref>\n';
+    const result = formatWikitextSafeDetailed(input, options);
+    expect(result.failure).toBeUndefined();
+    expect(result.formatted).toBe('Text<ref name="x" /><ref name="y" /> <references />\n' +
+      'Other<ref>body</ref><ref>more</ref>\n');
+    expect(result.referenceDiagnostics).toEqual({
+      referencesFormatted: 3,
+      referenceGroupsFormatted: 1,
+      referenceLinesSkippedUnsafe: 1,
+    });
+  });
+
+  it("honors a single inline ignore marker without hiding later references", () => {
+    const input = '<!-- wikitext-fmt-ignore --> <ref name="x"/> <ref name="y"/>\n';
+    const result = formatWikitextSafeDetailed(input, options);
+    expect(result.failure).toBeUndefined();
+    expect(result.formatted).toBe('<!-- wikitext-fmt-ignore --> <ref name="x"/> <ref name="y" />\n');
+    expect(result.referenceDiagnostics.referencesFormatted).toBe(1);
+  });
+
+  it.each([
+    '{{T|value=Text<ref name="x"/>}}\n',
+    '[[Page|Text<ref name="x"/>]]\n',
+    '==Title<ref name="x"/>==\n',
+    '<span title=\'<ref name="x"/>\'>Text</span>\n',
+    '{|\n| Text<ref name="x"/>\n|}\n',
+    '<nowiki>Text<ref name="x"/></nowiki>\n',
+    '<!-- Text<ref name="x"/> -->\n',
+    '<!-- wikitext-fmt-ignore-start -->\nText<ref name="x"/>\n<!-- wikitext-fmt-ignore-end -->\n',
+    'Text<ref><ref name="x"/></ref>\n',
+    'Text<ref name="x"\n/>\n',
+    'Text<ref name="{{T}}"/>\n',
+    'Text<ref name="unclosed/>\n',
+  ])("preserves nested, protected, or ambiguous inline references %s", (input) => {
+    const result = formatWikitextSafeDetailed(input, {
+      ...options,
+      formatTemplates: false,
+      formatHeadings: false,
+    });
+    expect(result.formatted).toBe(input);
   });
 });

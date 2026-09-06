@@ -161,7 +161,7 @@ end of the document.
 | `wikitextFmt.formatFileLinks` | `true` | Enable whole-line file-link formatting |
 | `wikitextFmt.formatWikilinks` | `true` | Use spaces instead of underscores in eligible internal page-link targets |
 | `wikitextFmt.formatExternalLinks` | `false` | Enable normal whole-line external-link formatting |
-| `wikitextFmt.formatReferences` | `false` | Enable normal standalone self-closing reference formatting |
+| `wikitextFmt.formatReferences` | `false` | Enable normal standalone and parser-confirmed inline self-closing reference formatting |
 | `wikitextFmt.formatInterlanguageLinks` | `false` | Enable normal parser-confirmed interlanguage-link formatting |
 | `wikitextFmt.interlanguagePlacement` | `"preserve"` | Select `preserve` or `footer` placement |
 | `wikitextFmt.interlanguagePrefixes` | built-in prefix list | Set recognized interlanguage prefixes |
