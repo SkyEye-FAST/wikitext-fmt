@@ -157,7 +157,57 @@ may become:
 
 The other multiline modes are `compact`, which emits `|name=value`, and
 `indented`, which emits a leading space before each parameter pipe. Multiline
-templates never gain spaces after `{{` or before `}}`.
+templates never gain spaces after `{{` or before `}}`. An empty value is written
+as `| name =` without trailing whitespace.
+
+Multiline layout follows the source where the author made a deliberate choice
+and MediaWiki ignores the whitespace involved:
+
+- A value that starts on the line after `=` and spans several lines, such as a
+  nested navbox, stays a block on its own lines. A value that fits on one line
+  is pulled up next to `=`, and blank lines around values are removed. A
+  nested template that starts such a block lines up with its own closing
+  `}}`; any other block keeps the indentation of its first line.
+  Line-sensitive values (lists, tables, headings) keep their leading line break
+  and indentation exactly as before.
+- A multiline ordinary template nested in another template's parameter is
+  indented by two spaces per enclosing ordinary template, including its
+  closing `}}`. Parser functions such as `{{#if:}}` add no level. A template
+  inside another template or parser function whose closing `}}` and
+  line-start parameters already share a deeper indentation, as in template
+  code, keeps that indentation; top-level templates always use the configured
+  layout.
+- When most line-start named parameters already put `=` in the same column by
+  padding keys with spaces, the template stays aligned to the longest key of
+  that aligned group. East Asian wide characters count as two columns; a key
+  that already overflowed the author's column is not padded and does not widen
+  the others. Templates that are not aligned are not aligned by the formatter.
+
+```wikitext
+{{Navbox
+|name   = Example
+|list1  =
+    {{Navbox subgroup
+    |group1=A
+    }}
+}}
+```
+
+becomes:
+
+```wikitext
+{{Navbox
+| name  = Example
+| list1 =
+  {{Navbox subgroup
+  | group1 = A
+  }}
+}}
+```
+
+These are all whitespace before a named parameter's `|`, around its key, or
+around its value; the formatter never changes indentation that belongs to an
+anonymous value.
 
 Anonymous parameters are whitespace-sensitive in MediaWiki. For templates
 containing any anonymous parameter, `lineWidth` is a collapse threshold rather
@@ -178,7 +228,12 @@ than a wrapping target:
 - parser-confirmed embedded tables retain their opaque safety handling;
 - mixed named/anonymous templates never use the spaced inline style; safe
   compact candidates preserve anonymous bytes and compact only named syntax,
-  otherwise the original boundary spelling is retained.
+  otherwise the original boundary spelling is retained. In a mixed template
+  that stays multiline, a named parameter that starts its own line keeps that
+  line and uses the `templateParameterLayout` spacing (`| name = value` or
+  `|name=value`), with alignment kept as above; the indentation before the
+  next delimiter is kept as written because whitespace before a delimiter may
+  belong to an anonymous value.
 
 For example, `{{Lang` followed by `|ja|シエラ}}` on the next line becomes
 `{{Lang|ja|シエラ}}` when the compact form fits. A long positional template
@@ -217,7 +272,8 @@ equivalence failure returns the original document.
 Non-goals: parameters are never reordered, renamed, renumbered, converted
 between named/anonymous state, or semantically rewritten. Anonymous-to-numbered
 conversion is not enabled implicitly by multiline layout. No site-specific
-template layout policy or page-wide style learner is inferred.
+template layout policy or page-wide style learner is inferred; `=` alignment is
+read only from the template being formatted.
 
 ## Categories and defaultsort
 
@@ -490,8 +546,11 @@ targets, and unsafe parents. The rule never sorts or deduplicates language links
 This parser-assisted rule identifies complete level 1–6 heading lines with
 matching markers and a non-empty title that does not begin or end with `=`.
 Empty titles and mismatched or ambiguous markers remain unchanged, including
-when falling back without a current parser context. When a heading directly
-touches non-empty content, it inserts one missing blank line:
+when falling back without a current parser context. When non-empty content
+directly precedes a heading, it inserts one missing blank line before the
+heading. A blank line after a heading follows the page's own habit: it is
+inserted only when most headings on the page that are followed by content
+already have one (a tie keeps headings attached to their content):
 
 ```wikitext
 Text
@@ -505,9 +564,11 @@ becomes:
 Text
 
 == Heading ==
-
 More
 ```
+
+while a page whose headings are mostly followed by a blank line also gets one
+after `== Heading ==`.
 
 Adjacent content may be prose, lists, templates, tables, categories,
 DEFAULTSORT or interlanguage links, file links, behavior switches, comments,

@@ -1,5 +1,4 @@
 == Title ==
-
 <poem>{{Line|first=alpha|second=beta}}
 {| class="wikitable"
 | A || B

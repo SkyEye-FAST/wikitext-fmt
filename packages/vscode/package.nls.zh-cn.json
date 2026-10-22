@@ -62,9 +62,9 @@
   "configuration.tableCellSeparatorStyle.enumDescriptions.preserve": "保留原始分隔符布局。",
   "configuration.tableCellSeparatorStyle.enumDescriptions.split": "每个单元格单独成行。",
   "configuration.templateParameterLayout.description": "多行模板的参数排列方式。",
-  "configuration.templateParameterLayout.enumDescriptions.compact": "条件合适时，将参数放在少数几行中。",
-  "configuration.templateParameterLayout.enumDescriptions.flush": "每行一个参数，无额外缩进。",
-  "configuration.templateParameterLayout.enumDescriptions.indented": "每行一个参数，带缩进。",
+  "configuration.templateParameterLayout.enumDescriptions.compact": "每行一个参数，紧凑间距（`|key=value`）。",
+  "configuration.templateParameterLayout.enumDescriptions.flush": "每行一个参数，无额外缩进（`| key = value`）。",
+  "configuration.templateParameterLayout.enumDescriptions.indented": "每行一个参数，带缩进（` | key = value`）。",
   "configuration.title": "Wikitext Formatter",
   "description": "适用于 VS Code 的解析器辅助、语义保持型 MediaWiki Wikitext 格式化工具",
   "displayName": "Wikitext Formatter"

@@ -20,6 +20,24 @@ here. The project follows the pre-1.0 policy in
 
 ### Changed
 
+- Multiline template layout now follows the habits of careful editors. Values
+  started on their own line that span several lines (such as nested navboxes)
+  stay as blocks instead of being pulled up after `=`; nested multiline
+  templates are indented two spaces per enclosing template; deliberately
+  aligned `=` signs stay aligned (counting East Asian wide characters as two
+  columns); template code indented consistently inside parser functions keeps
+  its indentation; empty values no longer leave trailing whitespace; and
+  multiline templates mixing positional and named parameters keep one named
+  parameter per line, with the author's delimiter indentation, instead of
+  being joined onto one line.
+- Formatting is substantially faster on large pages. Read-only formatter work
+  enables wikiparser-node's position caches for its duration, and parser
+  sessions reuse parsed snapshots of identical stage text within a bounded
+  cache. A 336 KB page that took several minutes now formats in seconds.
+- Section spacing still inserts a missing blank line before headings, but adds
+  one after a heading only when most headings on the same page that are
+  followed by content already have one, so pages written with headings
+  attached to their content are no longer spread out.
 - Long single-line named templates embedded in prose, lists, or other syntax
   now stay inline. Width-based expansion applies to standalone invocations;
   existing multiline templates and inline spacing options retain their behavior.
@@ -29,6 +47,12 @@ here. The project follows the pre-1.0 policy in
 
 ### Fixed
 
+- Deeply nested templates no longer stall formatting. Template structure checks
+  now reuse each nested template's fingerprint instead of recomputing it for
+  every enclosing template, and markup nested more than 500 levels deep is left
+  unchanged with an `input-parse` failure. Such pages previously failed on the
+  first calls in a process and could then take minutes once the code was
+  optimized, so repeated formatting in the same editor session could hang.
 - Inline table separator recognition now continues across multiline opaque
   blocks such as `<pre>`, preserving their contents and avoiding unnecessary
   safety fallbacks when formatting tables containing code examples.

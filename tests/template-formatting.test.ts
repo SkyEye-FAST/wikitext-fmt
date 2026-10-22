@@ -136,6 +136,54 @@ describe("unified parser-assisted template formatting", () => {
     expectInlineLayout(input, spaced, { lineWidth: 30, inlineTemplateSpacing: "spaced" });
   });
 
+  it.each([
+    [
+      "flush",
+      "{{Infobox\n|name   = X\n|state  = autocollapse\n|list1  =\n|title=T\n}}\n",
+      "{{Infobox\n| name  = X\n| state = autocollapse\n| list1 =\n| title = T\n}}\n",
+    ],
+    [
+      "compact",
+      "{{Infobox\n| name   = X\n| state  = autocollapse\n| list1  =\n}}\n",
+      "{{Infobox\n|name =X\n|state=autocollapse\n|list1=\n}}\n",
+    ],
+    [
+      "indented",
+      "{{Infobox\n|name   = X\n|state  = autocollapse\n}}\n",
+      "{{Infobox\n | name  = X\n | state = autocollapse\n}}\n",
+    ],
+  ] as const)(
+    "keeps deliberately aligned parameter values aligned (%s)",
+    (parameterLayout, input, expected) => {
+      const options = { templateParameterLayout: parameterLayout };
+      expect(formatWikitext(input, options)).toBe(expected);
+      expect(formatWikitext(expected, options)).toBe(expected);
+    },
+  );
+
+  it("does not widen aligned parameters for a key that already overflowed", () => {
+    const input =
+      "{{Infobox\n|name  = X\n|type  = Y\n|image = Z\n|caption_alignment = W\n}}\n";
+    const expected =
+      "{{Infobox\n| name  = X\n| type  = Y\n| image = Z\n| caption_alignment = W\n}}\n";
+    expect(formatWikitext(input)).toBe(expected);
+    expect(formatWikitext(expected)).toBe(expected);
+  });
+
+  it("aligns keys with East Asian wide characters by display width", () => {
+    const input = "{{信息框\n|名称    = X\n|英文名  = Y\n|type    = Z\n}}\n";
+    const expected = "{{信息框\n| 名称   = X\n| 英文名 = Y\n| type   = Z\n}}\n";
+    expect(formatWikitext(input)).toBe(expected);
+    expect(formatWikitext(expected)).toBe(expected);
+  });
+
+  it("does not invent alignment for single-space parameters", () => {
+    const input = "{{Infobox\n|a = 1\n|bb = 2\n|ccc = 3\n}}\n";
+    expect(formatWikitext(input)).toBe(
+      "{{Infobox\n| a = 1\n| bb = 2\n| ccc = 3\n}}\n",
+    );
+  });
+
   it("normalizes existing multiline templates at normal level", () => {
     const input = "{{Template   \n| a=b   \n| c =d\n| empty=   \n}}\n";
     expect(formatWikitext(input)).toBe(
@@ -518,6 +566,40 @@ describe("unified parser-assisted template formatting", () => {
     const input =
       "{{T|one|name=value|a very very long positional value}}\n";
     expectAnonymousLayout(input, input, { lineWidth: 20 });
+  });
+
+  it.each([
+    [
+      "flush",
+      "{{Foo|bar\n|a=1\n|  bb   =  2  \n|c=\n}}\n",
+      "{{Foo|bar\n| a = 1\n| bb = 2\n| c =\n}}\n",
+    ],
+    [
+      "compact",
+      "{{Foo|bar\n| a = 1\n| bb = 2\n}}\n",
+      "{{Foo|bar\n|a=1\n|bb=2\n}}\n",
+    ],
+  ] as const)(
+    "keeps one named parameter per line in a multiline mixed template (%s)",
+    (parameterLayout, input, expected) => {
+      expectAnonymousLayout(input, expected, {
+        templateParameterLayout: parameterLayout,
+      });
+    },
+  );
+
+  it("keeps the anonymous value bytes of a multiline mixed template", () => {
+    const input = "{{Foo|bar \n  | a = 1   \n  |baz\n}}\n";
+    expectAnonymousLayout(input, "{{Foo|bar \n  | a = 1\n  |baz\n}}\n");
+  });
+
+  it("keeps the author's delimiter indentation in a mixed template", () => {
+    const input =
+      "{{#switch: x\n| no =\n    {{basepage subpage\n    | dontcat\n    |page={{{page|}}}   <!--c-->\n    }}\n}}\n";
+    expectAnonymousLayout(
+      input,
+      "{{#switch: x\n| no =\n    {{basepage subpage\n    | dontcat\n    | page = {{{page|}}}   <!--c-->\n    }}\n}}\n",
+    );
   });
 
   it("keeps explicit numeric parameters named", () => {

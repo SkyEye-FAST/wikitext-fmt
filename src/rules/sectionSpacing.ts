@@ -65,6 +65,18 @@ export function formatSectionSpacing(
       ? parserHeadingLines.has(index)
       : isHeading(lines[index]!);
 
+  // A blank line before a heading is near-universal practice; one after it is a
+  // per-page habit. Follow the page: add the blank line after headings only
+  // when most headings followed by content already have one.
+  let blankAfter = 0;
+  let contentAfter = 0;
+  for (let index = 0; index + 1 < lines.length; index++) {
+    if (!lineIsHeading(index) || lineIsHeading(index + 1)) continue;
+    if (BLANK.test(lines[index + 1]!)) blankAfter++;
+    else contentAfter++;
+  }
+  const spaceAfterHeadings = blankAfter > contentAfter;
+
   for (let index = 0; index < lines.length; index++) {
     const line = lines[index]!;
     if (lineIsHeading(index)) {
@@ -79,7 +91,7 @@ export function formatSectionSpacing(
       }
     }
     output.push(line);
-    if (lineIsHeading(index)) {
+    if (spaceAfterHeadings && lineIsHeading(index)) {
       const next = index + 1;
       if (
         next < lines.length &&

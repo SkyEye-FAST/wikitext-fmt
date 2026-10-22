@@ -20,7 +20,7 @@ const cases: IntegrationCase[] = [
       interlanguageLinksMoved: 2,
       fileLinksFormatted: 1,
       sectionSpacingBeforeHeadingsInserted: 1,
-      sectionSpacingAfterHeadingsInserted: 1,
+      sectionSpacingAfterHeadingsInserted: 0,
     },
   },
   {

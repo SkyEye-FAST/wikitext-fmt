@@ -192,6 +192,16 @@ candidates use `templateParameterLayout`. Parameter count alone does not force
 expansion, existing multiline templates remain multiline, and anonymous
 parameters keep their separate conservative policy.
 
+Multiline templates put one named parameter per line: `flush` writes
+`| key = value` (the default), `indented` adds one space before `|`, and
+`compact` writes `|key=value`. Empty values leave no trailing space, and a
+multiline value the author started on its own line stays a block. Nested
+multiline templates are indented two spaces per enclosing template, and
+template code already indented consistently inside parser functions keeps that
+indentation. Deliberately aligned `=` signs stay aligned (East Asian wide
+characters count as two columns); templates mixing positional and named
+parameters keep their line structure.
+
 A profile is a preset; a reliability level is a rule ceiling. Only explicitly
 configured VS Code settings override corresponding config-file values.
 `production` enables all mature normal rules, including parser-confirmed

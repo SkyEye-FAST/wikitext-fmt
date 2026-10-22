@@ -15,6 +15,13 @@ import {
   collectParserTableCandidates,
   potentialParserTableOpenerPositions,
 } from "./tables.js";
+import {
+  type KeyAlignment,
+  detectKeyAlignment,
+  nestingIndent,
+  padKey,
+  TEMPLATE_NEST_INDENT,
+} from "./templateLayout.js";
 
 interface Replacement {
   start: number;
@@ -174,14 +181,50 @@ interface NamedArgumentValue {
 const LINE_SENSITIVE_VALUE_START =
   /^(?:[ \t]*(?:[*#:;]+|\{\||={1,6}(?:[ \t]|$))|\uE100wikitext-fmt-table-)/u;
 
-function normalizeNamedArgumentValue(rawValue: string): NamedArgumentValue {
+interface TemplateNesting {
+  /** Number of enclosing ordinary templates, for nesting indentation. */
+  depth: number;
+  /** Whether the template sits inside another template or parser function. */
+  honorSourceIndent: boolean;
+}
+
+const TOP_LEVEL_NESTING: TemplateNesting = {
+  depth: 0,
+  honorSourceIndent: false,
+};
+
+interface BlockValueLayout {
+  /** Indentation for a nested template that starts a block value. */
+  templateIndent: string;
+}
+
+function normalizeNamedArgumentValue(
+  rawValue: string,
+  block?: BlockValueLayout,
+): NamedArgumentValue {
   const leadingLineBreak = /^[ \t]*(\r?\n)/u.exec(rawValue);
   if (leadingLineBreak?.[1]) {
     const value = rawValue
       .slice(leadingLineBreak[0].length)
       .replace(/[ \t\r\n]+$/u, "");
     if (!value || !LINE_SENSITIVE_VALUE_START.test(value)) {
-      return { value: trimAsciiLayoutWhitespace(value) };
+      const body = trimAsciiLayoutWhitespace(value);
+      // A multiline value that the author started on its own line is a
+      // block (often a nested navbox or infobox). Keep that line break; MediaWiki
+      // trims named values, so only the indentation of a leading nested
+      // template is normalized.
+      if (block && body.includes("\n")) {
+        // A leading nested template lines up with its own closing braces; any
+        // other block keeps the indentation its first line already had.
+        const indent = body.startsWith("{{")
+          ? (closingLineIndent(body) ?? block.templateIndent)
+          : /^(?:[ \t]*\r?\n)*([ \t]*)/u.exec(value)![1]!;
+        return {
+          leadingLineBreak: leadingLineBreak[1],
+          value: `${indent}${body}`,
+        };
+      }
+      return { value: body };
     }
     return {
       leadingLineBreak: leadingLineBreak[1],
@@ -213,24 +256,109 @@ function renderInlineNamedArgument(
     : ` | ${key} = ${value}`;
 }
 
+interface MultilineArgumentLayout {
+  layout: TemplateParameterLayout;
+  alignment?: KeyAlignment;
+  /** Indentation of the template's own parameter lines and closing braces. */
+  indent: string;
+}
+
 function renderMultilineNamedArgument(
   arg: ParameterToken,
-  layout: TemplateParameterLayout,
+  { layout, alignment, indent }: MultilineArgumentLayout,
 ): string | undefined {
   if (arg.anon) return undefined;
   const { value, leadingLineBreak } = normalizeNamedArgumentValue(
     arg.lastChild.toString(),
+    { templateIndent: `${indent}${TEMPLATE_NEST_INDENT}` },
   );
   const key = trimAsciiLayoutWhitespace(arg.firstChild.toString());
   if (!key) return undefined;
+  const paddedKey = padKey(key, alignment);
   if (layout === "compact") {
     return leadingLineBreak
-      ? `|${key}=${leadingLineBreak}${value}`
-      : `|${key}=${value}`;
+      ? `|${paddedKey}=${leadingLineBreak}${value}`
+      : `|${paddedKey}=${value}`;
   }
-  return leadingLineBreak
-    ? `| ${key} =${leadingLineBreak}${value}`
-    : `| ${key} = ${value}`;
+  if (leadingLineBreak) return `| ${paddedKey} =${leadingLineBreak}${value}`;
+  return value ? `| ${paddedKey} = ${value}` : `| ${paddedKey} =`;
+}
+
+/**
+ * Whitespace before a parameter's `|` when only spaces or tabs precede it on
+ * its source line, or undefined when the parameter does not start a line.
+ */
+function sourceLineIndent(
+  raw: string,
+  nodeStart: number,
+  arg: ParameterToken,
+): string | undefined {
+  const start = arg.getAbsoluteIndex() - nodeStart;
+  if (raw[start - 1] !== "|") return undefined;
+  const lineStart = raw.lastIndexOf("\n", start - 2) + 1;
+  const indent = raw.slice(lineStart, start - 1);
+  return lineStart > 0 && /^[ \t]*$/u.test(indent) ? indent : undefined;
+}
+
+/** Whether a parameter's `|` is preceded on its source line only by spaces. */
+function startsSourceLine(
+  raw: string,
+  nodeStart: number,
+  arg: ParameterToken,
+): boolean {
+  return sourceLineIndent(raw, nodeStart, arg) !== undefined;
+}
+
+/** Spaces before closing braces that start their own line, if any. */
+function closingLineIndent(raw: string): string | undefined {
+  return /\n( *)\}\}$/u.exec(raw)?.[1];
+}
+
+/**
+ * Indentation for a multiline template's parameter lines and closing braces.
+ * Nested templates get at least one level per enclosing template. Templates
+ * written as code inside other templates or parser functions keep a deeper
+ * indentation the author already used consistently for the closing braces and
+ * every line-start parameter; top-level templates follow the configured
+ * layout.
+ */
+function templateBaseIndent(
+  raw: string,
+  nodeStart: number,
+  args: readonly ParameterToken[],
+  { depth, honorSourceIndent }: TemplateNesting,
+): string {
+  const nested = nestingIndent(depth);
+  if (!honorSourceIndent) return nested;
+  const source = closingLineIndent(raw);
+  if (source === undefined || source.length <= nested.length) return nested;
+  const consistent = args.every((arg) => {
+    const indent = sourceLineIndent(raw, nodeStart, arg);
+    return indent === undefined || indent.startsWith(source);
+  });
+  return consistent ? source : nested;
+}
+
+/**
+ * Exact key bytes of named parameters whose `|` starts a source line, used to
+ * recognize deliberately aligned `=` signs.
+ */
+function lineStartKeySegments(
+  raw: string,
+  nodeStart: number,
+  args: readonly ParameterToken[],
+): string[] {
+  return args
+    .filter((arg) => !arg.anon && startsSourceLine(raw, nodeStart, arg))
+    .map((arg) => arg.firstChild.toString());
+}
+
+function multilineKeyAlignment(
+  raw: string,
+  nodeStart: number,
+  args: readonly ParameterToken[],
+): KeyAlignment | undefined {
+  return detectKeyAlignment(lineStartKeySegments(raw, nodeStart, args));
 }
 
 function renderAnonymousSafeArgument(arg: ParameterToken): string | undefined {
@@ -238,26 +366,63 @@ function renderAnonymousSafeArgument(arg: ParameterToken): string | undefined {
   return renderInlineNamedArgument(arg, "compact");
 }
 
+/**
+ * Normalizes named parameters of a template that also has anonymous
+ * parameters without moving any delimiter. Named parameters that start their
+ * own line keep that line structure and get the configured multiline spacing;
+ * the line break before the next delimiter is trailing whitespace of the named
+ * value, which MediaWiki trims. Anonymous parameters are left untouched.
+ */
 function normalizeNamedArgumentsInPlace(
   raw: string,
   nodeStart: number,
   args: readonly ParameterToken[],
+  layout: TemplateParameterLayout,
+  indent: string,
 ): { value?: string; reason?: string } {
+  const alignment = multilineKeyAlignment(raw, nodeStart, args);
   const replacements = args
     .filter((arg) => !arg.anon)
     .map((arg) => {
       const key = trimAsciiLayoutWhitespace(arg.firstChild.toString());
       if (!key) return undefined;
       const start = arg.getAbsoluteIndex() - nodeStart;
+      const rawValue = arg.lastChild.toString();
+      const lineStart = startsSourceLine(raw, nodeStart, arg);
       const normalizedValue = normalizeNamedArgumentValue(
-        arg.lastChild.toString(),
+        rawValue,
+        lineStart
+          ? { templateIndent: `${indent}${TEMPLATE_NEST_INDENT}` }
+          : undefined,
       );
+      // Keep one line break before the next delimiter, with the indentation
+      // the author gave that delimiter.
+      const trailing = /[ \t\r\n]*$/u.exec(rawValue)![0];
+      const trailingBreakMatch = /(\r?\n)(?:[ \t]*\r?\n)*([ \t]*)$/u.exec(
+        trailing,
+      );
+      const trailingBreak = trailingBreakMatch
+        ? `${trailingBreakMatch[1]}${trailingBreakMatch[2]}`
+        : "";
+      const breakAfterEquals = normalizedValue.leadingLineBreak ?? "";
+      let rendered: string;
+      if (!lineStart) {
+        rendered = `${key}=${breakAfterEquals}${normalizedValue.value}`;
+      } else if (layout === "compact") {
+        rendered = `${padKey(key, alignment)}=${breakAfterEquals}${
+          normalizedValue.value
+        }`;
+      } else if (breakAfterEquals || !normalizedValue.value) {
+        rendered = ` ${padKey(key, alignment)} =${breakAfterEquals}${
+          normalizedValue.value
+        }`;
+      } else {
+        rendered = ` ${padKey(key, alignment)} = ${normalizedValue.value}`;
+      }
       return {
         start,
         end: start + arg.toString().length,
-        value: `${key}=${normalizedValue.leadingLineBreak ?? ""}${
-          normalizedValue.value
-        }`,
+        value: `${rendered}${trailingBreak}`,
       };
     });
   if (replacements.some((replacement) => replacement === undefined)) {
@@ -283,13 +448,16 @@ function renderMultilineArguments(
   head: string,
   renderedArgs: readonly string[],
   layout: TemplateParameterLayout,
+  nested: string,
 ): string {
+  // Indentation before a named parameter's pipe and before the closing braces
+  // is trailing whitespace of the previous named value, which MediaWiki trims.
   let output = `{{${head}`;
-  const indent = layout === "indented" ? " " : "";
+  const indent = `${nested}${layout === "indented" ? " " : ""}`;
   for (const rendered of renderedArgs) {
     output = appendLine(output, `${indent}${rendered}`);
   }
-  return appendLine(output.replace(/[\t ]+$/u, ""), "}}");
+  return appendLine(output.replace(/[\t ]+$/u, ""), `${nested}}}`);
 }
 
 function renderInlineTemplate(
@@ -477,10 +645,16 @@ function selectInlineNamedCandidate(
       : { multiline: false };
 }
 
+interface AnonymousLayoutOptions {
+  collapseAnonymous: boolean;
+  lineWidth: number;
+  layout: TemplateParameterLayout;
+  nesting: TemplateNesting;
+}
+
 function anonymousLayoutCandidates(
   node: TemplateNode,
-  collapseAnonymous: boolean,
-  lineWidth: number,
+  { collapseAnonymous, lineWidth, layout, nesting }: AnonymousLayoutOptions,
 ): { candidates: string[]; reason?: string } {
   const invocation = stableTemplateInvocation(node);
   if ("reason" in invocation) {
@@ -514,7 +688,13 @@ function anonymousLayoutCandidates(
   if (inlineEligible) {
     candidates.push(compact);
   }
-  const normalized = normalizeNamedArgumentsInPlace(raw, start, args);
+  const normalized = normalizeNamedArgumentsInPlace(
+    raw,
+    start,
+    args,
+    layout,
+    templateBaseIndent(raw, start, args, nesting),
+  );
   if (normalized.reason) {
     return { candidates: [], reason: normalized.reason };
   }
@@ -603,6 +783,7 @@ function renderTemplateWithOpaqueTables(
   raw: string,
   options: TemplateFormatOptions,
   session: ParserSession,
+  nesting: TemplateNesting,
 ): { value?: string; reason?: string; multiline?: boolean } {
   const protectedTables = protectEmbeddedParserTables(raw, session);
   if (protectedTables.reason) return { reason: protectedTables.reason };
@@ -619,7 +800,11 @@ function renderTemplateWithOpaqueTables(
     protectedNode,
     options,
     session,
-    { collapseAnonymous: false, originallyMultiline: raw.includes("\n") },
+    {
+      collapseAnonymous: false,
+      originallyMultiline: raw.includes("\n"),
+      nesting,
+    },
   );
   if (rendered.reason || rendered.value === undefined) return rendered;
   const value = protectedTables.restore(rendered.value);
@@ -639,17 +824,12 @@ function renderTemplateWithOpaqueTables(
 
 function selectAnonymousLayoutCandidate(
   node: TemplateNode,
-  collapseAnonymous: boolean,
+  layoutOptions: AnonymousLayoutOptions,
   requireIdempotency: boolean,
-  lineWidth: number,
   session: ParserSession,
 ): { value?: string; reason?: string; multiline?: boolean } {
   const raw = node.toString();
-  const generated = anonymousLayoutCandidates(
-    node,
-    collapseAnonymous,
-    lineWidth,
-  );
+  const generated = anonymousLayoutCandidates(node, layoutOptions);
   if (generated.reason) return { reason: generated.reason };
 
   let originalFingerprint: string;
@@ -673,8 +853,7 @@ function selectAnonymousLayoutCandidate(
         if (!reparsed) continue;
         const regenerated = anonymousLayoutCandidates(
           reparsed,
-          collapseAnonymous,
-          lineWidth,
+          layoutOptions,
         );
         if (
           regenerated.reason ||
@@ -699,10 +878,12 @@ function renderTemplate(
     collapseAnonymous = true,
     originallyMultiline = false,
     allowWidthExpansion = true,
+    nesting = TOP_LEVEL_NESTING,
   }: {
     collapseAnonymous?: boolean;
     originallyMultiline?: boolean;
     allowWidthExpansion?: boolean;
+    nesting?: TemplateNesting;
   } = {},
 ): { value?: string; reason?: string; multiline?: boolean } {
   const raw = node.toString();
@@ -728,6 +909,7 @@ function renderTemplate(
       normalizedRaw,
       options,
       session,
+      nesting,
     );
   }
 
@@ -745,9 +927,13 @@ function renderTemplate(
   if (args.some((arg) => arg.anon)) {
     return selectAnonymousLayoutCandidate(
       node,
-      collapseAnonymous,
+      {
+        collapseAnonymous,
+        lineWidth: options.lineWidth,
+        layout: options.parameterLayout,
+        nesting,
+      },
       true,
-      options.lineWidth,
       session,
     );
   }
@@ -765,8 +951,14 @@ function renderTemplate(
     if (inline.value !== undefined || !allowWidthExpansion) return inline;
   }
 
+  const alignment = multilineKeyAlignment(raw, start, args);
+  const indent = templateBaseIndent(raw, start, args, nesting);
   const renderedArgs = args.map((arg) =>
-    renderMultilineNamedArgument(arg, options.parameterLayout),
+    renderMultilineNamedArgument(arg, {
+      layout: options.parameterLayout,
+      alignment,
+      indent,
+    }),
   );
   if (renderedArgs.some((arg) => arg === undefined)) {
     return { reason: "parser exposed an empty named-parameter key" };
@@ -777,6 +969,7 @@ function renderTemplate(
       head,
       renderedArgs.filter((arg): arg is string => arg !== undefined),
       options.parameterLayout,
+      indent,
     ),
     multiline: true,
   };
@@ -786,6 +979,17 @@ function closestTemplateAncestor(node: TemplateNode): TemplateNode | undefined {
   return node.parentNode?.closest("template, magic-word") as
     | TemplateNode
     | undefined;
+}
+
+/** Ordinary templates enclosing a node; parser functions add no indentation. */
+function templateNesting(node: TemplateNode): TemplateNesting {
+  let depth = 0;
+  let ancestor = closestTemplateAncestor(node);
+  const honorSourceIndent = ancestor !== undefined;
+  for (; ancestor; ancestor = closestTemplateAncestor(ancestor)) {
+    if (ancestor.type === "template") depth++;
+  }
+  return { depth, honorSourceIndent };
 }
 
 function hasTableSyntaxMagicWord(node: TemplateNode): boolean {
@@ -912,6 +1116,7 @@ export function formatTemplatesWithDiagnostics(
       }
       const rendered = renderTemplate(node, options, context.session, {
         allowWidthExpansion: isWholeLineRange(output, start, end),
+        nesting: templateNesting(node),
       });
       if (rendered.reason) {
         const reasonIdentity = `${semanticId}\u0000${rendered.reason}`;

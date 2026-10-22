@@ -107,7 +107,7 @@ describe("formatter API", () => {
 
     const input = '<ref name="x"/>\nParagraph\n==Title==\nNext\n';
     expect(formatWikitext(input, { profile: "production" })).toBe(
-      '<ref name="x" />\nParagraph\n\n== Title ==\n\nNext\n',
+      '<ref name="x" />\nParagraph\n\n== Title ==\nNext\n',
     );
     const interlanguage = "[[en:Example]]\nBody\n";
     expect(formatWikitext(interlanguage, { profile: "production" })).toBe(

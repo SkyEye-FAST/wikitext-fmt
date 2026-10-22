@@ -24,7 +24,7 @@ describe("section spacing", () => {
   it("runs at normal level but not safe level", () => {
     const input = "Intro\n==Title==\nText\n";
     expect(formatWikitext(input, options)).toBe(
-      "Intro\n\n== Title ==\n\nText\n",
+      "Intro\n\n== Title ==\nText\n",
     );
     expect(
       formatWikitext(input, {
@@ -36,7 +36,7 @@ describe("section spacing", () => {
 
   it("is enabled by the production profile", () => {
     const input = "Intro\n==Title==\nText\n";
-    const expected = "Intro\n\n== Title ==\n\nText\n";
+    const expected = "Intro\n\n== Title ==\nText\n";
     expect(formatWikitext(input, { profile: "production" })).toBe(expected);
   });
 
@@ -48,7 +48,7 @@ describe("section spacing", () => {
       session.createContext("Plain text\n"),
     ]) {
       expect(formatSectionSpacing(source, context).formatted).toBe(
-        "Intro\n\n== A ==\n\nText\n",
+        "Intro\n\n== A ==\nText\n",
       );
     }
 
@@ -87,7 +87,7 @@ describe("section spacing", () => {
 
   it("spaces an unpadded one-character level-1 heading", () => {
     const source = "Intro\n=A=\nText\n";
-    const expected = "Intro\n\n=A=\n\nText\n";
+    const expected = "Intro\n\n=A=\nText\n";
     expect(formatSectionSpacing(source).formatted).toBe(expected);
     const result = formatWikitextSafe(source, {
       ...options,
@@ -99,7 +99,7 @@ describe("section spacing", () => {
 
   it("spaces level-1 headings and reports the inserted blank lines", () => {
     const source = "Intro\n= Section =\nText\n";
-    const expected = "Intro\n\n= Section =\n\nText\n";
+    const expected = "Intro\n\n= Section =\nText\n";
     expect(
       formatSectionSpacing(source, session.createContext(source)).formatted,
     ).toBe(expected);
@@ -108,7 +108,7 @@ describe("section spacing", () => {
     expect(result.formatted).toBe(expected);
     expect(result.sectionSpacingDiagnostics).toEqual({
       sectionSpacingBeforeHeadingsInserted: 1,
-      sectionSpacingAfterHeadingsInserted: 1,
+      sectionSpacingAfterHeadingsInserted: 0,
     });
     const safe = formatWikitextSafe(expected, { profile: "production" });
     expect(safe.failure).toBeUndefined();
@@ -130,7 +130,7 @@ describe("section spacing", () => {
       profile: "production",
     });
     expect(result.failure).toBeUndefined();
-    expect(result.formatted).toBe("= Title =\r\n== Child ==\r\n\r\nText\r\n");
+    expect(result.formatted).toBe("= Title =\r\n== Child ==\r\nText\r\n");
   });
 
   it("does not treat a heading-like template parameter value as a section", () => {
@@ -167,8 +167,15 @@ describe("section spacing", () => {
     expect(formatSectionSpacing(`${block}\n== A ==\n`).formatted).toBe(
       `${block}\n\n== A ==\n`,
     );
+    // After headings, spacing follows the page: here the other heading is
+    // already followed by a blank line.
+    expect(
+      formatSectionSpacing(
+        `== A ==\n${block}\n\n== B ==\n\nText\n\n== C ==\n\nText\n`,
+      ).formatted,
+    ).toBe(`== A ==\n\n${block}\n\n== B ==\n\nText\n\n== C ==\n\nText\n`);
     expect(formatSectionSpacing(`== A ==\n${block}\n`).formatted).toBe(
-      `== A ==\n\n${block}\n`,
+      `== A ==\n${block}\n`,
     );
   });
 
@@ -188,14 +195,12 @@ describe("section spacing", () => {
     expect(formatWikitext(input, { profile: "production" })).toBe(
       [
         "== First ==",
-        "",
         '{| class="wikitable"',
         "|-",
         "| Cell",
         "|}",
         "",
         "== Second ==",
-        "",
         "<nowiki>",
         "raw",
         "</nowiki>",
@@ -205,8 +210,11 @@ describe("section spacing", () => {
   });
 
   it("keeps consecutive same-level and mixed-level headings together", () => {
-    expect(formatSectionSpacing("== A ==\n== B ==\nText\n").formatted).toBe(
+    expect(formatSectionSpacing("== A ==\n== B ==\n\nText\n").formatted).toBe(
       "== A ==\n== B ==\n\nText\n",
+    );
+    expect(formatSectionSpacing("Text\n== A ==\n== B ==\nText\n").formatted).toBe(
+      "Text\n\n== A ==\n== B ==\nText\n",
     );
     expect(formatSectionSpacing("Text\n== A ==\n=== B ===\n").formatted).toBe(
       "Text\n\n== A ==\n=== B ===\n",
@@ -215,7 +223,7 @@ describe("section spacing", () => {
 
   it("does not add spacing outside headings at file boundaries", () => {
     expect(formatSectionSpacing("== A ==\nText").formatted).toBe(
-      "== A ==\n\nText",
+      "== A ==\nText",
     );
     expect(formatSectionSpacing("Text\n== A ==").formatted).toBe(
       "Text\n\n== A ==",
@@ -237,25 +245,50 @@ describe("section spacing", () => {
   });
 
   it("preserves LF and formatter-wide CRLF behavior", () => {
-    expect(formatWikitext("==Title==\n* Item\n", options)).toBe(
-      "== Title ==\n\n* Item\n",
+    expect(formatWikitext("Intro\n==Title==\n* Item\n", options)).toBe(
+      "Intro\n\n== Title ==\n* Item\n",
     );
     expect(
-      formatWikitextSafe("==Title==\r\n* Item\r\n", {
+      formatWikitextSafe("Intro\r\n==Title==\r\n* Item\r\n", {
         profile: "production",
       }).formatted,
-    ).toBe("== Title ==\r\n\r\n* Item\r\n");
+    ).toBe("Intro\r\n\r\n== Title ==\r\n* Item\r\n");
   });
 
   it("reports inserted spacing diagnostics", () => {
     const result = formatWikitextDetailedResult(
-      "{{Infobox}}\n==Title==\n* Item\n",
+      "{{Infobox}}\n==Title==\n* Item\n==Next==\n\nText\n== Last ==\n\nMore\n",
       options,
     );
+    expect(result.formatted).toBe(
+      "{{Infobox}}\n\n== Title ==\n\n* Item\n\n== Next ==\n\nText\n\n== Last ==\n\nMore\n",
+    );
     expect(result.sectionSpacingDiagnostics).toEqual({
-      sectionSpacingBeforeHeadingsInserted: 1,
+      sectionSpacingBeforeHeadingsInserted: 3,
       sectionSpacingAfterHeadingsInserted: 1,
     });
+  });
+
+  it.each([
+    [
+      "mostly no blank line after headings",
+      "== A ==\nText\n== B ==\nText\n== C ==\n\nText\n",
+      "== A ==\nText\n\n== B ==\nText\n\n== C ==\n\nText\n",
+    ],
+    [
+      "a tie between both habits",
+      "== A ==\nText\n== B ==\n\nText\n",
+      "== A ==\nText\n\n== B ==\n\nText\n",
+    ],
+    [
+      "mostly a blank line after headings",
+      "== A ==\nText\n== B ==\n\nText\n== C ==\n\nText\n",
+      "== A ==\n\nText\n\n== B ==\n\nText\n\n== C ==\n\nText\n",
+    ],
+  ])("follows the page habit after headings with %s", (_name, input, expected) => {
+    const once = formatSectionSpacing(input).formatted;
+    expect(once).toBe(expected);
+    expect(formatSectionSpacing(once).formatted).toBe(once);
   });
 
   it("is idempotent without safe-mode fallback", () => {

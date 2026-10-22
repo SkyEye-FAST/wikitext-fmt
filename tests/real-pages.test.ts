@@ -100,6 +100,8 @@ describe("real page regressions", () => {
     );
     expect(defaultSummary.fileLinksFormatted).toBeGreaterThan(0);
     expect(defaultSummary.categoriesMoved).toBeGreaterThan(0);
+    expect(defaultSummary.templatesChanged).toBeGreaterThan(0);
+    expect(defaultSummary.uniqueTemplatesFormatted).toBeGreaterThan(0);
 
     const structureSummary = createDiagnosticsSummary(
       formatWikitextSafeDetailed(feature, {
@@ -111,15 +113,9 @@ describe("real page regressions", () => {
     expect(
       structureSummary.sectionSpacingBeforeHeadingsInserted,
     ).toBeGreaterThan(0);
-    expect(
-      structureSummary.sectionSpacingAfterHeadingsInserted,
-    ).toBeGreaterThan(0);
-
-    const templateSummary = createDiagnosticsSummary(
-      formatWikitextSafeDetailed(feature),
-    );
-    expect(templateSummary.templatesChanged).toBeGreaterThan(0);
-    expect(templateSummary.uniqueTemplatesFormatted).toBeGreaterThan(0);
+    // Most of this page's headings run straight into their content, so the
+    // page habit adds no blank lines after headings.
+    expect(structureSummary.sectionSpacingAfterHeadingsInserted).toBe(0);
 
     const redirectSummary = createDiagnosticsSummary(
       formatWikitextSafeDetailed(redirect),
@@ -153,7 +149,6 @@ describe("real page regressions", () => {
       "<nowiki>[[de:Extension body link]]</nowiki>",
       "",
       "== Details ==",
-      "",
       "The page deliberately mixes footer metadata with article content.",
       "",
       "__NOEDITSECTION__",

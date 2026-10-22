@@ -62,9 +62,9 @@
   "configuration.tableCellSeparatorStyle.enumDescriptions.preserve": "Keep original separator layout.",
   "configuration.tableCellSeparatorStyle.enumDescriptions.split": "Place each cell on its own line.",
   "configuration.templateParameterLayout.description": "Parameter layout for multiline templates.",
-  "configuration.templateParameterLayout.enumDescriptions.compact": "Parameters on few lines when they fit.",
-  "configuration.templateParameterLayout.enumDescriptions.flush": "One parameter per line, no extra indentation.",
-  "configuration.templateParameterLayout.enumDescriptions.indented": "One parameter per line with indentation.",
+  "configuration.templateParameterLayout.enumDescriptions.compact": "One parameter per line, compact spacing (`|key=value`).",
+  "configuration.templateParameterLayout.enumDescriptions.flush": "One parameter per line, no extra indentation (`| key = value`).",
+  "configuration.templateParameterLayout.enumDescriptions.indented": "One parameter per line with indentation (` | key = value`).",
   "configuration.title": "Wikitext Formatter",
   "description": "Parser-assisted, semantics-preserving MediaWiki wikitext formatter for VS Code",
   "displayName": "Wikitext Formatter"

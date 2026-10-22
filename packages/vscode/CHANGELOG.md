@@ -7,6 +7,17 @@ Core-only changes remain in the root changelog.
 
 ### Changed
 
+- The bundled formatter lays out multiline templates like a careful editor:
+  one named parameter per line without trailing spaces, multiline values kept
+  as blocks, nested templates indented two spaces per level, deliberate `=`
+  alignment and existing template-code indentation preserved, and mixed
+  positional/named templates no longer joined onto one line. Large pages
+  format substantially faster.
+- With `formatSectionSpacing` (enabled by the `production` profile), a blank
+  line after a heading is added only when most headings on the page already
+  have one; blank lines before headings are still added.
+- The `templateParameterLayout` setting descriptions now show each layout's
+  syntax in every supported locale.
 - Table cell layout now defaults to `preserve`, matching the core default and
   production profiles. Inline rows retain their layout while gaining missing
   spaces; explicit `auto` and `split` settings still expand rows.

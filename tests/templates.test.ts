@@ -60,23 +60,56 @@ describe("simple template formatting parser context", () => {
 });
 
 describe("nested multiline template formatting", () => {
-  it("removes indentation left after a collapsed parameter line break", () => {
+  it("keeps a nested block template on its own indented line", () => {
     const source = `{{navbox
+| list1 =
+      {{navbox subgroup
+|group1=Alpha
+}}
+}}`;
+
+    expect(expectStableTemplateFormatting(source, "{{navbox")).toBe(
+      `{{navbox
 | list1 =
   {{navbox subgroup
   | group1 = Alpha
   }}
+}}`,
+    );
+  });
+
+  it("indents a nested template that starts on its parameter line", () => {
+    const source = `{{navbox
+| list1 = {{navbox subgroup
+| group1 = Alpha
+}}
+| below = text
 }}`;
 
-    const formatted = expectStableTemplateFormatting(
-      source,
-      "| list1 = {{navbox subgroup\n",
+    expect(expectStableTemplateFormatting(source, "{{navbox")).toBe(
+      `{{navbox
+| list1 = {{navbox subgroup
+  | group1 = Alpha
+  }}
+| below = text
+}}`,
     );
-    expect(formatted).not.toMatch(/\| list1 = {2,}\{\{navbox subgroup/u);
   });
 
   it("converges through multiple nested navbox levels in one call", () => {
     const source = `{{navbox
+| list1 =
+{{navbox subgroup
+| list1 =
+
+{{navbox subgroup
+| group1 = Alpha
+}}
+}}
+}}`;
+
+    expect(expectStableTemplateFormatting(source, "{{navbox")).toBe(
+      `{{navbox
 | list1 =
   {{navbox subgroup
   | list1 =
@@ -84,16 +117,79 @@ describe("nested multiline template formatting", () => {
     | group1 = Alpha
     }}
   }}
+}}`,
+    );
+  });
+
+  it("pulls a single-line value up to its parameter", () => {
+    expect(
+      expectStableTemplateFormatting(
+        "{{navbox\n| list1 =\n\n[[A]]{{·}}[[B]]\n}}",
+        "{{navbox",
+      ),
+    ).toBe("{{navbox\n| list1 = [[A]]{{·}}[[B]]\n}}");
+  });
+
+  it("keeps a consistent deeper indentation of template code", () => {
+    const source = `{{#if: x
+  | {{#ifeq: y | z
+    | {{{all|}}}{{handler/numbered
+      |1={{{1|}}}
+      | data =
+        <!--Return the data.  -->
+        {{namespace detect
+        |main={{{main|}}}
+        }}
+      }}
+    }}
 }}`;
 
-    const formatted = expectStableTemplateFormatting(
-      source,
-      "| list1 = {{navbox subgroup\n",
+    expect(expectStableTemplateFormatting(source, "{{handler/numbered")).toBe(
+      `{{#if: x
+  | {{#ifeq: y | z
+    | {{{all|}}}{{handler/numbered
+      | 1 = {{{1|}}}
+      | data =
+        <!--Return the data.  -->
+        {{namespace detect
+        | main = {{{main|}}}
+        }}
+      }}
+    }}
+}}`,
     );
-    expect(
-      formatted.match(/\| list1 = \{\{navbox subgroup/gmu),
-    ).toHaveLength(2);
-    expect(formatted).not.toMatch(/\| list1 = {2,}\{\{navbox subgroup/u);
+  });
+
+  it("does not keep inconsistent template code indentation", () => {
+    const source = `{{#if: x |
+{{Infobox
+|a=1
+    }}
+}}`;
+
+    expect(expectStableTemplateFormatting(source, "{{Infobox")).toBe(
+      `{{#if: x |
+{{Infobox
+| a = 1
+}}
+}}`,
+    );
+  });
+
+  it("does not indent templates nested only in parser functions", () => {
+    const source = `{{#if: x |
+{{Infobox
+|a=1
+}}
+}}`;
+
+    expect(expectStableTemplateFormatting(source, "{{Infobox")).toBe(
+      `{{#if: x |
+{{Infobox
+| a = 1
+}}
+}}`,
+    );
   });
 
   it.each([
@@ -131,17 +227,17 @@ describe("historical nested template regressions", () => {
     {
       revid: 18228,
       fixture: "revid-18228-partner-nav.wiki",
-      stableLength: 2297,
+      stableLength: 2391,
     },
     {
       revid: 18232,
       fixture: "revid-18232-story-nav-mobile.wiki",
-      stableLength: 2897,
+      stableLength: 3069,
     },
     {
       revid: 17041,
       fixture: "revid-17041-pack-nav.wiki",
-      stableLength: 3751,
+      stableLength: 3954,
     },
   ])(
     "formats revid=$revid to a structurally equivalent fixed point",
@@ -151,11 +247,12 @@ describe("historical nested template regressions", () => {
       const source = (await readRealPage(fixture)).replace(/\n$/u, "");
       const formatted = expectStableTemplateFormatting(
         source,
-        "| list1 = {{navbox subgroup\n",
+        "{{navbox subgroup\n",
       );
 
       expect(formatted).toHaveLength(stableLength);
-      expect(formatted).not.toMatch(/\| list1 = {2,}\{\{navbox subgroup/u);
+      expect(formatted).toMatch(/^ *\| list1 +=\n +\{\{navbox subgroup$/mu);
+      expect(formatted).not.toMatch(/=[ \t]+\n/u);
     },
     HISTORICAL_FIXTURE_TIMEOUT_MS,
   );
