@@ -2,9 +2,9 @@
 
 This guide covers the independently versioned `wikitext-fmt` npm package and
 `wikitext-formatter` VS Code extension. Core publication is automated after a
-reviewed component tag is pushed. A reviewed extension tag produces a verified
-VSIX and GitHub Release, while Marketplace upload remains a separate manual
-process. Ordinary development does not publish or tag anything.
+reviewed component tag is pushed. A reviewed extension tag publishes a verified
+VSIX to the Marketplace using federated Microsoft Entra ID credentials and then
+creates a GitHub Release. Ordinary development does not publish or tag anything.
 
 Run from a clean worktree unless a step explicitly inspects release edits.
 
@@ -217,7 +217,7 @@ manual verification dispatch. Manual dispatch validates release metadata,
 builds the VSIX, runs the version matrix, and uploads the workflow artifact,
 but it never creates a GitHub Release or publishes to the Marketplace.
 
-The workflow uses three least-privilege jobs:
+The workflow uses four least-privilege jobs:
 
 - `verify`: `contents: read`; checks the exact component tag, default-branch
   ancestry, finalized extension changelog and metadata, type checking, unit
@@ -225,9 +225,15 @@ The workflow uses three least-privilege jobs:
 - `vscode-tests`: `contents: read`; installs dependencies at the exact release
   commit, downloads that same VSIX, and tests both the development extension
   and independently installed VSIX with VS Code 1.100.0 and current stable;
+- `publish-marketplace`: `contents: read` and `id-token: write`; runs only for
+  a matching tag push after both editor versions pass. It uses the `marketplace`
+  environment, rechecks the remote tag, metadata, and checksum, signs in to
+  Microsoft Entra ID with GitHub OIDC, and publishes the downloaded VSIX using
+  `vsce publish --azure-credential --packagePath`. It never rebuilds the VSIX;
 - `github-release`: `contents: write`; runs only for a real matching tag push,
-  verifies or completes matching release metadata and assets, and attaches the
-  exact verified VSIX and checksum without rebuilding.
+  after Marketplace publication succeeds. It verifies or completes matching
+  release metadata and assets, and attaches the exact verified VSIX and checksum
+  without rebuilding. It has no OIDC permission.
 
 The development and VSIX runners select the editor with
 `VSCODE_TEST_VERSION`. Within one matrix job they share the package's
@@ -241,10 +247,71 @@ can be completed; a conflicting published release, checksum, VSIX, or
 unexpected release asset fails for maintainer review. The workflow never moves
 or overwrites the tag.
 
-Marketplace publishing is intentionally absent. Do not configure `VSCE_PAT`,
-an Azure DevOps PAT, or another long-lived Marketplace credential. Keep upload
-manual until an Entra ID or workload-identity design has been reviewed and
-implemented.
+### One-time Marketplace identity configuration
+
+Follow Microsoft's
+[identity-based publishing guide](https://code.visualstudio.com/api/working-with-extensions/publishing-extension#secure-automated-publishing-to-visual-studio-marketplace)
+to create a user-assigned managed identity in your Microsoft Entra tenant. This
+setup needs access to the Azure tenant and Marketplace publisher; the repository
+cannot grant those permissions.
+
+Configure a federated credential on that identity for GitHub Actions:
+
+```text
+Issuer: https://token.actions.githubusercontent.com
+Subject: repo:SkyEye-FAST/wikitext-fmt:environment:marketplace
+Audience: api://AzureADTokenExchange
+```
+
+The subject is case-sensitive. Follow
+[Azure Login's OIDC setup](https://github.com/Azure/login#login-with-openid-connect-oidc-recommended)
+and select the GitHub environment credential type, not a branch credential.
+Confirm the repository's actual OIDC subject format before saving the credential:
+this repository uses the standard subject above. If the Azure form generates an
+immutable subject containing organization/repository IDs, use its subject edit
+control to enter the exact subject above instead.
+
+Create a GitHub Environment named exactly `marketplace` and restrict its
+deployment tags to `vscode-v*`. Add these environment **variables**, not secrets:
+
+| Variable | Value |
+| --- | --- |
+| `AZURE_CLIENT_ID` | The managed identity's client ID |
+| `AZURE_TENANT_ID` | The identity's Microsoft Entra tenant ID |
+
+After an OIDC login as the managed identity, retrieve its Marketplace profile ID
+in a one-time setup job without uploading an extension:
+
+```sh
+az rest \
+  --url https://app.vssps.visualstudio.com/_apis/profile/profiles/me \
+  --resource 499b84ac-1321-427f-aa17-267ca6975798 \
+  --query id --output tsv
+```
+
+In Marketplace publisher management, add that returned ID under **Members** with
+the **Contributor** role. Use the Marketplace profile ID, not the Azure resource
+path, client ID, or Entra object ID. Verify publication rights after the member
+is saved, still using the managed identity's OIDC login:
+
+```sh
+pnpm --filter wikitext-formatter exec vsce verify-pat skyeyefast --azure-credential
+```
+
+Despite the command name, `--azure-credential` verifies the Entra identity without
+a PAT or uploading a VSIX. Remove any temporary setup workflow/branch and restore
+the environment's tag-only deployment policy after verification.
+
+The workflow uses `allow-no-subscriptions: true`: publishing does not require
+access to subscription resources. Do not grant the publishing identity an Azure
+subscription role just for Marketplace uploads. GitHub reviewers can optionally
+be required on this environment if releases should pause for approval after
+verification.
+
+No `VSCE_PAT`, Azure DevOps PAT, client secret, or stored access token is needed.
+Missing identity variables fail with a configuration error before login. A
+failed OIDC exchange or publisher authorization stops publication; there is no
+PAT fallback.
 
 ## 10. One-time npm and GitHub configuration
 
@@ -386,9 +453,9 @@ The intended extension process is:
 3. Merge the reviewed release-preparation commit to `master`.
 4. Create a signed or annotated `vscode-v<version>` tag at that exact commit.
 5. Push only that component tag.
-6. Let GitHub Actions verify the exact VSIX and checksum and create or complete
-   the GitHub Release.
-7. Manually upload that exact VSIX to the Visual Studio Code Marketplace.
+6. Let GitHub Actions verify the exact VSIX and checksum, publish that VSIX to
+   the Visual Studio Code Marketplace, and create or complete the GitHub Release.
+7. Confirm the `publish-marketplace` and `github-release` jobs both succeeded.
 8. Install from the Marketplace in a clean profile and verify activation,
    formatting, and bundled parser assets without workspace dependencies.
 9. Confirm the Marketplace version, component tag, GitHub Release, VSIX
@@ -423,11 +490,20 @@ extension version and do not preserve this repository's independently
 versioned components and component-specific tags.
 
 Download the VSIX and `SHA256SUMS` from the successful GitHub Release (or retain
-the byte-identical verified workflow artifact), verify the checksum, and upload
-the VSIX through the Marketplace publisher portal. Do not rebuild it locally.
-After upload, install `skyeyefast.wikitext-formatter` from the Marketplace in a
-clean profile and confirm Format Document changes a representative `.wiki`
-file.
+the byte-identical verified workflow artifact) and verify the checksum. Do not
+rebuild or manually upload a second artifact. Install
+`skyeyefast.wikitext-formatter` from the Marketplace in a clean profile and
+confirm Format Document changes a representative `.wiki` file.
+
+If authentication fails before upload, fix the environment variables, federated
+credential, or publisher membership and rerun the failed jobs. Publication does
+not use `--skip-duplicate`: an existing Marketplace version is an error rather
+than evidence that its VSIX matches. If upload succeeded but a later step
+failed, verify the Marketplace version and original workflow artifact before
+recovering. When only `github-release` failed, rerun that job alone. Never move
+the tag or overwrite a Marketplace version. An extension SemVer prerelease such
+as `0.6.0-beta.1` is rejected by the Marketplace; this pipeline publishes stable
+numeric versions and does not translate prerelease versions into another form.
 
 ## 15. Post-release verification
 

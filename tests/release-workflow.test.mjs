@@ -18,17 +18,36 @@ describe("VS Code release workflow", () => {
   it("uses component tags and keeps manual dispatch verification-only", () => {
     expect(vscodeReleaseWorkflow).toContain('- "vscode-v*"');
     expect(vscodeReleaseWorkflow).toContain("workflow_dispatch:");
+    expect(vscodeReleaseWorkflow).toContain(
+      "REQUESTED_TAG: ${{ github.event_name == 'push' && github.ref_name || inputs.tag }}",
+    );
     expect(vscodeReleaseWorkflow).not.toContain("pull_request:");
     expect(vscodeReleaseWorkflow).toContain("--component vscode");
+    expect(vscodeReleaseWorkflow).toMatch(
+      /publish-marketplace:\n    if: github\.event_name == 'push' && github\.ref_type == 'tag' && startsWith\(github\.ref, 'refs\/tags\/vscode-v'\)/u,
+    );
     expect(vscodeReleaseWorkflow).toMatch(
       /github-release:\n    if: github\.event_name == 'push' && github\.ref_type == 'tag' && startsWith\(github\.ref, 'refs\/tags\/vscode-v'\)/u,
     );
   });
 
-  it("never publishes to the Marketplace", () => {
-    expect(vscodeReleaseWorkflow).not.toMatch(/\bvsce publish\b/u);
+  it("publishes with federated Entra credentials and no long-lived secrets", () => {
+    const publishJob = vscodeReleaseWorkflow.slice(
+      vscodeReleaseWorkflow.indexOf("\n  publish-marketplace:"),
+      vscodeReleaseWorkflow.indexOf("\n  github-release:"),
+    );
+    expect(publishJob).toContain("environment: marketplace");
+    expect(publishJob).toContain("uses: azure/login@v3");
+    expect(publishJob).toContain("client-id: ${{ vars.AZURE_CLIENT_ID }}");
+    expect(publishJob).toContain("tenant-id: ${{ vars.AZURE_TENANT_ID }}");
+    expect(publishJob).toContain("allow-no-subscriptions: true");
+    expect(publishJob).toContain(
+      '[[ -z "$AZURE_CLIENT_ID" || -z "$AZURE_TENANT_ID" ]]',
+    );
+    expect(publishJob).toContain("--azure-credential");
+    expect(publishJob).toContain("vsce publish");
+    expect(publishJob).not.toContain("secrets.");
     expect(vscodeReleaseWorkflow).not.toContain("VSCE_PAT");
-    expect(vscodeReleaseWorkflow).not.toMatch(/\bazure\b/iu);
   });
 
   it("tests the minimum and stable VS Code versions", () => {
@@ -43,7 +62,7 @@ describe("VS Code release workflow", () => {
     );
   });
 
-  it("passes one verified VSIX to tests and the GitHub Release job", () => {
+  it("publishes the same verified VSIX after both editor versions pass", () => {
     expect(vscodeReleaseWorkflow.match(/vsce package/gu)).toHaveLength(1);
     expect(vscodeReleaseWorkflow).toContain(
       "name: ${{ needs.verify.outputs.artifact_name }}",
@@ -54,6 +73,22 @@ describe("VS Code release workflow", () => {
     expect(githubReleaseJob).toContain("actions/download-artifact@v8");
     expect(githubReleaseJob).not.toContain("vsce package");
     expect(githubReleaseJob).not.toContain("--clobber");
+    expect(githubReleaseJob).toContain("      - publish-marketplace");
+    const publishJob = vscodeReleaseWorkflow.slice(
+      vscodeReleaseWorkflow.indexOf("\n  publish-marketplace:"),
+      vscodeReleaseWorkflow.indexOf("\n  github-release:"),
+    );
+    expect(publishJob).toContain("      - verify\n      - vscode-tests");
+    expect(publishJob).toContain("actions/download-artifact@v8");
+    expect(publishJob).toContain("sha256sum --check SHA256SUMS");
+    expect(publishJob).toContain('test "$remote_commit" = "$GITHUB_SHA"');
+    expect(publishJob).toContain('"$ARTIFACT_DIRECTORY/release-metadata.json"');
+    expect(publishJob).toContain(
+      '--packagePath "$ARTIFACT_DIRECTORY/$VSIX_FILENAME"',
+    );
+    expect(publishJob).not.toContain("vsce package");
+    expect(publishJob).not.toContain("pnpm build");
+    expect(publishJob).not.toContain("--skip-duplicate");
   });
 
   it("builds workspace core declarations before extension typechecking", () => {
@@ -68,17 +103,29 @@ describe("VS Code release workflow", () => {
     );
   });
 
-  it("separates read-only verification from GitHub Release writes", () => {
+  it("isolates OIDC publication, read-only checks, and GitHub Release writes", () => {
     expect(vscodeReleaseWorkflow).toMatch(
       /verify:[\s\S]*?permissions:\n      contents: read[\s\S]*?\n  vscode-tests:/u,
     );
     expect(vscodeReleaseWorkflow).toMatch(
-      /vscode-tests:[\s\S]*?permissions:\n      contents: read[\s\S]*?\n  github-release:/u,
+      /vscode-tests:[\s\S]*?permissions:\n      contents: read[\s\S]*?\n  publish-marketplace:/u,
+    );
+    expect(vscodeReleaseWorkflow).toMatch(
+      /publish-marketplace:[\s\S]*?permissions:\n      contents: read\n      id-token: write[\s\S]*?\n  github-release:/u,
     );
     expect(vscodeReleaseWorkflow).toMatch(
       /github-release:[\s\S]*?permissions:\n      contents: write/u,
     );
-    expect(vscodeReleaseWorkflow).not.toContain("id-token: write");
+    const verificationJobs = vscodeReleaseWorkflow.slice(
+      0,
+      vscodeReleaseWorkflow.indexOf("\n  publish-marketplace:"),
+    );
+    const githubReleaseJob = vscodeReleaseWorkflow.slice(
+      vscodeReleaseWorkflow.indexOf("\n  github-release:"),
+    );
+    expect(verificationJobs).not.toContain("id-token: write");
+    expect(githubReleaseJob).not.toContain("id-token: write");
+    expect(vscodeReleaseWorkflow.match(/id-token: write/gu)).toHaveLength(1);
   });
 });
 

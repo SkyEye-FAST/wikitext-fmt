@@ -13,6 +13,8 @@ Core-only changes remain in the root changelog.
 
 ### Added
 
+- Automated Marketplace publication of the verified VSIX on `vscode-v*` tags
+  using federated Microsoft Entra ID credentials, without a stored PAT.
 - The existing reference setting now formats parser-confirmed inline
   self-closing references, including multiple references on one line, through
   the bundled core. Setting descriptions now reflect the expanded scope.

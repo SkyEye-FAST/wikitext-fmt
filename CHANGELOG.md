@@ -8,6 +8,8 @@ here. The project follows the pre-1.0 policy in
 
 ### Added
 
+- VS Code component tags now publish the tested VSIX to the Marketplace through
+  GitHub OIDC and Microsoft Entra ID before completing the GitHub Release.
 - Reference formatting now supports parser-confirmed inline self-closing tags,
   including multiple references in prose, list items, and HTML body text.
   It preserves surrounding text and whitespace, retains nested/opaque syntax

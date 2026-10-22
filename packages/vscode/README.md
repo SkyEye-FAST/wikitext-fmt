@@ -341,3 +341,11 @@ pnpm --filter wikitext-formatter vscode:package
 The build bundles the wrapper/core into `dist/extension.js` and copies parser
 config assets. `vsce package --no-dependencies` creates a local VSIX; it does
 not publish it.
+
+Pushing a reviewed `vscode-v<version>` tag runs the release workflow: it tests
+the same VSIX with the minimum and stable VS Code versions, publishes it to the
+Marketplace through federated Microsoft Entra ID credentials, and then attaches
+it to a GitHub Release. Manual workflow dispatch only verifies the release.
+Maintainers must first configure the `marketplace` environment and publisher
+identity as described in the
+[release guide](https://github.com/SkyEye-FAST/wikitext-fmt/blob/master/docs/releasing.md#one-time-marketplace-identity-configuration).
