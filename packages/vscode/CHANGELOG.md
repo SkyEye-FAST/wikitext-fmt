@@ -5,6 +5,8 @@ Core-only changes remain in the root changelog.
 
 ## Unreleased
 
+## 0.6.0 - 2026-10-22
+
 ### Changed
 
 - The bundled formatter lays out multiline templates like a careful editor:
@@ -29,6 +31,12 @@ Core-only changes remain in the root changelog.
 - The existing reference setting now formats parser-confirmed inline
   self-closing references, including multiple references on one line, through
   the bundled core. Setting descriptions now reflect the expanded scope.
+
+### Fixed
+
+- Formatting deeply nested templates no longer stalls the editor after repeated
+  runs; markup nested more than 500 levels deep is left unchanged with an
+  `input-parse` failure.
 
 ## 0.5.1 - 2026-08-24
 

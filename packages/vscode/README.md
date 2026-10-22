@@ -305,8 +305,9 @@ The VSIX bundles `wikitext-fmt`, JavaScript runtime dependencies, and required
 `wikiparser-node` config assets under `dist/node_modules/`. Installation does
 not need the pnpm workspace or project dependencies.
 
-Version 0.5.1 bundles `wikitext-fmt` 0.9.1, including parser-aware ignore
-markers plus the latest list, extension-tag, and redirect boundary fixes.
+Version 0.6.0 bundles `wikitext-fmt` 0.10.0, including editor-style multiline
+template layout, page-aware heading spacing, and faster formatting of large
+pages.
 
 Core and extension versions are independent. A new bundled core still requires
 an extension release when formatting, diagnostics, safety, or runtime behavior

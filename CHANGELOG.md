@@ -6,6 +6,8 @@ here. The project follows the pre-1.0 policy in
 
 ## Unreleased
 
+## 0.10.0 - 2026-10-22
+
 ### Added
 
 - VS Code component tags now publish the tested VSIX to the Marketplace through
@@ -60,7 +62,6 @@ here. The project follows the pre-1.0 policy in
   switches, or interlanguage links across `includeonly`, `noinclude`, or
   `onlyinclude` boundaries. Structural verification now tracks their inclusion
   scope, and ambiguous unclosed boundaries prevent footer relocation.
-
 - Reference formatting now recognizes apostrophes inside double-quoted
   attributes and double quotes inside single-quoted attributes as literal
   content. These references can be normalized without changing their values;
