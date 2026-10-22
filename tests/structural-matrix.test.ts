@@ -64,11 +64,21 @@ describe("generated graduated template matrix", () => {
     }
   }
 
-  it("formats templates inside table cells", () => {
-    expectGraduatedCase(
+  it.each([
+    [
+      "templates inside table cells",
       "{|\n| {{Matrix|first=alpha|nested={{Inner|x=1|y=2}}|last=omega}}\n|}\n",
-      templateStructuralFingerprint,
-    );
+    ],
+    [
+      "multiple templates adjacent to ordinary prose",
+      "Lead {{First|a=1|b=2}} middle {{Second|x=3|y=4}} tail\n",
+    ],
+    [
+      "multiple nested template depths",
+      "{{Outer|a=1|nested={{Middle|b=2|nested={{Inner|c=3|d=4}}}}}}\n",
+    ],
+  ])("formats %s", (_name, source) => {
+    expectGraduatedCase(source, templateStructuralFingerprint);
   });
 
   it("preserves inline table templates that emit table syntax", () => {
@@ -82,20 +92,6 @@ describe("generated graduated template matrix", () => {
     const result = formatWikitextSafeDetailed(input, production);
     expect(result.failure).toBeUndefined();
     expect(result.formatted).toContain("{{Loop|5|{{!}}{{!}}abc}}");
-  });
-
-  it("formats multiple templates adjacent to ordinary prose", () => {
-    expectGraduatedCase(
-      "Lead {{First|a=1|b=2}} middle {{Second|x=3|y=4}} tail\n",
-      templateStructuralFingerprint,
-    );
-  });
-
-  it("formats multiple nested template depths", () => {
-    expectGraduatedCase(
-      "{{Outer|a=1|nested={{Middle|b=2|nested={{Inner|c=3|d=4}}}}}}\n",
-      templateStructuralFingerprint,
-    );
   });
 
   it.each([
@@ -142,25 +138,21 @@ describe("generated graduated table matrix", () => {
     }
   }
 
-  it("formats nested tables deepest-first", () => {
-    expectGraduatedCase(
+  it.each([
+    [
+      "nested tables deepest-first",
       "{|\n| outer\n{|\n| A || B\n|}\n| tail || end\n|}\n",
-      tableStructuralFingerprint,
-    );
-  });
-
-  it("formats a table embedded in template text", () => {
-    expectGraduatedCase(
+    ],
+    [
+      "a table embedded in template text",
       "{{Box\n| table =\n{|\n! A !! B\n|-\n| rowspan=2 | X || Y\n|}\n| note = kept\n}}\n",
-      tableStructuralFingerprint,
-    );
-  });
-
-  it("preserves continuation lines and comments while splitting cells", () => {
-    expectGraduatedCase(
+    ],
+    [
+      "continuation lines and comments while splitting cells",
       "{|\n<!-- row comment -->\n| first line\ncontinued text\n|-\n| A || B\n|}\n",
-      tableStructuralFingerprint,
-    );
+    ],
+  ])("formats %s", (_name, source) => {
+    expectGraduatedCase(source, tableStructuralFingerprint);
   });
 });
 

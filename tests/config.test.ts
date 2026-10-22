@@ -240,10 +240,13 @@ describe("CLI configuration", () => {
     });
   });
 
-  it("accepts list formatting configuration", () => {
-    expect(validateConfig({ formatLists: false })).toEqual({
-      formatLists: false,
-    });
+  it.each([
+    ["list", { formatLists: false }],
+    ["ordinary wikilink", { formatWikilinks: false }],
+    ["reference", { formatReferences: true }],
+    ["external link", { formatExternalLinks: true }],
+  ])("accepts %s formatting configuration", (_name, config) => {
+    expect(validateConfig(config)).toEqual(config);
   });
 
   it("accepts file link formatting configuration", () => {
@@ -261,12 +264,6 @@ describe("CLI configuration", () => {
         fileNamespaces: ["MediaX"],
         imageOptionAliases: { img_thumbnail: ["miniX"] },
       },
-    });
-  });
-
-  it("accepts ordinary wikilink formatting configuration", () => {
-    expect(validateConfig({ formatWikilinks: false })).toEqual({
-      formatWikilinks: false,
     });
   });
 
@@ -312,18 +309,6 @@ describe("CLI configuration", () => {
     expect(() =>
       validateConfig({ inlineTemplateSpacing: "preserve" }),
     ).toThrow(/auto, compact, spaced/u);
-  });
-
-  it("accepts reference formatting configuration", () => {
-    expect(validateConfig({ formatReferences: true })).toEqual({
-      formatReferences: true,
-    });
-  });
-
-  it("accepts external link formatting configuration", () => {
-    expect(validateConfig({ formatExternalLinks: true })).toEqual({
-      formatExternalLinks: true,
-    });
   });
 
   it("accepts redirect formatting configuration", () => {

@@ -11,8 +11,19 @@ const fixturesRoot = resolve(
   dirname(fileURLToPath(import.meta.url)),
   "fixtures",
 );
+const integrationFixtureNames = new Set([
+  "integration-article",
+  "integration-redirect",
+  "integration-infobox",
+  "integration-list-heavy",
+  "integration-table-heavy",
+  "regression-pack-list-table-idempotency",
+  "regression-interface-table-idempotency",
+  "regression-background-list-table-idempotency",
+]);
+
 const fixtureNames = (await readdir(fixturesRoot, { withFileTypes: true }))
-  .filter((entry) => entry.isDirectory())
+  .filter((entry) => entry.isDirectory() && !integrationFixtureNames.has(entry.name))
   .map((entry) => entry.name)
   .sort();
 

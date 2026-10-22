@@ -10,13 +10,12 @@ import {
 } from "../src/parser.js";
 
 describe("parser config loading", () => {
-  it("loads the normal mediawiki parser config", () => {
-    expect(() => getParserConfig("mediawiki")).not.toThrow();
-  });
-
-  it("loads the normal default parser config", () => {
-    expect(() => getParserConfig("default")).not.toThrow();
-  });
+  it.each(["mediawiki", "default"] as const)(
+    "loads the normal %s parser config",
+    (name) => {
+      expect(() => getParserConfig(name)).not.toThrow();
+    },
+  );
 
   it("loads explicit path-based parser config files", async () => {
     const root = await mkdtemp(join(tmpdir(), "wikitext-fmt-parser-"));
@@ -45,33 +44,22 @@ describe("parser config loading", () => {
     expect(() => getParserConfig(filename)).not.toThrow();
   });
 
-  it("uses bundled default fallback when package config lookup is unavailable", () => {
-    const loaded = loadParserConfigDataForTesting("mediawiki", {
-      readFile: () => {
-        throw new Error("file lookup should not be used by fallback");
-      },
-      resolvePackageJson: () => {
-        throw new Error("simulated missing package.json");
-      },
-    });
+  it.each(["mediawiki", "default"] as const)(
+    "uses bundled default fallback for %s when package config lookup is unavailable",
+    (name) => {
+      const loaded = loadParserConfigDataForTesting(name, {
+        readFile: () => {
+          throw new Error("file lookup should not be used by fallback");
+        },
+        resolvePackageJson: () => {
+          throw new Error("simulated missing package.json");
+        },
+      });
 
-    expect(loaded).toHaveProperty("namespaces");
-    expect(loaded).toHaveProperty("parserFunction");
-  });
-
-  it("uses bundled default fallback for the default config name", () => {
-    const loaded = loadParserConfigDataForTesting("default", {
-      readFile: () => {
-        throw new Error("file lookup should not be used by fallback");
-      },
-      resolvePackageJson: () => {
-        throw new Error("simulated missing package.json");
-      },
-    });
-
-    expect(loaded).toHaveProperty("namespaces");
-    expect(loaded).toHaveProperty("parserFunction");
-  });
+      expect(loaded).toHaveProperty("namespaces");
+      expect(loaded).toHaveProperty("parserFunction");
+    },
+  );
 
   it("does not silently fallback for unknown named parser configs", () => {
     expect(() =>

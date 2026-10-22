@@ -206,37 +206,42 @@ describe("page footer formatting", () => {
     ).toBe("Body\n\n[[Category:Outside]]\n");
   });
 
-  it("does not move inline interlanguage-like links", () => {
-    const source = "Body [[en:Inline]]\n[[en:Footer]]\n";
-    expect(
-      formatPageFooter(interlanguageSession.createContext(source), {
+  it.each([
+    [
+      "interlanguage-like links",
+      interlanguageSession,
+      "Body [[en:Inline]]\n[[en:Footer]]\n",
+      {
         formatCategories: false,
         formatBehaviorSwitches: false,
-        behaviorSwitchPlacement: "preserve",
+        behaviorSwitchPlacement: "preserve" as const,
         formatInterlanguageLinks: true,
-        interlanguagePlacement: "footer",
+        interlanguagePlacement: "footer" as const,
         interlanguagePrefixes: ["en"],
+      },
+      "Body [[en:Inline]]\n\n[[en:Footer]]\n",
+    ],
+    [
+      "category-like links",
+      session,
+      "Body [[Category:Inline]]\n[[Category:Footer]]\n",
+      {
+        formatCategories: true,
+        formatBehaviorSwitches: false,
+        behaviorSwitchPlacement: "preserve" as const,
+        formatInterlanguageLinks: false,
+        interlanguagePlacement: "preserve" as const,
+        interlanguagePrefixes: [],
+      },
+      "Body [[Category:Inline]]\n\n[[Category:Footer]]\n",
+    ],
+  ])("does not move inline %s", (_name, s, source, opts, expected) => {
+    expect(
+      formatPageFooter(s.createContext(source), {
+        ...opts,
         ...localization,
       }).formatted,
-    ).toBe("Body [[en:Inline]]\n\n[[en:Footer]]\n");
-  });
-
-  it("does not move inline category-like links", () => {
-    const source = "Body [[Category:Inline]]\n[[Category:Footer]]\n";
-    expect(
-      formatPageFooter(
-        session.createContext(source),
-        {
-          formatCategories: true,
-          formatBehaviorSwitches: false,
-          behaviorSwitchPlacement: "preserve",
-          formatInterlanguageLinks: false,
-          interlanguagePlacement: "preserve",
-          interlanguagePrefixes: [],
-          ...localization,
-        },
-      ).formatted,
-    ).toBe("Body [[Category:Inline]]\n\n[[Category:Footer]]\n");
+    ).toBe(expected);
   });
 
   it("uses parser context for the current source snapshot after earlier rules change text", () => {

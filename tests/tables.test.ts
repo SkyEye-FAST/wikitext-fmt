@@ -137,14 +137,12 @@ describe("production parser table formatter", () => {
     expectProductionTable(`${input}\n`);
   });
 
-  it("adds canonical spacing to standalone data cells", () => {
-    const result = expectProductionTable("{|\n|-\n|A\n|B\n|}\n");
-    expect(result.formatted).toBe("{|\n|-\n| A\n| B\n|}\n");
-  });
-
-  it("adds canonical spacing to standalone header cells", () => {
-    const result = expectProductionTable("{|\n|-\n!A\n!B\n|}\n");
-    expect(result.formatted).toBe("{|\n|-\n! A\n! B\n|}\n");
+  it.each([
+    ["data cells", "{|\n|-\n|A\n|B\n|}\n", "{|\n|-\n| A\n| B\n|}\n"],
+    ["header cells", "{|\n|-\n!A\n!B\n|}\n", "{|\n|-\n! A\n! B\n|}\n"],
+  ])("adds canonical spacing to standalone %s", (_name, input, expected) => {
+    const result = expectProductionTable(input);
+    expect(result.formatted).toBe(expected);
   });
 
   it("does not add trailing whitespace to empty cells", () => {
@@ -362,16 +360,21 @@ describe("production parser table formatter", () => {
     );
   });
 
-  it("formats multiple nested table levels", () => {
-    expectProductionTable(
+  it.each([
+    [
+      "multiple nested table levels",
       "{|\n| level one\n{|\n| level two\n{|\n! A !! B\n|}\n| C || D\n|}\n| E || F\n|}\n",
-    );
-  });
-
-  it("formats a table inside a template parameter", () => {
-    expectProductionTable(
+    ],
+    [
+      "a table inside a template parameter",
       "{{Panel\n| title = Results\n| content =\n{|\n! A !! B\n|-\n| C || D\n|}\n}}\n",
-    );
+    ],
+    [
+      "a nested table inside a template",
+      "{{Panel\n| content =\n{|\n| outer\n{|\n| A || B\n|}\n| C || D\n|}\n}}\n",
+    ],
+  ])("formats %s", (_name, source) => {
+    expectProductionTable(source);
   });
 
   it("keeps fitting templates inline while formatting their table cell", () => {
@@ -379,12 +382,6 @@ describe("production parser table formatter", () => {
       "{|\n| {{Cell|name=A|nested={{Inner|x=1|y=2}}}} || B\n|}\n",
     );
     expect(result.formatted).toContain("{{Inner|x=1|y=2}}");
-  });
-
-  it("formats a nested table inside a template", () => {
-    expectProductionTable(
-      "{{Panel\n| content =\n{|\n| outer\n{|\n| A || B\n|}\n| C || D\n|}\n}}\n",
-    );
   });
 
   it("uses the documented fallback when parser and link-aware separators disagree", () => {

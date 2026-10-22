@@ -181,17 +181,14 @@ describe("browser parser adapter initialization", () => {
     });
   });
 
-  it("uses the captured parser after globalThis.Parser is replaced", async () => {
-    await expect(runWorkerScenario("replace")).resolves.toEqual({
-      formatted: "== Title ==\n",
-    });
-  });
-
-  it("uses the captured parser after globalThis.Parser is deleted", async () => {
-    await expect(runWorkerScenario("delete")).resolves.toEqual({
-      formatted: "== Title ==\n",
-    });
-  });
+  it.each(["replace", "delete"] as const)(
+    "uses the captured parser after globalThis.Parser is %sd",
+    async (action) => {
+      await expect(runWorkerScenario(action)).resolves.toEqual({
+        formatted: "== Title ==\n",
+      });
+    },
+  );
 
   it("restores a pre-existing global Parser property", async () => {
     await expect(runWorkerScenario("restore", true)).resolves.toEqual({
