@@ -7,6 +7,7 @@ import {
   outermostSourceRanges,
   semanticRangeIdentities,
 } from "../src/semanticIdentity.js";
+import { templateStructuralFingerprint } from "../src/equivalence.js";
 import { formatWikitextSafeDetailed } from "../src/formatter.js";
 import { formatListsWithDiagnostics } from "../src/rules/lists.js";
 import {
@@ -257,5 +258,31 @@ describe("parser complexity", () => {
     expect(candidates).toHaveLength(40);
     expect(stats.fallbackParses).toBe(1);
     expect(stats.coveredOpeners).toBe(39);
+  });
+
+  it("keeps template fingerprints linear in the nesting depth", () => {
+    const nested = (depth: number): string =>
+      `${"{{Hide|".repeat(depth)}x${"}}".repeat(depth)}`;
+    const shallow = templateStructuralFingerprint(nested(40), config).length;
+    const deep = templateStructuralFingerprint(nested(80), config).length;
+    expect(deep).toBeLessThan(shallow * 2.2);
+    expect(templateStructuralFingerprint(nested(80), config)).not.toBe(
+      templateStructuralFingerprint(
+        nested(80).replace("{{Hide|x", "{{Hide|y"),
+        config,
+      ),
+    );
+  });
+
+  it("leaves markup nested past the depth limit unchanged on every call", () => {
+    const source = `${"{{Hide|".repeat(200)}x${"}}".repeat(200)}\n`;
+    for (let call = 0; call < 3; call++) {
+      const result = formatWikitextSafeDetailed(source);
+      expect(result.formatted).toBe(source);
+      expect(result.failure).toMatchObject({
+        code: "input-parse",
+        stage: "initial-parse",
+      });
+    }
   });
 });

@@ -62,7 +62,7 @@ document equivalence, and original-source fallback still apply.
 
 | Code | Stage / meaning |
 | --- | --- |
-| `input-parse` | The configured parser could not parse input |
+| `input-parse` | The configured parser could not parse input, or the parse tree nests more than 500 levels deep |
 | `input-roundtrip` | Parsed input did not serialize byte-for-byte to the source |
 | `unsupported-parser-config` | `parser-config`: the browser entry received a named or filesystem parser configuration that is available only in Node.js |
 | `unsupported-line-endings` | `input-normalization`: input mixes LF/CRLF or contains bare CR |

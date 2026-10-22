@@ -114,9 +114,44 @@ function nearestTransclusion(
   return undefined;
 }
 
+const TRANSCLUSION_TYPES: ReadonlySet<string> = new Set([
+  "template",
+  "magic-word",
+]);
+const TEMPLATE_VALUE_STRUCTURE_TYPES: ReadonlySet<string> = new Set([
+  "file",
+  "category",
+  "link",
+  "ext-link",
+  "ext",
+  "html",
+  "comment",
+]);
+
+/**
+ * Descendants of `root` with one of `types` that no transclusion below `root`
+ * encloses, in document order. Transclusions are matched but never entered,
+ * so each nesting level is scanned once instead of once per ancestor.
+ */
+function ownedDescendants<T = GenericNode>(
+  root: GenericNode,
+  types: ReadonlySet<string>,
+): T[] {
+  const found: T[] = [];
+  const stack = [...root.childNodes].reverse();
+  while (stack.length > 0) {
+    const node = stack.pop()!;
+    if (types.has(node.type)) found.push(node as unknown as T);
+    if (TRANSCLUSION_TYPES.has(node.type)) continue;
+    for (let index = node.childNodes.length - 1; index >= 0; index--) {
+      stack.push(node.childNodes[index]!);
+    }
+  }
+  return found;
+}
+
 function semanticTransclusionValue(
   valueNode: GenericNode,
-  owner: TransclusionNode,
   trim: boolean,
   normalizeWikilinkTarget?: WikilinkTargetNormalizer,
 ): string | TemplateValuePart[] {
@@ -125,9 +160,10 @@ function semanticTransclusionValue(
   const content = trim ? raw.trim() : raw;
   const contentStart = trim ? raw.indexOf(content) : 0;
   const contentEnd = contentStart + content.length;
-  const nested = valueNode
-    .querySelectorAll<TransclusionNode>("template, magic-word")
-    .filter((node) => nearestTransclusion(node.parentNode) === owner)
+  const nested = ownedDescendants<TransclusionNode>(
+    valueNode,
+    TRANSCLUSION_TYPES,
+  )
     .map((node) => ({
       start: node.getAbsoluteIndex() - base,
       end: node.getAbsoluteIndex() - base + node.toString().length,
@@ -168,11 +204,7 @@ function semanticTransclusionValue(
         return node.toString();
     }
   };
-  const structured = valueNode
-    .querySelectorAll<GenericNode>(
-      "file, category, link, ext-link, ext, html, comment",
-    )
-    .filter((node) => nearestTransclusion(node.parentNode) === owner)
+  const structured = ownedDescendants(valueNode, TEMPLATE_VALUE_STRUCTURE_TYPES)
     .map((node) => ({
       start: node.getAbsoluteIndex() - base,
       end: node.getAbsoluteIndex() - base + node.toString().length,
@@ -219,9 +251,7 @@ function semanticTemplateInvocationName(
 
   const base = title.getAbsoluteIndex();
   const raw = title.toString();
-  const nested = title
-    .querySelectorAll<TransclusionNode>("template, magic-word")
-    .filter((candidate) => nearestTransclusion(candidate.parentNode) === node)
+  const nested = ownedDescendants<TransclusionNode>(title, TRANSCLUSION_TYPES)
     .map((candidate) => ({
       start: candidate.getAbsoluteIndex() - base,
       end: candidate.getAbsoluteIndex() - base + candidate.toString().length,
@@ -249,26 +279,61 @@ function semanticTemplateInvocationName(
   return parts;
 }
 
+type TemplateNodeFingerprint = Omit<TemplateFingerprint, "parent">;
+
+let templateFingerprintMemo:
+  | Map<
+      WikilinkTargetNormalizer | undefined,
+      Map<TransclusionNode, TemplateNodeFingerprint>
+    >
+  | undefined;
+
+/**
+ * Shares template fingerprints for the duration of one fingerprinting pass.
+ * A template nested n levels deep is part of every ancestor's fingerprint, so
+ * recomputing it per ancestor made deeply nested pages polynomially slow.
+ * Parser trees are never mutated while a pass runs.
+ */
+function withTemplateFingerprintMemo<T>(run: () => T): T {
+  if (templateFingerprintMemo) return run();
+  templateFingerprintMemo = new Map();
+  try {
+    return run();
+  } finally {
+    templateFingerprintMemo = undefined;
+  }
+}
+
 function templateNodeFingerprint(
   node: TransclusionNode,
   normalizeWikilinkTarget?: WikilinkTargetNormalizer,
-): Omit<TemplateFingerprint, "parent"> {
-  return {
-    type: node.type,
-    name: semanticTemplateInvocationName(node, normalizeWikilinkTarget),
-    parameters: node.childNodes
-      .filter((child): child is ParameterToken => child.type === "parameter")
-      .map((arg) => ({
-        anon: arg.anon,
-        name: arg.anon ? arg.name : arg.name.trim(),
-        value: semanticTransclusionValue(
-          arg.lastChild as unknown as GenericNode,
-          node,
-          !arg.anon,
-          normalizeWikilinkTarget,
-        ),
-      })),
-  };
+): TemplateNodeFingerprint {
+  return withTemplateFingerprintMemo(() => {
+    let memo = templateFingerprintMemo!.get(normalizeWikilinkTarget);
+    if (!memo) {
+      memo = new Map();
+      templateFingerprintMemo!.set(normalizeWikilinkTarget, memo);
+    }
+    const cached = memo.get(node);
+    if (cached) return cached;
+    const fingerprint: TemplateNodeFingerprint = {
+      type: node.type,
+      name: semanticTemplateInvocationName(node, normalizeWikilinkTarget),
+      parameters: node.childNodes
+        .filter((child): child is ParameterToken => child.type === "parameter")
+        .map((arg) => ({
+          anon: arg.anon,
+          name: arg.anon ? arg.name : arg.name.trim(),
+          value: semanticTransclusionValue(
+            arg.lastChild as unknown as GenericNode,
+            !arg.anon,
+            normalizeWikilinkTarget,
+          ),
+        })),
+    };
+    memo.set(node, fingerprint);
+    return fingerprint;
+  });
 }
 
 export function templateTokenStructuralFingerprint(
@@ -344,19 +409,34 @@ function templateStructuralFingerprintWithNormalizer(
     session,
   );
   const indices = new Map(nodes.map((node, index) => [node, index]));
-  const fingerprint: TemplateFingerprint[] = nodes.map((node) => {
-    const parent = nearestTransclusion(node.parentNode);
-    return {
-      ...templateNodeFingerprint(node, normalizeWikilinkTarget),
-      parent: parent ? (indices.get(parent) ?? null) : null,
-    };
-  });
-  return JSON.stringify({
-    templates: fingerprint,
-    templatesInsideTables: templatesInsideParserConfirmedTables(
-      tables,
-      normalizeWikilinkTarget,
-    ),
+  return withTemplateFingerprintMemo(() => {
+    const listed = new Map<TemplateNodeFingerprint, number>();
+    const fingerprint: TemplateFingerprint[] = nodes.map((node, index) => {
+      const parent = nearestTransclusion(node.parentNode);
+      const own = templateNodeFingerprint(node, normalizeWikilinkTarget);
+      listed.set(own, index);
+      return {
+        ...own,
+        parent: parent ? (indices.get(parent) ?? null) : null,
+      };
+    });
+    // Every nested template is also its own list entry, so it is serialized
+    // as a reference to that entry. Equal lists still imply equal expanded
+    // fingerprints, but the string stays linear in the number of templates
+    // instead of growing with the square of the nesting depth.
+    return JSON.stringify(
+      {
+        templates: fingerprint,
+        templatesInsideTables: templatesInsideParserConfirmedTables(
+          tables,
+          normalizeWikilinkTarget,
+        ),
+      },
+      (key, value: unknown) =>
+        key === "value" && listed.has(value as TemplateNodeFingerprint)
+          ? { template: listed.get(value as TemplateNodeFingerprint) }
+          : value,
+    );
   });
 }
 
@@ -701,20 +781,6 @@ function semanticRedirectTarget(
     : null;
 }
 
-function isDirectTransclusionWithin(
-  node: TransclusionNode,
-  boundary: GenericNode,
-): boolean {
-  let parent = node.parentNode;
-  while (parent && parent !== boundary) {
-    if (parent.type === "template" || parent.type === "magic-word") {
-      return false;
-    }
-    parent = parent.parentNode;
-  }
-  return parent === boundary;
-}
-
 function semanticNodeText(
   node: GenericNode,
   trim: "none" | "leading" | "both" = "none",
@@ -727,9 +793,7 @@ function semanticNodeText(
     trim === "both"
       ? raw.length - (/[ \t]*$/u.exec(raw)?.[0].length ?? 0)
       : raw.length;
-  const nested = node
-    .querySelectorAll<TransclusionNode>("template, magic-word")
-    .filter((candidate) => isDirectTransclusionWithin(candidate, node))
+  const nested = ownedDescendants<TransclusionNode>(node, TRANSCLUSION_TYPES)
     .map((candidate) => ({
       start: candidate.getAbsoluteIndex() - node.getAbsoluteIndex(),
       end:

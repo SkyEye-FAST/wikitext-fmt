@@ -24,8 +24,21 @@ const defaultConfigLoaderDependencies: ConfigLoaderDependencies = {
   resolvePackageJson: () => require.resolve("wikiparser-node/package.json"),
 };
 
+export function withNodeParserReadOnly<T>(run: () => T): T {
+  const previous = Parser.viewOnly;
+  Parser.viewOnly = true;
+  try {
+    return run();
+  } finally {
+    // Leaving view-only mode bumps the parser revision, which invalidates the
+    // caches for any caller that mutates trees afterwards.
+    Parser.viewOnly = previous;
+  }
+}
+
 const nodeParserImplementation: ParserImplementation = {
   parse: (source, config) => Parser.parse(source, false, undefined, config),
+  readOnly: withNodeParserReadOnly,
 };
 
 function loadConfig(

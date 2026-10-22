@@ -15,6 +15,7 @@ type BrowserParserRoot = ParserRoot & {
 };
 
 interface BrowserParserAdapter {
+  viewOnly?: boolean;
   getConfig(config?: ConfigData): Config;
   parse(
     source: string,
@@ -240,9 +241,21 @@ function resolveBrowserConfig(name: string): Config {
   );
 }
 
+function withBrowserParserReadOnly<T>(run: () => T): T {
+  const { parser } = browserParserState;
+  const previous = parser.viewOnly;
+  parser.viewOnly = true;
+  try {
+    return run();
+  } finally {
+    parser.viewOnly = previous;
+  }
+}
+
 const browserParserImplementation: ParserImplementation = {
   parse: (source, config) =>
     parseBrowserRoot(browserParserState.parser, source, config),
+  readOnly: withBrowserParserReadOnly,
 };
 
 export const browserParserRuntime = createParserRuntime(

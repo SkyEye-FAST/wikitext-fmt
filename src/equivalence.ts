@@ -13,7 +13,10 @@ import {
   verifyStructuralEquivalence as verifyStructuralEquivalenceWithRuntime,
 } from "./equivalenceEngine.js";
 import type { ResolvedFormatOptions } from "./options.js";
-import { createNodeParserSession } from "./parser.node.js";
+import {
+  createNodeParserSession,
+  withNodeParserReadOnly,
+} from "./parser.node.js";
 import { parserConfigWithInterwikiPrefixes } from "./parserRuntime.js";
 
 export type {
@@ -27,9 +30,11 @@ export function templateStructuralFingerprint(
   source: string,
   config: Config,
 ): string {
-  return templateStructuralFingerprintWithRuntime(
-    source,
-    createNodeParserSession(config),
+  return withNodeParserReadOnly(() =>
+    templateStructuralFingerprintWithRuntime(
+      source,
+      createNodeParserSession(config),
+    ),
   );
 }
 
@@ -37,9 +42,11 @@ export function tableStructuralFingerprint(
   source: string,
   config: Config,
 ): string {
-  return tableStructuralFingerprintWithRuntime(
-    source,
-    createNodeParserSession(config),
+  return withNodeParserReadOnly(() =>
+    tableStructuralFingerprintWithRuntime(
+      source,
+      createNodeParserSession(config),
+    ),
   );
 }
 
@@ -48,13 +55,15 @@ export function documentStructuralFingerprint(
   config: Config,
   options: ResolvedFormatOptions,
 ): DocumentFingerprint {
-  return documentStructuralFingerprintWithRuntime(
-    source,
-    options,
-    createNodeParserSession(
-      parserConfigWithInterwikiPrefixes(
-        config,
-        options.interlanguagePrefixes,
+  return withNodeParserReadOnly(() =>
+    documentStructuralFingerprintWithRuntime(
+      source,
+      options,
+      createNodeParserSession(
+        parserConfigWithInterwikiPrefixes(
+          config,
+          options.interlanguagePrefixes,
+        ),
       ),
     ),
   );
@@ -67,16 +76,18 @@ export function verifyStructuralEquivalence(
   structure: StructuralEquivalenceKind,
   options?: ResolvedFormatOptions,
 ): StructuralEquivalenceResult {
-  return verifyStructuralEquivalenceWithRuntime(
-    before,
-    after,
-    structure,
-    createNodeParserSession(
-      parserConfigWithInterwikiPrefixes(
-        config,
-        options?.interlanguagePrefixes,
+  return withNodeParserReadOnly(() =>
+    verifyStructuralEquivalenceWithRuntime(
+      before,
+      after,
+      structure,
+      createNodeParserSession(
+        parserConfigWithInterwikiPrefixes(
+          config,
+          options?.interlanguagePrefixes,
+        ),
       ),
+      options,
     ),
-    options,
   );
 }

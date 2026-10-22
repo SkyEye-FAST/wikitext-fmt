@@ -21,6 +21,7 @@ import {
 import {
   type ParserRuntime,
   type ParserSession,
+  runReadOnly,
   UnsupportedParserConfigError,
 } from "./parserRuntime.js";
 import type {
@@ -54,6 +55,28 @@ export type {
 
 type ExtensionNode = ParserNodeLike & { name?: string };
 
+/**
+ * Parser trees deeper than this are left unchanged. Real pages stay far below
+ * it, while the parser and the checks walk trees recursively: near the engine's
+ * stack limit a page would fail on a cold call and succeed once the code is
+ * optimized, so the same input could format differently from call to call.
+ */
+const MAX_PARSE_TREE_DEPTH = 500;
+
+interface TreeNode {
+  childNodes: readonly TreeNode[];
+}
+
+function exceedsParseTreeDepth(root: TreeNode, limit: number): boolean {
+  const stack: Array<[TreeNode, number]> = [[root, 0]];
+  while (stack.length > 0) {
+    const [node, depth] = stack.pop()!;
+    if (depth > limit) return true;
+    for (const child of node.childNodes) stack.push([child, depth + 1]);
+  }
+  return false;
+}
+
 function parserExtensionRanges(
   context: ParsedDocumentContext,
   protectReferences = true,
@@ -85,6 +108,22 @@ function formatNormalizedWikitextDetailedResult(
           code: "input-parse",
           stage: "initial-parse",
           message: `The input could not be parsed safely: ${message}; left it unchanged.`,
+        },
+        diagnostics,
+      );
+    }
+    if (
+      exceedsParseTreeDepth(
+        initialContext.root as unknown as TreeNode,
+        MAX_PARSE_TREE_DEPTH,
+      )
+    ) {
+      return fallbackDetailedResult(
+        source,
+        {
+          code: "input-parse",
+          stage: "initial-parse",
+          message: `The input nests markup more than ${MAX_PARSE_TREE_DEPTH} levels deep; left it unchanged.`,
         },
         diagnostics,
       );
@@ -710,16 +749,17 @@ function formatWikitextSafeDetailed(
 }
 
 export function createFormatter(runtime: ParserRuntime): FormatterApi {
+  const scoped = <T>(run: () => T): T => runReadOnly(runtime, run);
   return {
     formatWikitext: (source, options) =>
-      formatWikitext(runtime, source, options),
+      scoped(() => formatWikitext(runtime, source, options)),
     formatWikitextDetailedResult: (source, options) =>
-      formatWikitextDetailedResult(runtime, source, options),
+      scoped(() => formatWikitextDetailedResult(runtime, source, options)),
     formatWikitextResult: (source, options) =>
-      formatWikitextResult(runtime, source, options),
+      scoped(() => formatWikitextResult(runtime, source, options)),
     formatWikitextSafe: (source, options) =>
-      formatWikitextSafe(runtime, source, options),
+      scoped(() => formatWikitextSafe(runtime, source, options)),
     formatWikitextSafeDetailed: (source, options) =>
-      formatWikitextSafeDetailed(runtime, source, options),
+      scoped(() => formatWikitextSafeDetailed(runtime, source, options)),
   };
 }

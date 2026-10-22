@@ -8,6 +8,13 @@ export type ParserRoot = ReturnType<typeof Parser.parse>;
 
 export interface ParserImplementation {
   parse(source: string, config: Config): ParserRoot;
+  /**
+   * Runs read-only work with the parser's position and string caches enabled.
+   * The formatter never mutates parser trees, so enabling wikiparser-node's
+   * view-only mode turns repeated index lookups from quadratic into cached
+   * reads. Implementations must restore the previous mode afterwards.
+   */
+  readOnly?<T>(run: () => T): T;
 }
 
 export interface ParserSession {
@@ -23,6 +30,7 @@ export interface ParserSessionOptions {
 
 export interface ParserRuntime {
   createSession(name: string, options?: ParserSessionOptions): ParserSession;
+  readOnly?<T>(run: () => T): T;
 }
 
 export class UnsupportedParserConfigError extends Error {
@@ -40,6 +48,7 @@ export function createParserRuntime(
   resolveConfig: (name: string) => Config,
 ): ParserRuntime {
   return {
+    readOnly: parser.readOnly?.bind(parser),
     createSession: (name, options) =>
       createParserSession(
         parser,
@@ -84,13 +93,63 @@ export function createParserSession(
   parser: ParserImplementation,
   config: Config,
 ): ParserSession {
-  const parse = (source: string): ParserRoot => parser.parse(source, config);
+  // Formatting stages and equivalence checks repeatedly ask for the same
+  // snapshot (the stage input, the verified candidate, the second safe pass).
+  // Parser trees are never mutated by the formatter, so a session can hand
+  // out the same context for identical text. The cache is bounded by entry
+  // count and source bytes so very large pages keep only recent snapshots.
+  const contexts = new Map<string, ParsedDocumentContext>();
+  let cachedBytes = 0;
+  const remember = (context: ParsedDocumentContext): void => {
+    contexts.set(context.source, context);
+    cachedBytes += context.source.length;
+    for (const [source] of contexts) {
+      if (
+        contexts.size <= 1 ||
+        (contexts.size <= CONTEXT_CACHE_ENTRIES &&
+          cachedBytes <= CONTEXT_CACHE_BYTES)
+      ) {
+        break;
+      }
+      contexts.delete(source);
+      cachedBytes -= source.length;
+    }
+  };
+  const cachedContext = (
+    source: string,
+  ): ParsedDocumentContext | undefined => {
+    const context = contexts.get(source);
+    if (context) {
+      contexts.delete(source);
+      contexts.set(source, context);
+    }
+    return context;
+  };
+  const parse = (source: string): ParserRoot =>
+    cachedContext(source)?.root ?? parser.parse(source, config);
   let session: ParserSession;
   session = {
     config,
     parse,
-    createContext: (source) => createParserContext(source, session),
-    isRoundTripSafe: (source) => parse(source).toString() === source,
+    createContext: (source) => {
+      const cached = cachedContext(source);
+      if (cached) return cached;
+      const context = createParserContext(source, session);
+      remember(context);
+      return context;
+    },
+    isRoundTripSafe: (source) =>
+      session.createContext(source).root.toString() === source,
   };
   return Object.freeze(session);
+}
+
+const CONTEXT_CACHE_ENTRIES = 24;
+const CONTEXT_CACHE_BYTES = 4 * 1024 * 1024;
+
+export function runReadOnly<T>(
+  runtime: Pick<ParserRuntime, "readOnly">,
+  run: () => T,
+): T {
+  return runtime.readOnly ? runtime.readOnly(run) : run();
 }
