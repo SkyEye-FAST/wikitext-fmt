@@ -39,6 +39,7 @@ function packageMetadata(version = "0.2.0") {
         types: "./dist/browser.d.ts",
         import: "./dist/browser.js",
       },
+      "./schemas/site-profile.schema.json": "./schemas/site-profile.schema.json",
     },
     files: [...CORE_PACKAGE_FILES],
     packageManager: "pnpm@11.17.0",
@@ -89,11 +90,11 @@ function vscodePackageMetadata(version = "0.2.0") {
 }
 
 describe("core release metadata", () => {
-  it("rejects package export entries beyond the root and browser subpath", () => {
+  it("rejects package export entries beyond the root, browser, and schema subpaths", () => {
     const metadata = packageMetadata();
     metadata.exports["./internal"] = { import: "./dist/internal.js" };
     expect(() => validateCorePackageMetadata(metadata)).toThrow(
-      /only the package root and \.\/browser/u,
+      /only the package root, \.\/browser, and \.\/schemas/u,
     );
   });
 

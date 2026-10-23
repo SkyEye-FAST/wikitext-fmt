@@ -284,6 +284,7 @@ async function validateInstalledPackage(consumerRoot) {
   assert.deepEqual(Object.keys(packageMetadata.exports).sort(), [
     ".",
     "./browser",
+    "./schemas/site-profile.schema.json",
   ]);
   assert.deepEqual(packageMetadata.exports["./browser"], {
     types: "./dist/browser.d.ts",

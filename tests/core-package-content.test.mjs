@@ -23,6 +23,7 @@ const required = [
   "package/docs/configuration.md",
   "package/docs/versioning.md",
   "package/docs/releasing.md",
+  "package/schemas/site-profile.schema.json",
 ];
 
 describe("core package content", () => {

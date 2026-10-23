@@ -13,6 +13,7 @@ export const CORE_REGISTRY = "https://registry.npmjs.org/";
 export const CORE_PACKAGE_FILES = [
   "dist",
   "docs",
+  "schemas",
   "README.md",
   "CHANGELOG.md",
   "LICENSE",
@@ -123,8 +124,14 @@ export function validateCorePackageMetadata(packageMetadata) {
     `package.json files must contain only: ${CORE_PACKAGE_FILES.join(", ")}`,
   );
   assertRelease(
-    sameStringSet(Object.keys(packageMetadata.exports ?? {}), [".", "./browser"]),
-    "package.json exports must contain only the package root and ./browser",
+    sameStringSet(Object.keys(packageMetadata.exports ?? {}), [
+      ".",
+      "./browser",
+      "./schemas/site-profile.schema.json",
+    ]) &&
+      packageMetadata.exports["./schemas/site-profile.schema.json"] ===
+        "./schemas/site-profile.schema.json",
+    "package.json exports must contain only the package root, ./browser, and ./schemas/site-profile.schema.json",
   );
   assertRelease(
     packageMetadata.main === "./dist/index.js" &&

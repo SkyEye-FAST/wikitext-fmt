@@ -14,6 +14,7 @@ const allowedTopLevelEntries = new Set([
   "LICENSE",
   "dist",
   "docs",
+  "schemas",
 ]);
 const requiredEntries = [
   "package/package.json",
@@ -33,6 +34,7 @@ const requiredEntries = [
   "package/docs/configuration.md",
   "package/docs/versioning.md",
   "package/docs/releasing.md",
+  "package/schemas/site-profile.schema.json",
 ];
 const forbiddenSegments =
   /(?:^|\/)(?:\.env(?:\.|$)|\.github|\.npmrc|benchmarks|coverage|dist-test|fixtures|node_modules|packages|release-artifacts|scripts|src|tests)(?:\/|$)/u;
