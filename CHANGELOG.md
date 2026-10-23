@@ -6,6 +6,8 @@ here. The project follows the pre-1.0 policy in
 
 ## Unreleased
 
+## 0.11.0 - 2026-10-23
+
 ### Added
 
 - Browser-safe site profiles with TemplateData, interwiki maps, extension
