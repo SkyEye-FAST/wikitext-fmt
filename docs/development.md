@@ -33,10 +33,8 @@
   and release tooling.
 - `packages/vscode/`: thin VS Code wrapper.
 
-Coding agents must follow
+Coding agents also read
 [AGENTS.md](https://github.com/SkyEye-FAST/wikitext-fmt/blob/master/AGENTS.md).
-This document summarizes human contributor workflows rather than duplicating
-all repository-specific agent instructions.
 
 ## Toolchain
 
@@ -47,8 +45,7 @@ corepack enable
 pnpm install --frozen-lockfile
 ```
 
-Do not use npm or Yarn to modify workspace dependencies, and never edit
-`pnpm-lock.yaml` manually.
+Use pnpm for dependency changes; it regenerates `pnpm-lock.yaml`.
 
 ## Focused verification
 
@@ -60,7 +57,8 @@ pnpm exec vitest run tests/<relevant-file>.test.ts
 pnpm check:browser
 ```
 
-The full core gate is:
+Run the focused tests for the files you changed. The full gate, needed when
+the formatting pipeline or rule output changes and before a release, is:
 
 ```sh
 pnpm check
@@ -73,37 +71,22 @@ extension and core package contents, and executes smoke tests.
 
 ## Browser entry
 
-The normal root build emits `dist/browser.js` and `dist/browser.d.ts`. Run the
-focused compatibility and dependency checks with:
+The root build emits `dist/browser.js` and `dist/browser.d.ts`. Frontends depend
+on the published package and import only from `wikitext-fmt/browser`; Worker
+code can call the formatter synchronously inside `onmessage`. The entry ships
+the parser runtime in its dependency graph and downloads nothing at runtime.
+
+When a change touches what the browser entry imports, run:
 
 ```sh
-pnpm build
 pnpm exec vitest run tests/browser-entry.test.ts
 pnpm check:browser
-pnpm check:core-package-content
 ```
 
-`check:browser` runs two layers. `check-browser-bundle.mjs` quickly bundles the
-workspace entry with the root esbuild dependency using `platform=browser` and
-`format=esm`. `check-browser-consumer.mjs` packs the npm artifact, installs it in
-a standalone temporary pnpm project with `--ignore-workspace`, compiles its
-public browser declarations without Node types, and bundles from that installed
-copy. Both reject Node, CLI, config-discovery, VS Code, and `fast-glob` inputs;
-both execute the result in a module `worker_threads` harness with Node globals
-removed. The checks report raw and gzip Worker bundle sizes without imposing an
-arbitrary threshold. This is executable worker-level coverage, not a Chromium
-test; the repository intentionally does not add a browser automation dependency
-for this single check. Browser/Node parity and isolated adapter tests cover
-representative rules, diagnostics, failures, CRLF, malformed input,
-configuration restrictions, parser capture, global restoration, and safe
-idempotency.
-
-A future frontend repository should depend on the published package and import
-only from `wikitext-fmt/browser`; it should not import repository `src/` files.
-Worker code can call the formatter synchronously inside `onmessage` and post the
-structured result back to the main thread. The browser entry ships the parser
-runtime through the package dependency graph and performs no runtime asset
-download.
+`check:browser` bundles the workspace entry and the packed npm artifact for
+`platform=browser`, rejects Node, CLI, config-discovery, VS Code, and `fast-glob`
+inputs, runs the bundle in a Worker harness without Node globals, and reports
+its raw and gzip size.
 
 ## Documentation checks
 
@@ -155,13 +138,13 @@ the core.
    defaults.
 4. Decide which syntax is parser-understood and which ranges must be protected.
 5. Make canonical input a no-op and preserve source outside scope.
-6. Add focused tests for change, no-op, disabled/level behavior, nested and
-   protected input, malformed/ambiguous fallback, and idempotency.
+6. Add focused tests for the change, a canonical no-op, and the fallback cases
+   the rule is designed to skip.
 7. Update [Formatting rules](rules.md), [Configuration](configuration.md), and
    the appropriate changelog.
 
-Never weaken round-trip, equivalence, convergence, or idempotency checks to make
-a fixture pass.
+Fix the rule rather than weakening round-trip, equivalence, or idempotency
+checks.
 
 ## Adding or changing an option
 
@@ -207,10 +190,9 @@ Keep these boundaries explicit:
   cache;
 - siteinfo supplies only formatter data, never a generated parser config.
 
-Focused coverage belongs in `tests/site-configuration.test.ts`, config and CLI
-tests, and `packages/vscode/tests/format.test.ts`. Also run browser and package
-content checks to prove the Node resolver did not leak into the browser entry or
-go missing from packaged CLI/VSIX artifacts.
+Tests live in `tests/site-configuration.test.ts`, the config and CLI tests, and
+`packages/vscode/tests/format.test.ts`. Run `pnpm check:browser` when a change
+could pull the Node resolver into the browser entry.
 
 ## Diagnostics changes
 
@@ -220,7 +202,7 @@ When adding counters or failure information:
 - map it through detailed formatter results;
 - update CLI `DiagnosticsSummary`, serialization, and batch aggregation;
 - keep stdout/stderr separation;
-- add source-level and CLI output tests;
+- add a test at the level that changed;
 - update [Safety and diagnostics](safety-and-diagnostics.md);
 - record user-visible schema changes in the changelog.
 
