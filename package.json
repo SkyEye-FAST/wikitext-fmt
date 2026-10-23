@@ -33,7 +33,8 @@
     "./browser": {
       "types": "./dist/browser.d.ts",
       "import": "./dist/browser.js"
-    }
+    },
+    "./schemas/site-profile.schema.json": "./schemas/site-profile.schema.json"
   },
   "bin": {
     "wikitext-fmt": "dist/cli.js"
@@ -41,6 +42,7 @@
   "files": [
     "dist",
     "docs",
+    "schemas",
     "README.md",
     "CHANGELOG.md",
     "LICENSE"

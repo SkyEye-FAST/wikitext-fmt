@@ -6,6 +6,11 @@ here. The project follows the pre-1.0 policy in
 
 ## Unreleased
 
+### Added
+
+- Browser-safe site profiles with TemplateData, interwiki maps, extension
+  availability, formatter options, siteinfo loading, and a published JSON Schema.
+
 ## 0.10.0 - 2026-10-22
 
 ### Added

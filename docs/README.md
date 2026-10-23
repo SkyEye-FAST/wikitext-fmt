@@ -22,6 +22,8 @@ Choose the shortest path for what you are trying to do.
 - [JavaScript API](api.md) — Node and browser public exports, result shapes,
   formatter variants, Web Worker use, structural equivalence, localization, and
   config helpers.
+- [Site profiles](site-profiles.md) — browser-safe wiki metadata, TemplateData,
+  interwiki maps, and formatter options.
 - [Safety and diagnostics](safety-and-diagnostics.md) — compare the base
   pipeline with the additional safe idempotency pass.
 - [Versioning](versioning.md) — pre-1.0 compatibility expectations.

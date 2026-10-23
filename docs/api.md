@@ -36,14 +36,19 @@ Its runtime exports are:
   `classifyParserFunction`;
 - `validateProjectConfig`, `normalizeSiteConfigurationSnapshot`,
   `serializeSiteConfigurationSnapshot`, `sanitizedSiteApiUrl`, and
-  `applySiteFormattingData`.
+  `applySiteFormattingData`;
+- `normalizeSiteProfile`, `serializeSiteProfile`, `siteProfileFormatOptions`,
+  `siteProfileTemplateDataUrl`, `normalizeTemplateDataResponse`, and
+  `loadSiteProfile` (see [Site profiles](site-profiles.md)).
 
 It also exports `FormatResult`, `FormatDetailedResult`, `FormatFailure`,
 `FormatFailureCode`, all public rule diagnostic types, `DiagnosticsSummary`,
 `FormatOptions`, `FormatProfile`, `FormatLevel`, every public option union,
 `LocalizationAliases`, `ResolvedLocalizationAliases`, `RuleName`, structural
 equivalence result types, `ProjectConfig`, `SiteConfiguration`, snapshot and
-resolved-site types, and parser-function policy types as TypeScript types.
+resolved-site types, parser-function policy types, `SiteProfile`,
+`SiteProfileInterwiki`, `SiteProfileTemplate`, `SiteProfileTemplateParameter`,
+and `InterfaceText` as TypeScript types.
 It does not export filesystem configuration helpers or standalone structural
 equivalence functions.
 

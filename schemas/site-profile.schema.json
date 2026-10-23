@@ -1,0 +1,150 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://unpkg.com/wikitext-fmt/schemas/site-profile.schema.json",
+  "title": "wikitext-fmt site profile",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "name"],
+  "properties": {
+    "$schema": {},
+    "schemaVersion": { "const": 1 },
+    "name": { "type": "string", "pattern": "\\S" },
+    "apiUrl": { "$ref": "#/$defs/httpUrl" },
+    "articlePath": {
+      "allOf": [
+        { "$ref": "#/$defs/httpUrl" },
+        { "pattern": "\\$1" }
+      ]
+    },
+    "extensions": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": { "templateData": { "type": "boolean", "default": true } }
+    },
+    "interwiki": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["prefix"],
+        "properties": {
+          "prefix": { "type": "string", "pattern": "\\S" },
+          "url": { "type": "string" },
+          "language": { "type": "string" },
+          "local": { "type": "boolean" }
+        }
+      }
+    },
+    "templates": {
+      "type": "object",
+      "propertyNames": { "pattern": "\\S" },
+      "additionalProperties": { "$ref": "#/$defs/template" }
+    },
+    "formatter": { "$ref": "#/$defs/formatter" }
+  },
+  "$defs": {
+    "httpUrl": {
+      "type": "string",
+      "format": "uri",
+      "pattern": "^[hH][tT][tT][pP][sS]?://[^/@?#]+(?:[/?#]|$)",
+      "description": "Absolute HTTP(S) URL without credentials; checked by validateSiteApiUrl."
+    },
+    "interfaceText": {
+      "oneOf": [
+        { "type": "string" },
+        { "type": "object", "additionalProperties": { "type": "string" } }
+      ]
+    },
+    "stringArray": { "type": "array", "items": { "type": "string" } },
+    "nonEmptyStringArray": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "parameter": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "label": { "$ref": "#/$defs/interfaceText" },
+        "description": { "$ref": "#/$defs/interfaceText" },
+        "type": { "type": "string" },
+        "required": { "type": "boolean" },
+        "suggested": { "type": "boolean" },
+        "deprecated": { "type": ["boolean", "string"] },
+        "aliases": { "$ref": "#/$defs/stringArray" },
+        "default": { "$ref": "#/$defs/interfaceText" },
+        "example": { "$ref": "#/$defs/interfaceText" },
+        "autovalue": { "$ref": "#/$defs/interfaceText" },
+        "suggestedvalues": { "$ref": "#/$defs/stringArray" }
+      }
+    },
+    "template": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "description": { "$ref": "#/$defs/interfaceText" },
+        "params": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/parameter" }
+        },
+        "paramOrder": { "$ref": "#/$defs/stringArray" },
+        "format": { "type": "string" },
+        "sets": {},
+        "maps": {}
+      }
+    },
+    "localizationAliases": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "categoryNamespaces": { "$ref": "#/$defs/nonEmptyStringArray" },
+        "fileNamespaces": { "$ref": "#/$defs/nonEmptyStringArray" },
+        "defaultsortMagicWords": { "$ref": "#/$defs/nonEmptyStringArray" },
+        "redirectMagicWords": { "$ref": "#/$defs/nonEmptyStringArray" },
+        "imageOptionAliases": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/nonEmptyStringArray" }
+        },
+        "behaviorSwitches": {
+          "type": "object",
+          "propertyNames": {
+            "enum": ["notoc", "forcetoc", "toc", "noeditsection", "newsectionlink", "nonewsectionlink", "index", "noindex", "nogallery", "hiddencat", "nocontentconvert", "notitleconvert", "staticredirect"]
+          },
+          "additionalProperties": { "$ref": "#/$defs/nonEmptyStringArray" }
+        }
+      }
+    },
+    "formatter": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "profile": { "enum": ["default", "production"] },
+        "lineWidth": { "type": "number", "exclusiveMinimum": 0 },
+        "formatHeadings": { "type": "boolean" },
+        "formatTemplates": { "type": "boolean" },
+        "inlineTemplateSpacing": { "enum": ["auto", "compact", "spaced"] },
+        "templateParameterLayout": { "enum": ["compact", "flush", "indented"] },
+        "formatCategories": { "type": "boolean" },
+        "formatLists": { "type": "boolean" },
+        "formatFileLinks": { "type": "boolean" },
+        "formatWikilinks": { "type": "boolean" },
+        "formatExternalLinks": { "type": "boolean" },
+        "formatReferences": { "type": "boolean" },
+        "formatInterlanguageLinks": { "type": "boolean" },
+        "interlanguagePlacement": { "enum": ["preserve", "footer"] },
+        "interlanguagePrefixes": { "$ref": "#/$defs/nonEmptyStringArray" },
+        "formatSectionSpacing": { "type": "boolean" },
+        "formatBehaviorSwitches": { "type": "boolean" },
+        "formatRedirects": { "type": "boolean" },
+        "behaviorSwitchPlacement": { "enum": ["preserve", "footer"] },
+        "localizationSource": { "enum": ["builtin", "siteinfo", "custom"] },
+        "localizedSyntaxStyle": { "enum": ["preserve", "canonical-english"] },
+        "localizationAliases": { "$ref": "#/$defs/localizationAliases" },
+        "formatTables": { "type": "boolean" },
+        "tableCellSeparatorStyle": { "enum": ["auto", "split", "preserve"] },
+        "normalizeBlankLines": { "type": "boolean" },
+        "level": { "enum": ["safe", "normal", "experimental"] },
+        "htmlVoidTagStyle": { "enum": ["html5", "xhtml", "preserve"] }
+      }
+    }
+  }
+}

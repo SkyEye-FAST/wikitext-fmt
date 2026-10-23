@@ -67,3 +67,16 @@ export {
   validateProjectConfig,
   validateSiteApiUrl,
 } from "./projectConfig.js";
+export {
+  type InterfaceText,
+  loadSiteProfile,
+  normalizeSiteProfile,
+  normalizeTemplateDataResponse,
+  serializeSiteProfile,
+  type SiteProfile,
+  siteProfileFormatOptions,
+  type SiteProfileInterwiki,
+  type SiteProfileTemplate,
+  siteProfileTemplateDataUrl,
+  type SiteProfileTemplateParameter,
+} from "./siteProfile.js";

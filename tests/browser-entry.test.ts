@@ -299,6 +299,12 @@ describe("browser entry", () => {
       "classifyParserFunction",
       "loadSiteInfoAliases",
       "normalizeSiteInfoPayload",
+      "normalizeSiteProfile",
+      "serializeSiteProfile",
+      "siteProfileFormatOptions",
+      "siteProfileTemplateDataUrl",
+      "normalizeTemplateDataResponse",
+      "loadSiteProfile",
     ] as const) {
       expect(browser[name]).toBeDefined();
       expect(node[name]).toBeDefined();

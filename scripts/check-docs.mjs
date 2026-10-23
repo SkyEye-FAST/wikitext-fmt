@@ -17,6 +17,7 @@ const requiredDocs = [
   "cli.md",
   "configuration.md",
   "api.md",
+  "site-profiles.md",
   "safety-and-diagnostics.md",
   "rules.md",
   "localization.md",

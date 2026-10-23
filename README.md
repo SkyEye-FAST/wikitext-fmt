@@ -260,6 +260,7 @@ extensions do not depend on a workspace checkout.
 - [CLI reference](docs/cli.md)
 - [Configuration reference](docs/configuration.md)
 - [JavaScript and browser API](docs/api.md)
+- [Site profiles](docs/site-profiles.md)
 - [Safety and diagnostics](docs/safety-and-diagnostics.md)
 - [Formatting rules](docs/rules.md)
 - [Localization](docs/localization.md)
