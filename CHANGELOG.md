@@ -20,6 +20,8 @@ here. The project follows the pre-1.0 policy in
   space after the cell marker or attributes.
 - Multiline templates keep parameters that share a line compact, and no longer
   indent a nested template that follows other content in a value.
+- Moving a category or other footer metadata line from between two blank lines
+  no longer leaves an empty paragraph behind.
 
 ## 0.11.0 - 2026-10-23
 

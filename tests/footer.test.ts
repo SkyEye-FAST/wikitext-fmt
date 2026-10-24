@@ -148,6 +148,12 @@ describe("page footer formatting", () => {
     ).toBe("Body\n\n[[Category:A]]\n");
   });
 
+  it("does not leave two blank lines where a category line was moved", () => {
+    expect(formatWikitext("Text\n\n[[Category:A]]\n\n== B ==\nMore\n")).toBe(
+      "Text\n\n== B ==\nMore\n\n[[Category:A]]\n",
+    );
+  });
+
   it("handles localized category aliases known to the parser", () => {
     const source = "Body\n[[分類:歌曲|示例]]\n";
     expect(

@@ -596,6 +596,21 @@ export function formatPageFooter(
   if (options.behaviorSwitchPlacement === "footer") {
     for (const index of behaviorSwitchIndexes) removedIndexes.add(index);
   }
+  // A moved line between two blank lines leaves two blank lines behind, which
+  // MediaWiki renders as an empty paragraph; drop one of them.
+  for (const index of [...removedIndexes].sort((a, b) => a - b)) {
+    if (removedIndexes.has(index - 1)) continue;
+    let after = index + 1;
+    while (removedIndexes.has(after)) after++;
+    if (
+      index > 0 &&
+      after < lines.length &&
+      /^[ \t]*$/u.test(lines[index - 1]!) &&
+      /^[ \t]*$/u.test(lines[after]!)
+    ) {
+      removedIndexes.add(after);
+    }
+  }
 
   const bodyLines = lines.filter((_, index) => !removedIndexes.has(index));
   if (options.behaviorSwitchPlacement === "preserve") {

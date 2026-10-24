@@ -308,7 +308,8 @@ Body
 Certainly recognized namespace or magic-word keywords may become canonical
 English only when `localizedSyntaxStyle` requests it. Category-talk or unknown
 category-like namespaces are not moved. Categories are never sorted or
-deduplicated by title.
+deduplicated by title. When a moved line stood between two blank lines, one of
+them is removed with it, so no empty paragraph is left behind.
 
 Footer diagnostics report moved/formatted/canonicalized counts.
 
