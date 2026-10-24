@@ -153,6 +153,15 @@ describe("production parser table formatter", () => {
     expect(result.formatted).not.toMatch(/[ \t]+$/mu);
   });
 
+  it.each([
+    ["plain cells", "{|\n|-\n|A\n|\nText\n|\n<!-- note -->\n|}\n", "{|\n|-\n| A\n|\nText\n|\n<!-- note -->\n|}\n"],
+    ["cells with attributes", '{|\n|-\n| rowspan="2"|\n* Item\n|}\n', '{|\n|-\n| rowspan="2" |\n* Item\n|}\n'],
+  ])("does not add trailing whitespace to %s whose content starts on the next line", (_name, input, expected) => {
+    const result = expectProductionTable(input);
+    expect(result.formatted).toBe(expected);
+    expect(result.formatted).not.toMatch(/[ \t]+$/mu);
+  });
+
   it("removes an existing lone layout space from empty cells", () => {
     const result = expectProductionTable("{|\n|-\n| \n! \n|}\n");
     expect(result.formatted).toBe("{|\n|-\n|\n!\n|}\n");

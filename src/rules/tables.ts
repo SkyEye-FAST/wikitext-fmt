@@ -583,6 +583,8 @@ function removeTrailingLayoutSpace(value: string): string {
 function renderCellContent(content: string): string {
   if (!content) return "";
   const withoutLayoutSpace = removeLeadingLayoutSpace(content);
+  // Content that starts on the next line needs no space after the marker.
+  if (/^\r?\n/u.test(withoutLayoutSpace)) return withoutLayoutSpace;
   return withoutLayoutSpace ? ` ${withoutLayoutSpace}` : "";
 }
 

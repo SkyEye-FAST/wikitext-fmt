@@ -16,6 +16,8 @@ here. The project follows the pre-1.0 policy in
   MediaWiki could render as an empty paragraph, and keeps single-line templates
   attached to a heading, such as anchors above it or a hatnote or `{{Reflist}}`
   below it.
+- Table cells whose content starts on the next line no longer get a trailing
+  space after the cell marker or attributes.
 
 ## 0.11.0 - 2026-10-23
 

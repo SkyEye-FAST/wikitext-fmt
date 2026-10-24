@@ -749,7 +749,8 @@ space after the parser-confirmed marker:
 ! Header
 ```
 
-Empty cells remain `|` or `!` with no trailing whitespace. Parser-confirmed
+Empty cells remain `|` or `!` with no trailing whitespace, as do cells whose
+content starts on the next line, such as a list. Parser-confirmed
 cell attributes use one layout space after the marker and on both sides of the
 attribute/content separator:
 
