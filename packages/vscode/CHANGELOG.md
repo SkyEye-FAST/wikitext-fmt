@@ -5,6 +5,16 @@ Core-only changes remain in the root changelog.
 
 ## Unreleased
 
+### Fixed
+
+- The bundled formatter keeps underscores in internal links without a display
+  label; no longer adds blank lines next to comments or between a heading and
+  its anchor, hatnote, or `{{Reflist}}` templates; leaves no trailing space
+  before table cell content on the next line; keeps template parameters that
+  share a line compact; stops indenting templates that follow other content in
+  a value; and no longer leaves an empty paragraph where a category line was
+  moved to the footer.
+
 ## 0.6.0 - 2026-10-22
 
 ### Changed
