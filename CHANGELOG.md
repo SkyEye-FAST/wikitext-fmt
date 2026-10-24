@@ -6,6 +6,8 @@ here. The project follows the pre-1.0 policy in
 
 ## Unreleased
 
+## 0.11.1 - 2026-10-24
+
 ### Fixed
 
 - Site profiles built from `formatversion=2` siteinfo now include namespace

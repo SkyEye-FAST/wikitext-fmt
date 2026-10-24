@@ -5,6 +5,8 @@ Core-only changes remain in the root changelog.
 
 ## Unreleased
 
+## 0.6.1 - 2026-10-24
+
 ### Fixed
 
 - The bundled formatter keeps underscores in internal links without a display
