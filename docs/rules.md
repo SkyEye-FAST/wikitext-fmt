@@ -172,7 +172,9 @@ and MediaWiki ignores the whitespace involved:
   and indentation exactly as before.
 - A multiline ordinary template nested in another template's parameter is
   indented by two spaces per enclosing ordinary template, including its
-  closing `}}`. Parser functions such as `{{#if:}}` add no level. A template
+  closing `}}`. Parser functions such as `{{#if:}}` add no level, and a
+  template that follows other content in the value, such as list items, is
+  not indented. A template
   inside another template or parser function whose closing `}}` and
   line-start parameters already share a deeper indentation, as in template
   code, keeps that indentation; top-level templates always use the configured
@@ -229,11 +231,12 @@ than a wrapping target:
 - mixed named/anonymous templates never use the spaced inline style; safe
   compact candidates preserve anonymous bytes and compact only named syntax,
   otherwise the original boundary spelling is retained. In a mixed template
-  that stays multiline, a named parameter that starts its own line keeps that
-  line and uses the `templateParameterLayout` spacing (`| name = value` or
+  that stays multiline, a named parameter that starts its own line and is not
+  followed by another parameter on that line keeps that line and uses the `templateParameterLayout` spacing (`| name = value` or
   `|name=value`), with alignment kept as above; the indentation before the
   next delimiter is kept as written because whitespace before a delimiter may
-  belong to an anonymous value.
+  belong to an anonymous value. Parameters that share a line stay compact, and
+  a multiline value keeps its leading line break.
 
 For example, `{{Lang` followed by `|ja|シエラ}}` on the next line becomes
 `{{Lang|ja|シエラ}}` when the compact form fits. A long positional template

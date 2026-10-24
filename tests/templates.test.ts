@@ -176,6 +176,54 @@ describe("nested multiline template formatting", () => {
     );
   });
 
+  it("does not indent a template that follows other content in a value", () => {
+    const source = `{{Hide
+| title = More
+| content =
+* First
+{{Dialog
+|title=Hi
+|no=Wait
+}}
+* Second
+}}`;
+
+    expect(expectStableTemplateFormatting(source, "{{Hide")).toBe(
+      `{{Hide
+| title = More
+| content =
+* First
+{{Dialog
+| title = Hi
+| no = Wait
+}}
+* Second
+}}`,
+    );
+  });
+
+  it("keeps parameters that share a line compact beside anonymous ones", () => {
+    const source = `{{List|anon
+|a=1|b=2
+<!-- c -->|c=
+Text
+
+More
+|d=4
+}}`;
+
+    expect(expectStableTemplateFormatting(source, "{{List")).toBe(
+      `{{List|anon
+|a=1|b=2
+<!-- c -->|c=
+Text
+
+More
+| d = 4
+}}`,
+    );
+  });
+
   it("does not indent templates nested only in parser functions", () => {
     const source = `{{#if: x |
 {{Infobox

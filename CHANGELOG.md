@@ -18,6 +18,8 @@ here. The project follows the pre-1.0 policy in
   below it.
 - Table cells whose content starts on the next line no longer get a trailing
   space after the cell marker or attributes.
+- Multiline templates keep parameters that share a line compact, and no longer
+  indent a nested template that follows other content in a value.
 
 ## 0.11.0 - 2026-10-23
 

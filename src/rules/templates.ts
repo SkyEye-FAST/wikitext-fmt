@@ -382,19 +382,21 @@ function normalizeNamedArgumentsInPlace(
 ): { value?: string; reason?: string } {
   const alignment = multilineKeyAlignment(raw, nodeStart, args);
   const replacements = args
-    .filter((arg) => !arg.anon)
-    .map((arg) => {
+    .map((arg, index) => ({ arg, next: args[index + 1] }))
+    .filter(({ arg }) => !arg.anon)
+    .map(({ arg, next }) => {
       const key = trimAsciiLayoutWhitespace(arg.firstChild.toString());
       if (!key) return undefined;
       const start = arg.getAbsoluteIndex() - nodeStart;
       const rawValue = arg.lastChild.toString();
-      const lineStart = startsSourceLine(raw, nodeStart, arg);
-      const normalizedValue = normalizeNamedArgumentValue(
-        rawValue,
-        lineStart
-          ? { templateIndent: `${indent}${TEMPLATE_NEST_INDENT}` }
-          : undefined,
-      );
+      // Parameters sharing a line, like `|a=1|b=2`, stay compact together.
+      const lineStart =
+        startsSourceLine(raw, nodeStart, arg) &&
+        (next === undefined || startsSourceLine(raw, nodeStart, next));
+      // A value the author started on the next line keeps that line break.
+      const normalizedValue = normalizeNamedArgumentValue(rawValue, {
+        templateIndent: `${indent}${TEMPLATE_NEST_INDENT}`,
+      });
       // Keep one line break before the next delimiter, with the indentation
       // the author gave that delimiter.
       const trailing = /[ \t\r\n]*$/u.exec(rawValue)![0];
@@ -981,11 +983,33 @@ function closestTemplateAncestor(node: TemplateNode): TemplateNode | undefined {
     | undefined;
 }
 
-/** Ordinary templates enclosing a node; parser functions add no indentation. */
+/**
+ * Whether a template follows other content in its enclosing parameter value,
+ * such as a message box between list items of a collapsible section's text.
+ */
+function followsContentInValue(node: TemplateNode): boolean {
+  const parameter = node.parentNode?.closest("parameter") as
+    | ParameterToken
+    | undefined;
+  if (!parameter) return false;
+  const value = parameter.lastChild;
+  const before = value
+    .toString()
+    .slice(0, node.getAbsoluteIndex() - value.getAbsoluteIndex())
+    .replace(/<!--[\s\S]*?-->/gu, "");
+  return before.trim() !== "";
+}
+
+/**
+ * Ordinary templates enclosing a node; parser functions add no indentation,
+ * and neither do templates placed within running content, which sits at the
+ * start of the line.
+ */
 function templateNesting(node: TemplateNode): TemplateNesting {
   let depth = 0;
   let ancestor = closestTemplateAncestor(node);
   const honorSourceIndent = ancestor !== undefined;
+  if (followsContentInValue(node)) return { depth, honorSourceIndent };
   for (; ancestor; ancestor = closestTemplateAncestor(ancestor)) {
     if (ancestor.type === "template") depth++;
   }
