@@ -96,7 +96,7 @@ function normalizeLocalizationAliasesPayload(
     : [];
   for (const alias of namespaceAliases) {
     if (!isRecord(alias)) continue;
-    const names = strings([alias["*"], alias.name]);
+    const names = strings([alias["*"], alias.alias, alias.name]);
     if (alias.id === 14) categoryNamespaces.push(...names);
     if (alias.id === 6) fileNamespaces.push(...names);
   }

@@ -40,6 +40,26 @@ describe("MediaWiki localization data", () => {
     });
   });
 
+  it("reads formatversion=2 namespace aliases", () => {
+    expect(
+      normalizeSiteInfoPayload({
+        query: {
+          namespaces: [
+            { id: 6, canonical: "File", name: "File" },
+            { id: 14, canonical: "Category", name: "Category" },
+          ],
+          namespacealiases: [
+            { id: 6, alias: "文件" },
+            { id: 14, alias: "分类" },
+          ],
+        },
+      }),
+    ).toMatchObject({
+      categoryNamespaces: ["Category", "分类"],
+      fileNamespaces: ["File", "文件"],
+    });
+  });
+
   it("collects only language interwiki flags in API order", () => {
     const data = normalizeSiteInfoFormattingPayload({
       query: {

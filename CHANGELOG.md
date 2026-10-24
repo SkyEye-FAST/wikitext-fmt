@@ -6,6 +6,11 @@ here. The project follows the pre-1.0 policy in
 
 ## Unreleased
 
+### Fixed
+
+- Site profiles built from `formatversion=2` siteinfo now include namespace
+  aliases, such as `分类` for categories.
+
 ## 0.11.0 - 2026-10-23
 
 ### Added
