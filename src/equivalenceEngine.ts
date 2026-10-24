@@ -1001,6 +1001,7 @@ function canonicalizeDocumentSyntax(
     output = formatSectionSpacing(
       output,
       session.createContext(output),
+      protectedText.restore,
     ).formatted;
   }
   if (options.normalizeBlankLines) output = normalizeBlankLines(output);

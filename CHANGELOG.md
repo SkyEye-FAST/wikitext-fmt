@@ -12,6 +12,10 @@ here. The project follows the pre-1.0 policy in
   aliases, such as `分类` for categories.
 - Ordinary internal links without a display label keep their underscores,
   because the target is also the displayed text.
+- Section spacing no longer inserts a blank line next to a comment line, which
+  MediaWiki could render as an empty paragraph, and keeps single-line templates
+  attached to a heading, such as anchors above it or a hatnote or `{{Reflist}}`
+  below it.
 
 ## 0.11.0 - 2026-10-23
 

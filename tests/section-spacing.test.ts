@@ -151,14 +151,13 @@ describe("section spacing", () => {
     ["numbered list", "# Item"],
     ["definition list", "; Term"],
     ["indented content", ": Detail"],
-    ["template", "{{Infobox}}"],
+    ["template after text", "Text\n{{Clear}}"],
     ["table", "{| class=\"wikitable\"\n|-\n| Cell\n|}"],
     ["category", "[[Category:A]]"],
     ["DEFAULTSORT", "{{DEFAULTSORT:A}}"],
     ["interlanguage link", "[[en:Example]]"],
     ["file link", "[[File:A.png|thumb]]"],
     ["behavior switch", "__NOTOC__"],
-    ["comment", "<!-- comment -->"],
     ["HTML", "<div>Text</div>"],
     ["extension block", "<nowiki>Text</nowiki>"],
     ["redirect-like line", "#REDIRECT [[Target]]"],
@@ -177,6 +176,45 @@ describe("section spacing", () => {
     expect(formatSectionSpacing(`== A ==\n${block}\n`).formatted).toBe(
       `== A ==\n${block}\n`,
     );
+  });
+
+  it.each([
+    ["single-line", "<!-- comment -->"],
+    ["multiline", "<!-- first\nsecond -->"],
+  ])("does not separate headings from an adjacent %s comment", (_name, comment) => {
+    // MediaWiki drops a comment-only line with one newline; a blank line next
+    // to it would render as an empty paragraph.
+    for (const source of [
+      `<!-- note -->\n=== A ===\n\nText\n`,
+      `Text\n\n${comment}\n== A ==\n`,
+      `== A ==\n${comment}\n\nText\n\n== B ==\n\nText\n\n== C ==\n\nText\n`,
+    ]) {
+      expect(formatSectionSpacing(source).formatted).toBe(source);
+      // The full pipeline protects comments as placeholders first.
+      expect(formatWikitext(source, { profile: "production" })).toBe(source);
+    }
+  });
+
+  it.each([
+    ["an anchor at the start", "{{Anchor|A}}\n== A ==\n\nText\n"],
+    ["an anchor after a blank line", "Text\n\n{{Anchor|A}}\n== A ==\n\nText\n"],
+    ["anchors after a heading", "== A ==\n\nText\n\n{{Anchor|B}}\n{{Anchor|b}}\n== B ==\n\nText\n"],
+    ["a hatnote", "Text\n\n== A ==\n{{Main|B}}\nText\n\n== B ==\n\nText\n\n== C ==\n\nText\n"],
+    ["a reference list", "== A ==\n\nText\n\n== B ==\n\nText\n\n== Notes ==\n{{Reflist|group=n}}\n"],
+  ])("keeps a single-line template attached to a heading: %s", (_name, source) => {
+    expect(formatSectionSpacing(source).formatted).toBe(source);
+  });
+
+  it("still separates templates that are not attached to a heading", () => {
+    for (const [input, expected] of [
+      ["Text\n{{Clear}}\n== A ==\n", "Text\n{{Clear}}\n\n== A ==\n"],
+      ["{{DEFAULTSORT:A}}\n== A ==\n", "{{DEFAULTSORT:A}}\n\n== A ==\n"],
+      ["{{#if:x|y}}\n== A ==\n", "{{#if:x|y}}\n\n== A ==\n"],
+      ["{{A}} text\n== A ==\n", "{{A}} text\n\n== A ==\n"],
+      ["{{A}}{{B}}\n== A ==\n", "{{A}}{{B}}\n\n== A ==\n"],
+    ]) {
+      expect(formatSectionSpacing(input!).formatted).toBe(expected);
+    }
   });
 
   it("handles protected table and extension blocks through the full pipeline", () => {
@@ -257,11 +295,11 @@ describe("section spacing", () => {
 
   it("reports inserted spacing diagnostics", () => {
     const result = formatWikitextDetailedResult(
-      "{{Infobox}}\n==Title==\n* Item\n==Next==\n\nText\n== Last ==\n\nMore\n",
+      "Intro\n==Title==\n* Item\n==Next==\n\nText\n== Last ==\n\nMore\n",
       options,
     );
     expect(result.formatted).toBe(
-      "{{Infobox}}\n\n== Title ==\n\n* Item\n\n== Next ==\n\nText\n\n== Last ==\n\nMore\n",
+      "Intro\n\n== Title ==\n\n* Item\n\n== Next ==\n\nText\n\n== Last ==\n\nMore\n",
     );
     expect(result.sectionSpacingDiagnostics).toEqual({
       sectionSpacingBeforeHeadingsInserted: 3,

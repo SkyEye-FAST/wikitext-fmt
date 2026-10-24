@@ -572,8 +572,21 @@ while a page whose headings are mostly followed by a blank line also gets one
 after `== Heading ==`.
 
 Adjacent content may be prose, lists, templates, tables, categories,
-DEFAULTSORT or interlanguage links, file links, behavior switches, comments,
-HTML/extensions, redirects, or protected block placeholders. Consecutive
+DEFAULTSORT or interlanguage links, file links, behavior switches,
+HTML/extensions, redirects, or protected block placeholders. Two kinds of
+neighbor stay attached:
+
+- a comment line, because MediaWiki removes a comment-only line together with
+  one adjacent newline, so an inserted blank line could render as an empty
+  paragraph;
+- a line holding exactly one ordinary template call (not a parser function or a
+  magic word such as `{{DEFAULTSORT:…}}`) directly below a heading, like a
+  hatnote or `{{Reflist}}`, or a run of such lines directly above a heading
+  that is itself set off by a blank line, comment, heading, or the page start,
+  like anchors. These lines also do not count toward the page's habit after
+  headings.
+
+Consecutive
 level 1–6 headings stay together. Existing blank lines are not removed; larger
 runs remain the responsibility of `blankLines`. Heading marker normalization
 belongs to `headings`. Diagnostics count insertions before and after headings.

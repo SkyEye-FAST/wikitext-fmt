@@ -415,6 +415,7 @@ function formatNormalizedWikitextDetailedResult(
       const sectionSpacing = formatSectionSpacing(
         output,
         sectionSpacingContext,
+        protectedText.restore,
       );
       output = sectionSpacing.formatted;
       diagnostics.sectionSpacingDiagnostics = sectionSpacing.diagnostics;
