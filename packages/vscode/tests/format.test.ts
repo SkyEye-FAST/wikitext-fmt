@@ -457,7 +457,7 @@ describe("VS Code formatter detailed behavior", () => {
 
   it("honors core ignore markers without a VS Code-specific setting", () => {
     const marker = "<!-- wikitext-fmt-ignore -->";
-    const source = `${marker}\n[[Keep_Underscore]] [[Format_After]]\n`;
+    const source = `${marker}\n[[Keep_Underscore|x]] [[Format_After|x]]\n`;
 
     expect(
       getEditorDocumentFormattingResult(source, {
@@ -466,7 +466,7 @@ describe("VS Code formatter detailed behavior", () => {
       }),
     ).toMatchObject({
       kind: "changed",
-      formatted: `${marker}\n[[Keep_Underscore]] [[Format After]]\n`,
+      formatted: `${marker}\n[[Keep_Underscore|x]] [[Format After|x]]\n`,
       changed: true,
     });
   });

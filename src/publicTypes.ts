@@ -136,6 +136,7 @@ export type WikilinkSkipReason =
   | "category-assignment"
   | "interwiki-or-interlanguage"
   | "fragment-only"
+  | "unlabelled-link"
   | "unstable-parser-target"
   | "unsafe-parent";
 

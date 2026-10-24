@@ -10,6 +10,8 @@ here. The project follows the pre-1.0 policy in
 
 - Site profiles built from `formatversion=2` siteinfo now include namespace
   aliases, such as `分类` for categories.
+- Ordinary internal links without a display label keep their underscores,
+  because the target is also the displayed text.
 
 ## 0.11.0 - 2026-10-23
 

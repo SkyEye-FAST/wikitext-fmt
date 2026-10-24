@@ -416,7 +416,8 @@ normalized; an explicit display label and section fragment are preserved
 byte-for-byte. Empty pipe-trick labels, leading colons, namespace spelling,
 capitalization, slashes, link trails, and surrounding prose are preserved.
 Consecutive underscores become consecutive ASCII spaces and are not collapsed
-or trimmed.
+or trimmed. A link without a display label, such as `[[Page_Name]]`, is skipped
+(reason `unlabelled-link`), because its target is also the displayed text.
 
 Embedded file/image nodes and category assignments remain owned by their
 specialized rules. Configured interlanguage prefixes and links classified as

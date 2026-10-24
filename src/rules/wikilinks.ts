@@ -12,6 +12,7 @@ export type WikilinkSkipReason =
   | "category-assignment"
   | "interwiki-or-interlanguage"
   | "fragment-only"
+  | "unlabelled-link"
   | "unstable-parser-target"
   | "unsafe-parent";
 
@@ -155,6 +156,16 @@ export function classifyWikilinkNode(
   const fragmentIndex = target.indexOf("#");
   if (fragmentIndex === 0 || target.length === 0) {
     return { eligible: false, reason: "fragment-only" };
+  }
+  // Without a label MediaWiki displays the target as written, underscores
+  // included, so normalizing it would change the rendered text.
+  if (
+    node.type === "link" &&
+    !node.childNodes.some(
+      (child) => child.type === "link-text" && child.toString() !== "",
+    )
+  ) {
+    return { eligible: false, reason: "unlabelled-link" };
   }
   return { eligible: true, targetNode, target, fragmentIndex };
 }

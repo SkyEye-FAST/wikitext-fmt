@@ -22,7 +22,6 @@ const directOptions = {
 describe("ordinary wikilink formatting", () => {
   it.each([
     ["[[a_b_c|a]]", "[[a b c|a]]"],
-    ["[[a_b_c]]", "[[a b c]]"],
     ["[[a_b_c|a_b_c]]", "[[a b c|a_b_c]]"],
     ["[[Help:a_b_c|help]]", "[[Help:a b c|help]]"],
     ["[[Template:a_b_c|template]]", "[[Template:a b c|template]]"],
@@ -32,18 +31,26 @@ describe("ordinary wikilink formatting", () => {
       "[[Page Name#Section_Name|label]]",
     ],
     ["[[#Section_Name]]", "[[#Section_Name]]"],
-    ["[[Page_Name|]]", "[[Page Name|]]"],
     [
       "[[:Category:Some_Name|label]]",
       "[[:Category:Some Name|label]]",
     ],
     ["#REDIRECT [[Page_Name]]", "#REDIRECT [[Page Name]]"],
-    ["[[a__b]]", "[[a  b]]"],
-    ["[[a___b]]", "[[a   b]]"],
-    ["[[ _Page_ ]]", "[[  Page  ]]"],
-    ["[[Page_Name]]trail", "[[Page Name]]trail"],
+    ["[[a__b|x]]", "[[a  b|x]]"],
+    ["[[a___b|x]]", "[[a   b|x]]"],
+    ["[[ _Page_ |x]]", "[[  Page  |x]]"],
+    ["[[Page_Name|x]]trail", "[[Page Name|x]]trail"],
   ])("normalizes only the page-title portion of %s", (input, expected) => {
     expect(formatWikitext(input)).toBe(expected);
+  });
+
+  it.each([
+    "[[a_b_c]]",
+    "[[Page_Name|]]",
+    "[[Page_Name#Section_Name]]",
+    "[[Page_Name]]trail",
+  ])("keeps unlabelled link %s, whose target is displayed", (input) => {
+    expect(formatWikitext(input)).toBe(input);
   });
 
   it("preserves non-target wikilink fields and excluded structures", () => {
@@ -63,16 +70,16 @@ describe("ordinary wikilink formatting", () => {
   it("formats ordinary links in supported surrounding structures", () => {
     const input = [
       "Prose [[Page_Name|label]] trail",
-      "* [[List_Page]]",
-      "== [[Heading_Page]] ==",
-      "{{T|link=[[Parameter_Page]]}}",
+      "* [[List_Page|list]]",
+      "== [[Heading_Page|heading]] ==",
+      "{{T|link=[[Parameter_Page|parameter]]}}",
       "",
     ].join("\n");
     const expected = [
       "Prose [[Page Name|label]] trail",
-      "* [[List Page]]",
-      "== [[Heading Page]] ==",
-      "{{T|link=[[Parameter Page]]}}",
+      "* [[List Page|list]]",
+      "== [[Heading Page|heading]] ==",
+      "{{T|link=[[Parameter Page|parameter]]}}",
       "",
     ].join("\n");
     expect(formatWikitext(input, { formatTemplates: false })).toBe(expected);
@@ -94,11 +101,11 @@ describe("ordinary wikilink formatting", () => {
   });
 
   it("is disabled explicitly and by the safe-only reliability ceiling", () => {
-    expect(formatWikitext("[[Page_Name]]", { formatWikilinks: false })).toBe(
-      "[[Page_Name]]",
+    expect(formatWikitext("[[Page_Name|x]]", { formatWikilinks: false })).toBe(
+      "[[Page_Name|x]]",
     );
-    expect(formatWikitext("[[Page_Name]]", { level: "safe" })).toBe(
-      "[[Page_Name]]",
+    expect(formatWikitext("[[Page_Name|x]]", { level: "safe" })).toBe(
+      "[[Page_Name|x]]",
     );
   });
 
@@ -109,9 +116,10 @@ describe("ordinary wikilink formatting", () => {
 
   it("reports focused eligibility, replacement, fragment, and exclusion counts", () => {
     const input = [
-      "[[Page_Name]]",
-      "[[Page_Name#Section_Name]]",
+      "[[Page_Name|x]]",
+      "[[Page_Name#Section_Name|x]]",
       "[[Already Canonical]]",
+      "[[Unlabelled_Name]]",
       "[[File:Example_Name.png|thumb]]",
       "[[Category:Some_Name|Sort_key]]",
       "[[ja:Some_Page]]",
@@ -124,17 +132,18 @@ describe("ordinary wikilink formatting", () => {
       formatTemplates: false,
     });
     expect(result.wikilinkDiagnostics).toEqual({
-      wikilinksInspected: 7,
-      wikilinksEligible: 3,
+      wikilinksInspected: 8,
+      wikilinksEligible: 2,
       wikilinksFormatted: 2,
       underscoresReplaced: 2,
       wikilinksWithFragmentsFormatted: 1,
-      wikilinksSkippedUnsafe: 4,
+      wikilinksSkippedUnsafe: 6,
       skipReasons: {
         "file-link": 1,
         "category-assignment": 1,
         "interwiki-or-interlanguage": 1,
         "fragment-only": 1,
+        "unlabelled-link": 2,
       },
     });
   });
@@ -194,7 +203,7 @@ describe("ordinary wikilink formatting", () => {
   it("resolves many parser ranges without per-link absolute-index walks", () => {
     const source = Array.from(
       { length: 1_000 },
-      (_value, index) => `[[Repeated_Page_${index}]]`,
+      (_value, index) => `[[Repeated_Page_${index}|x]]`,
     ).join("\n");
     const context = session.createContext(source);
     for (const node of context.root.querySelectorAll(
@@ -220,7 +229,7 @@ describe("wikilink structural equivalence", () => {
   const options = resolveOptions();
 
   it.each([
-    ["[[Page_Name]]", "[[Page Name]]"],
+    ["[[Page_Name|label]]", "[[Page Name|label]]"],
     [
       "[[Page_Name#Section_Name|label]]",
       "[[Page Name#Section_Name|label]]",
@@ -229,7 +238,7 @@ describe("wikilink structural equivalence", () => {
       "{{T|link=[[Page_Name|label]]}}",
       "{{T|link=[[Page Name|label]]}}",
     ],
-    ["== [[Page_Name]] ==", "== [[Page Name]] =="],
+    ["== [[Page_Name|label]] ==", "== [[Page Name|label]] =="],
     ["#REDIRECT [[Page_Name]]", "#REDIRECT [[Page Name]]"],
   ])("accepts title-only underscore normalization", (before, after) => {
     expect(
@@ -255,6 +264,7 @@ describe("wikilink structural equivalence", () => {
       "[[File:Example_Name.png|thumb|Caption text]]",
     ],
     ["interlanguage targets", "[[ja:Some_Page]]", "[[ja:Some Page]]"],
+    ["unlabelled targets", "[[Page_Name]]", "[[Page Name]]"],
   ])("keeps %s strict", (_name, before, after) => {
     expect(
       verifyStructuralEquivalence(before, after, config, "document", options),
@@ -264,8 +274,8 @@ describe("wikilink structural equivalence", () => {
   it("keeps wikilink targets strict when the rule is disabled", () => {
     expect(
       verifyStructuralEquivalence(
-        "[[Page_Name]]",
-        "[[Page Name]]",
+        "[[Page_Name|label]]",
+        "[[Page Name|label]]",
         config,
         "document",
         resolveOptions({ formatWikilinks: false }),
